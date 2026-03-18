@@ -133,15 +133,18 @@ def plot_workflow_graph(
     node_type = node.get("type", "node")
     icons = {
         "agent": "✨",
+        "workflow": "🔄",
         "join": "🔀",
     }
     icon = icons.get(node_type, "")
+    type_display = node_type.title()
     node_label = f"{icon} {node_name}" if icon else node_name
 
     if is_conditional:
       dot.node(
           node_name,
           node_label,
+          tooltip=type_display,
           shape="diamond",
           style="filled",
           fillcolor=fillcolor,
@@ -153,6 +156,7 @@ def plot_workflow_graph(
       dot.node(
           node_name,
           node_label,
+          tooltip=type_display,
           shape="oval",
           style="filled",
           fillcolor=fillcolor,
@@ -160,7 +164,11 @@ def plot_workflow_graph(
       )
     else:
       dot.node(
-          node_name, node_label, style="rounded,filled", fillcolor=fillcolor
+          node_name,
+          node_label,
+          tooltip=type_display,
+          style="rounded,filled",
+          fillcolor=fillcolor,
       )
 
   # Add edges

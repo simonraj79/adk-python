@@ -91,7 +91,10 @@ def serialize_node(node: Any) -> dict[str, Any]:
       if agent is not None:
         result = serialize_agent(agent)
         if "type" not in result:
-          result["type"] = "agent"
+          if getattr(agent, "graph", None) is not None:
+            result["type"] = "workflow"
+          else:
+            result["type"] = "agent"
         return result
     except AttributeError:
       pass
@@ -99,9 +102,12 @@ def serialize_node(node: Any) -> dict[str, Any]:
   if hasattr(node, "model_fields"):
     result = serialize_agent(node)
     if "type" not in result:
-      result["type"] = NODE_TYPE_MAP.get(
-          class_name, "agent" if "Agent" in class_name else "node"
-      )
+      if getattr(node, "graph", None) is not None:
+        result["type"] = "workflow"
+      else:
+        result["type"] = NODE_TYPE_MAP.get(
+            class_name, "agent" if "Agent" in class_name else "node"
+        )
     return result
 
   # Get node type from mapping or default to 'node'
