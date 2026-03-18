@@ -65,17 +65,6 @@ class Edge(BaseModel):
     super().__init__(from_node=from_node, to_node=to_node, **kwargs)
 
 
-def _is_routing_map(item: tuple[Any, ...]) -> bool:
-  """Checks if a tuple edge item uses the routing map syntax.
-
-  A routing map is a 2-tuple where the second element is a dict
-  mapping RouteValue keys to NodeLike values.
-  """
-  if len(item) != 2:
-    return False
-  return isinstance(item[1], dict)
-
-
 def _expand_routing_map(
     from_element: ChainElement,
     routing_map: RoutingMap,
@@ -136,6 +125,42 @@ def _expand_routing_map(
   return expanded
 
 
+def _nodes_from_routing_map(
+    routing_map: RoutingMap,
+) -> list[NodeLike]:
+  """Extracts all target nodes from a routing map, flattening fan-out tuples.
+
+  Args:
+      routing_map: A dict mapping route values to destination nodes.
+
+  Returns:
+      A flat list of all NodeLike targets referenced in the map.
+  """
+  nodes: list[NodeLike] = []
+  for target in routing_map.values():
+    if isinstance(target, tuple):
+      nodes.extend(target)
+    else:
+      nodes.append(target)
+  return nodes
+
+
+def _flatten_element(
+    element: NodeLike | tuple[NodeLike, ...] | RoutingMap,
+) -> list[NodeLike]:
+  """Flattens a chain element into a list of individual nodes.
+
+  - A single NodeLike is wrapped in a list.
+  - A tuple of NodeLike is converted to a list.
+  - A RoutingMap (dict) has its target nodes extracted and flattened.
+  """
+  if isinstance(element, dict):
+    return _nodes_from_routing_map(element)
+  if isinstance(element, tuple):
+    return list(element)
+  return [element]
+
+
 class WorkflowGraph(BaseModel):
   """A workflow graph."""
 
@@ -187,57 +212,45 @@ class WorkflowGraph(BaseModel):
       if not isinstance(item, tuple):
         raise ValueError(f'Invalid edge type: {type(item)}')
 
-      # Routing map syntax: (source, {route: target, ...})
-      if _is_routing_map(item):
-        for from_element, to_element, route in _expand_routing_map(
-            item[0], item[1]
-        ):
-          from_node_list = (
-              list(from_element)
-              if isinstance(from_element, tuple)
-              else [from_element]
-          )
-          to_node_list = (
-              list(to_element)
-              if isinstance(to_element, tuple)
-              else [to_element]
-          )
-          for from_node in from_node_list:
-            for to_node in to_node_list:
+      # Chain with potential fan-in/fan-out and inline routing maps.
+      # A routing map (dict) in a chain behaves like a fan-out tuple
+      # but with conditioned incoming edges.
+      for i in range(len(item) - 1):
+        from_el = item[i]
+        to_el = item[i + 1]
+
+        if isinstance(to_el, dict):
+          # to_el is a routing map: create conditioned edges.
+          if isinstance(from_el, dict):
+            raise ValueError(
+                'Consecutive routing maps are not allowed in a chain.'
+                ' Split them into separate edge items.'
+            )
+          from_chain_el = from_el
+          for exp_from, exp_to, route in _expand_routing_map(
+              from_chain_el, to_el
+          ):
+            for from_node in _flatten_element(exp_from):
+              for to_node in _flatten_element(exp_to):
+                graph_edges.append(
+                    Edge(
+                        from_node=get_node(from_node),
+                        to_node=get_node(to_node),
+                        route=route,
+                    )
+                )
+        else:
+          # Unconditional edges. _flatten_element handles dicts
+          # (fan-in from routing map values) and tuples (fan-in/out).
+          for from_node in _flatten_element(from_el):
+            for to_node in _flatten_element(to_el):
               graph_edges.append(
                   Edge(
                       from_node=get_node(from_node),
                       to_node=get_node(to_node),
-                      route=route,
+                      route=None,
                   )
               )
-        continue
-
-      # Chain with potential fan-in/fan-out
-      edges_to_process: list[tuple[ChainElement, ChainElement, None]] = []
-      for i in range(len(item) - 1):
-        edges_to_process.append((item[i], item[i + 1], None))
-
-      for from_nodes_item, to_nodes_item, route in edges_to_process:
-        from_node_list = (
-            list(from_nodes_item)
-            if isinstance(from_nodes_item, tuple)
-            else [from_nodes_item]
-        )
-        to_node_list = (
-            list(to_nodes_item)
-            if isinstance(to_nodes_item, tuple)
-            else [to_nodes_item]
-        )
-        for from_node in from_node_list:
-          for to_node in to_node_list:
-            graph_edges.append(
-                Edge(
-                    from_node=get_node(from_node),
-                    to_node=get_node(to_node),
-                    route=route,
-                )
-            )
     return WorkflowGraph(edges=graph_edges)
 
   def model_post_init(self, context: Any) -> None:
@@ -369,6 +382,6 @@ class WorkflowGraph(BaseModel):
     self._detect_unconditional_cycles(node_names)
 
 
-ChainElement = NodeLike | tuple[NodeLike, ...]
+ChainElement = NodeLike | tuple[NodeLike, ...] | RoutingMap
 
-EdgeItem = Edge | tuple[ChainElement, RoutingMap] | tuple[ChainElement, ...]
+EdgeItem = Edge | tuple[ChainElement, ...]
