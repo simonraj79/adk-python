@@ -138,7 +138,7 @@ task_agent = LlmAgent(
 
 ### Instructions
 
-Dynamic instructions with placeholders resolved from session state:
+Dynamic instructions with placeholders resolved from session state. **`{var}` templates only resolve from `ctx.state` — `node_input` is NOT available in templates.** To use predecessor data in instructions, store it in state first (via `Event(state={...})` or `output_key`):
 
 ```python
 agent = LlmAgent(

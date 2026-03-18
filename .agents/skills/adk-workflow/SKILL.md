@@ -249,10 +249,10 @@ from pydantic import BaseModel, Field
 class InputCategory(BaseModel):
   category: Literal["question", "statement", "other"]
 
-# Agent receives node_input from predecessor, outputs structured dict downstream
+# Agent receives node_input as user message, outputs structured dict downstream
 classify_input = Agent(
     name="classify_input",
-    instruction='Classify this input: {user_input}',
+    instruction='Classify the user input into one of the categories.',
     output_schema=InputCategory,  # Structured output for routing
     output_key="category",        # Also store in state
 )
@@ -274,7 +274,7 @@ summarizer = Agent(
 
 **How LLM agents receive input — `node_input` vs state:**
 
-LLM agents get input two ways: `node_input` (predecessor output, becomes the user message the LLM sees) and state (`{var}` templates in the instruction). Use both together:
+LLM agents get input two ways: `node_input` (predecessor output, becomes the user message the LLM sees) and state (`{var}` templates in the instruction resolve **only** from `ctx.state`, never from `node_input`). To use predecessor data in instruction templates, first store it in state via `Event(state={...})` or `output_key`:
 
 | Scenario | Use `node_input` | Use state `{var}` |
 |----------|-----------------|-------------------|
@@ -412,6 +412,21 @@ my_workflow/
   agent.py       # root_agent = Workflow(...)
 ```
 
+Every `agent.py` should include a module docstring describing what the agent does and sample queries for testing:
+
+```python
+"""Smart Briefing Generator.
+
+Generates executive briefings by researching multiple angles of a topic
+in parallel, writing a synthesis, and iterating with a reviewer.
+
+Sample queries:
+  - "quantum computing"
+  - "the future of remote work"
+  - "CRISPR gene editing"
+"""
+```
+
 ## Testing Agents
 
 Test agents interactively with `adk run` or the web UI:
@@ -540,6 +555,31 @@ def my_node(node_input: str):
 ```
 
 Use generators (`yield`) when you need multiple events (state + output + message). Use regular functions (`return`) for simple single-value output.
+
+### Never Put node_input in LLM Agent Instructions
+
+`{var}` templates in `instruction` resolve **only** from `ctx.state`. `node_input` is NOT available as a template variable — it is automatically sent as the user message to the LLM. Do not try to reference it in the instruction:
+
+```python
+# ❌ Wrong: {node_input} is not in state, raises KeyError
+agent = Agent(
+    name="summarizer",
+    instruction="Summarize this: {node_input}",
+)
+
+# ✅ Correct: node_input already becomes the user message, just instruct
+agent = Agent(
+    name="summarizer",
+    instruction="Summarize the following text in one sentence.",
+)
+
+# ✅ Correct: use state for data that needs to be in the instruction
+agent = Agent(
+    name="writer",
+    instruction='Write about "{topic}". Previous feedback: {feedback?}',
+    output_key="draft",
+)
+```
 
 ### Workflow Cannot Be a Sub-Agent of LlmAgent
 
