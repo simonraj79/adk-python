@@ -38,17 +38,20 @@ def plot_workflow_graph(
   if not graph:
     root_name = root_agent.get("name", "root_agent")
     sub_agents = root_agent.get("sub_agents", [])
-    if not sub_agents:
+    tools = root_agent.get("tools", [])
+    if not sub_agents and not tools:
       return "" if format in ("svg", "dot") else b""
 
-    nodes = [{"name": root_name}]
+    nodes = [{"name": root_name, "type": "agent", "tools": tools}]
     edges = []
 
     def _traverse_sub_agents(agent_dict, parent_name):
       for sub in agent_dict.get("sub_agents", []):
         sub_name = sub.get("name")
         if sub_name:
-          nodes.append({"name": sub_name})
+          nodes.append(
+              {"name": sub_name, "type": "agent", "tools": sub.get("tools", [])}
+          )
           edges.append({
               "from_node": {"name": parent_name},
               "to_node": {"name": sub_name},
@@ -134,9 +137,38 @@ def plot_workflow_graph(
       arrowsize="0.7",
   )
 
-  # Add nodes
-  nodes = graph.get("nodes", [])
-  edges = graph.get("edges", [])
+  # Get nodes and edges
+  nodes = list(graph.get("nodes", []))
+  edges = list(graph.get("edges", []))
+
+  # Inject tools as nodes
+  tool_nodes = {}
+  tool_edges = []
+  for node in nodes:
+    node_name = node.get("name")
+    if not node_name or node_name == "__START__":
+      continue
+
+    tools = node.get("tools", [])
+    for tool in tools:
+      tool_name = tool.get("name") if isinstance(tool, dict) else str(tool)
+      if tool_name:
+        if tool_name not in tool_nodes:
+          tool_type = (
+              tool.get("type", "tool") if isinstance(tool, dict) else "tool"
+          )
+          tool_nodes[tool_name] = {"name": tool_name, "type": tool_type}
+        tool_edges.append({
+            "from_node": {"name": node_name},
+            "to_node": {"name": tool_name},
+            "is_tool_edge": True,
+        })
+
+  for n in tool_nodes.values():
+    if not any(on.get("name") == n["name"] for on in nodes):
+      nodes.append(n)
+  edges.extend(tool_edges)
+
   for node in nodes:
     node_name = node.get("name")
     if not node_name or node_name == "__START__":
@@ -164,6 +196,7 @@ def plot_workflow_graph(
         "agent": "✦",
         "workflow": "⊷",
         "join": "⌵",
+        "tool": "🔧",
     }
     icon = icons.get(node_type, "")
     type_display = node_type.title()
@@ -191,6 +224,14 @@ def plot_workflow_graph(
           fillcolor=fillcolor,
           margin="0.05,0.05",
       )
+    elif node_type == "tool":
+      dot.node(
+          node_name,
+          node_label,
+          tooltip=type_display,
+          style="rounded,filled,dashed",
+          fillcolor=fillcolor,
+      )
     else:
       dot.node(
           node_name,
@@ -201,7 +242,6 @@ def plot_workflow_graph(
       )
 
   # Add edges
-  edges = graph.get("edges", [])
   for edge in edges:
     from_node_obj = edge.get("from_node", {})
     to_node_obj = edge.get("to_node", {})
@@ -224,8 +264,11 @@ def plot_workflow_graph(
       )
 
     if from_node and to_node:
-      label = f"  {edge.get('route')}" if edge.get("route") else ""
-      dot.edge(from_node, to_node, label=label)
+      if edge.get("is_tool_edge"):
+        dot.edge(from_node, to_node, style="dashed", color=edge_color)
+      else:
+        label = f"  {edge.get('route')}" if edge.get("route") else ""
+        dot.edge(from_node, to_node, label=label)
 
   terminal_nodes = []
   for node in nodes:
@@ -234,7 +277,10 @@ def plot_workflow_graph(
       continue
 
     outgoing_edges = [
-        e for e in edges if e.get("from_node", {}).get("name") == node_name
+        e
+        for e in edges
+        if e.get("from_node", {}).get("name") == node_name
+        and not e.get("is_tool_edge")
     ]
 
     is_terminal = False

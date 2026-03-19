@@ -42,7 +42,6 @@ SKIP_FIELDS = {
     "before_tool_callback",
     "after_tool_callback",
     "on_tool_error_callback",
-    "tools",
 }
 
 
@@ -201,6 +200,37 @@ def serialize_agent(agent: BaseAgent) -> dict[str, Any]:
           else:
             serialized_edges.append(str(edge_item))
         agent_dict[field_name] = serialized_edges
+      except Exception:
+        pass
+    # Handle tools field
+    elif field_name == "tools":
+      try:
+        sub_agents = getattr(agent, "sub_agents", []) or []
+        sub_agent_names = {
+            getattr(sa, "name", None)
+            for sa in sub_agents
+            if getattr(sa, "name", None)
+        }
+
+        serialized_tools = []
+        for tool in value:
+          tool_name = None
+          if callable(tool):
+            tool_name = getattr(tool, "__name__", str(tool))
+          elif hasattr(tool, "name"):
+            tool_name = tool.name
+
+          if tool_name and tool_name in sub_agent_names:
+            continue
+
+          if tool_name is not None:
+            serialized_tools.append({
+                "name": tool_name,
+                "type": "tool",
+            })
+          else:
+            serialized_tools.append(str(tool))
+        agent_dict[field_name] = serialized_tools
       except Exception:
         pass
     else:
