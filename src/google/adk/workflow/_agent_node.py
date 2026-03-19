@@ -53,7 +53,7 @@ class AgentNode(BaseNode):
     return copied
 
   @override
-  async def run(
+  async def _run_impl(
       self,
       *,
       ctx: Context,

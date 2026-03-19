@@ -54,7 +54,7 @@ class _ToolNode(BaseNode):
     )
 
   @override
-  async def run(
+  async def _run_impl(
       self,
       *,
       ctx: Context,

@@ -190,10 +190,11 @@ class Node(base_node.BaseNode):
     raise NotImplementedError("run_node_impl must be implemented.")
     yield
 
-  async def run(
+  @override
+  async def _run_impl(
       self, *, ctx: Context, node_input: Any
   ) -> AsyncGenerator[Any, None]:
-    """Executes the node. This method is not supposed to be overridden."""
+    """Dispatches to run_node_impl() or parallel_worker inner node."""
     if self.parallel_worker:
       if self._inner_node is None:
         raise ValueError("inner_node is not initialized for parallel worker.")

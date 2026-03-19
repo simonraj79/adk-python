@@ -66,7 +66,7 @@ class _ParallelWorker(BaseNode):
     self.max_concurrency = max_concurrency
 
   @override
-  async def run(
+  async def _run_impl(
       self,
       *,
       ctx: Context,

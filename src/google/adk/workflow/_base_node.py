@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from typing import Any
 from typing import AsyncGenerator
+from typing import final
 from typing import TYPE_CHECKING
 
 from google.genai import types
@@ -29,6 +30,7 @@ from ._retry_config import RetryConfig
 
 if TYPE_CHECKING:
   from ..agents.context import Context
+  from ..events.event import Event
 
 
 class BaseNode(BaseModel):
@@ -130,16 +132,52 @@ class BaseNode(BaseModel):
       return {k: BaseNode._to_serializable(v) for k, v in data.items()}
     return data
 
+  @final
   async def run(
       self,
       *,
       ctx: Context,
       node_input: Any,
-  ) -> AsyncGenerator[Any, None]:
-    """Runs the node."""
+  ) -> AsyncGenerator[Event, None]:
+    """Public entry point. Calls _run_impl, normalizes yields to Event.
 
-    raise NotImplementedError(f'run for {type(self)} is not implemented.')
-    yield  # AsyncGenerator requires having at least one yield statement
+    Normalization rules:
+    - None -> skipped
+    - Event -> pass through
+    - RequestInput -> convert to interrupt Event
+    - Any other value -> Event(output=value)
+    """
+    from ..events.event import Event
+    from ..events.request_input import RequestInput
+
+    async for item in self._run_impl(ctx=ctx, node_input=node_input):
+      if item is None:
+        continue
+      if isinstance(item, Event):
+        yield item
+      elif isinstance(item, RequestInput):
+        from .utils._workflow_hitl_utils import create_request_input_event
+
+        yield create_request_input_event(item)
+      else:
+        yield Event(output=item)
+
+  async def _run_impl(
+      self,
+      *,
+      ctx: Context,
+      node_input: Any,
+  ) -> AsyncGenerator[Any, None]:
+    """Override point for node execution logic.
+
+    Yields any of: Event, RequestInput, raw data, or None.
+    BaseNode.run() normalizes all yields to Event before the caller
+    sees them.
+    """
+    raise NotImplementedError(
+        f'_run_impl for {type(self).__name__} is not implemented.'
+    )
+    yield  # AsyncGenerator requires at least one yield statement
 
 
 START = BaseNode(name='__START__')

@@ -36,7 +36,7 @@ class JoinNode(BaseNode):
     return f'{node_path}_join_state'
 
   @override
-  async def run(
+  async def _run_impl(
       self,
       *,
       ctx: Context,
