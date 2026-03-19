@@ -87,13 +87,7 @@ async def test_nested_workflow_agent_as_node(request: pytest.FixtureRequest):
               'output': 'I am nested',
           },
       ),
-      (
-          'outer_agent/nested_agent',
-          {
-              'node_name': 'nested_agent',
-              'output': 'I am nested',
-          },
-      ),
+      # nested_agent output is resolved via terminal path resolution.
       (
           'outer_agent/output_func',
           {
@@ -166,10 +160,8 @@ async def test_nested_workflow_agent_as_node_resumable(
               }
           },
       ),
-      (
-          'outer_agent/nested_agent',
-          {'node_name': 'nested_agent', 'output': 'I am nested'},
-      ),
+      # nested_agent finalize event is deduplicated (non-root, no
+      # output_schema).
       ('outer_agent/nested_agent', testing_utils.END_OF_AGENT),
       (
           'outer_agent',
@@ -267,13 +259,7 @@ async def test_nested_workflow_agent_with_join_node(
               'output': {'nested_node_a': {'a': 1}, 'nested_node_b': {'b': 2}},
           },
       ),
-      (
-          'outer_agent/nested_agent',
-          {
-              'node_name': 'nested_agent',
-              'output': {'nested_node_a': {'a': 1}, 'nested_node_b': {'b': 2}},
-          },
-      ),
+      # nested_agent finalize event is deduplicated.
       (
           'outer_agent/output_func',
           {
@@ -325,10 +311,7 @@ async def test_nested_agent_updates_state_outer_reads(
               'output': 'nested agent finished',
           },
       ),
-      (
-          'outer_agent/nested_agent',
-          {'node_name': 'nested_agent', 'output': 'nested agent finished'},
-      ),
+      # nested_agent finalize event is deduplicated.
       (
           'outer_agent/outer_state_reader',
           {
@@ -394,10 +377,7 @@ async def test_nested_workflow_agent_intermediate_nodes(
           'outer_agent/nested_agent/NodeB',
           {'node_name': 'NodeB', 'output': 'Inner Final'},
       ),
-      (
-          'outer_agent/nested_agent',
-          {'node_name': 'nested_agent', 'output': 'Inner Final'},
-      ),
+      # nested_agent finalize event is deduplicated.
       (
           'outer_agent/OutputNode',
           {'node_name': 'OutputNode', 'output': {'received': 'Inner Final'}},
@@ -672,14 +652,7 @@ async def test_nested_workflow_agent_with_hitl(
               }
           },
       ),
-      # nested_agent re-emits its output for outer_agent routing.
-      (
-          'outer_agent/nested_agent',
-          {
-              'node_name': 'nested_agent',
-              'output': 'LLM response after tool',
-          },
-      ),
+      # nested_agent output is resolved via terminal path resolution.
       ('outer_agent/nested_agent', testing_utils.END_OF_AGENT),
       # outer_agent runs output_func.
       (
@@ -883,15 +856,7 @@ async def test_nested_workflow_agent_with_request_input_event_hitl(
               }
           },
       ),
-      (
-          'outer_agent/nested_agent',
-          {
-              'node_name': 'nested_agent',
-              'output': (
-                  "Resumed with user input: {'response': 'user input for hitl'}"
-              ),
-          },
-      ),
+      # nested_agent finalize event is deduplicated.
       ('outer_agent/nested_agent', testing_utils.END_OF_AGENT),
       (
           'outer_agent',
@@ -1127,14 +1092,7 @@ async def test_nested_workflow_agent_with_tool_calls(
               'output': 'LLM response after tools',
           },
       ),
-      # nested_agent re-emits its output for outer_agent routing.
-      (
-          'outer_agent/nested_agent',
-          {
-              'node_name': 'nested_agent',
-              'output': 'LLM response after tools',
-          },
-      ),
+      # nested_agent finalize event is deduplicated.
       (
           'outer_agent/output_func',
           {
@@ -1189,13 +1147,7 @@ async def test_three_level_nested_workflow(request: pytest.FixtureRequest):
               'output': 'I am inner',
           },
       ),
-      (
-          'outer_agent/middle_agent/inner_agent',
-          {
-              'node_name': 'inner_agent',
-              'output': 'I am inner',
-          },
-      ),
+      # inner_agent finalize event is deduplicated.
       (
           'outer_agent/middle_agent/middle_func',
           {
@@ -1203,13 +1155,7 @@ async def test_three_level_nested_workflow(request: pytest.FixtureRequest):
               'output': 'I am middle',
           },
       ),
-      (
-          'outer_agent/middle_agent',
-          {
-              'node_name': 'middle_agent',
-              'output': 'I am middle',
-          },
-      ),
+      # middle_agent finalize event is deduplicated.
       (
           'outer_agent/outer_func',
           {
@@ -1306,10 +1252,7 @@ async def test_duplicate_grandchild_workflow_agent_names(
               }
           },
       ),
-      (
-          'root/child1/grandchild',
-          {'node_name': 'grandchild', 'output': 'I am grandchild'},
-      ),
+      # grandchild finalize event is deduplicated.
       ('root/child1/grandchild', testing_utils.END_OF_AGENT),
       (
           'root/child1',
@@ -1319,7 +1262,7 @@ async def test_duplicate_grandchild_workflow_agent_names(
               }
           },
       ),
-      ('root/child1', {'node_name': 'child1', 'output': 'I am grandchild'}),
+      # child1 finalize event is deduplicated.
       ('root/child1', testing_utils.END_OF_AGENT),
       (
           'root',
@@ -1358,10 +1301,7 @@ async def test_duplicate_grandchild_workflow_agent_names(
               }
           },
       ),
-      (
-          'root/child2/grandchild',
-          {'node_name': 'grandchild', 'output': 'I am grandchild'},
-      ),
+      # grandchild finalize event is deduplicated.
       ('root/child2/grandchild', testing_utils.END_OF_AGENT),
       (
           'root/child2',
@@ -1371,7 +1311,7 @@ async def test_duplicate_grandchild_workflow_agent_names(
               }
           },
       ),
-      ('root/child2', {'node_name': 'child2', 'output': 'I am grandchild'}),
+      # child2 finalize event is deduplicated.
       ('root/child2', testing_utils.END_OF_AGENT),
       (
           'root',
@@ -1459,10 +1399,7 @@ async def test_duplicate_name_in_ancestral_path(
               }
           },
       ),
-      (
-          'A/B/A',
-          {'node_name': 'A', 'output': 'I am A'},
-      ),
+      # A/B/A finalize event is deduplicated.
       ('A/B/A', testing_utils.END_OF_AGENT),
       (
           'A/B',
@@ -1472,10 +1409,7 @@ async def test_duplicate_name_in_ancestral_path(
               }
           },
       ),
-      (
-          'A/B',
-          {'node_name': 'B', 'output': 'I am A'},
-      ),
+      # B finalize event is deduplicated.
       ('A/B', testing_utils.END_OF_AGENT),
       (
           'A',

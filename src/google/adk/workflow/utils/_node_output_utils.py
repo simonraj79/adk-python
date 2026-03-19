@@ -32,6 +32,7 @@ def _get_node_output_events(
     node_path: str,
     execution_id: str,
     local_events: list[Event] | None = None,
+    terminal_paths: set[str] | None = None,
 ) -> list[Event]:
   """Fetches all Events for a node execution.
 
@@ -39,30 +40,37 @@ def _get_node_output_events(
   local_events are new outputs from the current run. We need both to collect
   all outputs from a node's execution, especially if it was interrupted and
   resumed, ensuring downstream nodes get the complete input.
+
+  Args:
+    terminal_paths: If the node is a Workflow, the recursively resolved
+        leaf-level terminal paths. Events from these paths are included
+        as output of this workflow node.
   """
   from ...events.event import Event
 
+  _terminal_paths = terminal_paths or set()
+
+  def _matches(e: Event) -> bool:
+    if (
+        e.node_info.path == node_path
+        and e.node_info.execution_id == execution_id
+    ):
+      return True
+    if _terminal_paths and e.node_info.path in _terminal_paths:
+      return True
+    return False
+
   # Fetch from history.
-  # Filter by both node_path and execution_id for defense-in-depth.
-  # node_path is the full path (e.g. "wf/A") which is unique across nested
-  # graphs, and execution_id is a UUID unique per node execution.
   history_events = [
-      e
-      for e in ctx.session.events
-      if isinstance(e, Event)
-      and e.node_info.path == node_path
-      and e.node_info.execution_id == execution_id
+      e for e in ctx.session.events
+      if isinstance(e, Event) and _matches(e)
   ]
 
-  # Fetch from local current run
-  local_node_events = []
-  if local_events:
-    local_node_events = [
-        e
-        for e in local_events
-        if e.node_info.path == node_path
-        and e.node_info.execution_id == execution_id
-    ]
+  # Fetch from local current run.
+  local_node_events = [
+      e for e in (local_events or [])
+      if _matches(e)
+  ]
 
   # Deduplicate based on event ID.
   all_events = list(history_events)
@@ -82,13 +90,25 @@ def _get_node_output_and_route(
     node_path: str,
     execution_id: str,
     local_events: list[Event] | None = None,
+    output_schema: Any | None = None,
+    terminal_paths: set[str] | None = None,
 ) -> tuple[Any, RouteValue | list[RouteValue] | None]:
-  """Fetches the Event outputs and route for a node execution."""
+  """Fetches the Event outputs and route for a node execution.
+
+  Args:
+    output_schema: If set, validates and coerces each output value against
+        this schema (e.g. filling Pydantic defaults, type coercion).
+    terminal_paths: If the node is a Workflow, the recursively resolved
+        leaf-level terminal paths.
+  """
+  from .._base_node import BaseNode
+
   events = _get_node_output_events(
       ctx=ctx,
       node_path=node_path,
       execution_id=execution_id,
       local_events=local_events,
+      terminal_paths=terminal_paths,
   )
 
   routes_to_match: str | list[str] | None = None
@@ -107,12 +127,21 @@ def _get_node_output_and_route(
 
   if not events_with_data:
     output_data = None
-  elif len(events_with_data) == 1:
-    output_data = events_with_data[0].output
-  else:
+  elif len(events_with_data) > 1 and not terminal_paths:
     raise ValueError(
         f'Node {node_path} produced multiple Events with output data.'
         ' A node execution should produce at most one output event.'
     )
+  else:
+    outputs = [e.output for e in events_with_data]
+    if output_schema is not None:
+      from pydantic import TypeAdapter
+
+      adapter = TypeAdapter(output_schema)
+      outputs = [
+          BaseNode._to_serializable(adapter.validate_python(o))
+          for o in outputs
+      ]
+    output_data = outputs[0] if len(outputs) == 1 else outputs
 
   return output_data, routes_to_match

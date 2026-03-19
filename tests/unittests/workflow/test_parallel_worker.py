@@ -662,7 +662,7 @@ async def test_parallel_worker_nested_agent(request: pytest.FixtureRequest):
               'output': ['item1', 'item2'],
           },
       ),
-      # Children outputs
+      # Children outputs (nested workflow finalize events are deduplicated)
       (
           'nested_agent__0',
           {'node_name': 'worker_func', 'output': 'item1_processed'},
@@ -670,14 +670,6 @@ async def test_parallel_worker_nested_agent(request: pytest.FixtureRequest):
       (
           'nested_agent__1',
           {'node_name': 'worker_func', 'output': 'item2_processed'},
-      ),
-      (
-          'outer_agent',
-          {'node_name': 'nested_agent__0', 'output': 'item1_processed'},
-      ),
-      (
-          'outer_agent',
-          {'node_name': 'nested_agent__1', 'output': 'item2_processed'},
       ),
       # Parent output
       (
@@ -739,7 +731,7 @@ async def test_workflow_agent_with_parallel_worker_flag(
               'output': ['item1', 'item2'],
           },
       ),
-      # Children outputs
+      # Children outputs (nested workflow finalize events are deduplicated)
       (
           'nested_agent__0',
           {'node_name': 'worker_func', 'output': 'item1_processed'},
@@ -747,14 +739,6 @@ async def test_workflow_agent_with_parallel_worker_flag(
       (
           'nested_agent__1',
           {'node_name': 'worker_func', 'output': 'item2_processed'},
-      ),
-      (
-          'outer_agent',
-          {'node_name': 'nested_agent__0', 'output': 'item1_processed'},
-      ),
-      (
-          'outer_agent',
-          {'node_name': 'nested_agent__1', 'output': 'item2_processed'},
       ),
       # Parent output
       (

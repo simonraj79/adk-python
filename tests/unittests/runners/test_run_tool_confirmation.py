@@ -780,8 +780,6 @@ class TestHITLConfirmationFlowWithSequentialAgentAndResumableApp:
         (sub_agent2.name, "test llm response from second agent"),
         (agent.name, "test llm response from second agent"),
         (sub_agent2.name, testing_utils.END_OF_AGENT),
-        # Workflow re-emits terminal node output.
-        (agent.name, "test llm response from second agent"),
         (agent.name, testing_utils.END_OF_AGENT),
     ]
     for event in events:

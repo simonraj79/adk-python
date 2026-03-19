@@ -26,6 +26,7 @@ from typing import Optional
 from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
+from pydantic import PrivateAttr
 from pydantic import SerializeAsAny
 
 from ._base_node import BaseNode
@@ -173,6 +174,9 @@ class WorkflowGraph(BaseModel):
 
   edges: list[Edge] = Field(default_factory=list)
   """The edges in the workflow graph."""
+
+  _terminal_node_names: set[str] = PrivateAttr(default_factory=set)
+  """Nodes with no outgoing edges. Computed by validate_graph."""
 
   @classmethod
   def from_edge_items(cls, edge_items: list[EdgeItem]) -> WorkflowGraph:
@@ -380,6 +384,14 @@ class WorkflowGraph(BaseModel):
     # entirely of such edges would loop forever. Conditional edges
     # (with a route) are allowed to form cycles (loop patterns).
     self._detect_unconditional_cycles(node_names)
+
+    # Compute terminal nodes (no outgoing edges).
+    from_names = {edge.from_node.name for edge in self.edges}
+    self._terminal_node_names = {
+        n.name
+        for n in self.nodes
+        if n.name != START.name and n.name not in from_names
+    }
 
 
 ChainElement = NodeLike | tuple[NodeLike, ...] | RoutingMap

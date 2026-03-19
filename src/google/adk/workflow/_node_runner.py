@@ -166,11 +166,21 @@ def _schedule_dynamic_node(
     node_state = run_state.agent_state.nodes[node_name]
     if node_state.status == NodeStatus.COMPLETED:
       # Already done, return result.
+      node = run_state.nodes_map.get(node_name)
+      full_path = join_paths(run_state.node_path, node_name)
+      terminal_paths: set[str] | None = None
+      if node is not None:
+        from ._workflow import Workflow
+
+        if isinstance(node, Workflow):
+          terminal_paths = node._resolve_terminal_paths(full_path)
       output, _ = _get_node_output_and_route(
           ctx=run_state.ctx,
-          node_path=join_paths(run_state.node_path, node_name),
+          node_path=full_path,
           execution_id=execution_id,
           local_events=run_state.local_output_events,
+          output_schema=node.output_schema if node else None,
+          terminal_paths=terminal_paths,
       )
       future.set_result(output)
       return future
