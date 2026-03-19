@@ -829,7 +829,7 @@ class AdkWebServer:
         return serialize_app_info(runner.app, readme_content)
 
     @app.get("/dev/build_graph_image/{app_name}")
-    async def get_app_info_image(app_name: str) -> Any:
+    async def get_app_info_image(app_name: str, dark_mode: bool = False) -> Any:
       runner = await self.get_runner_async(app_name)
 
       if not runner.app:
@@ -838,7 +838,9 @@ class AdkWebServer:
         )
 
       app_info = serialize_app_info(runner.app)
-      dot_string = plot_workflow_graph(app_info, format="dot")
+      dot_string = plot_workflow_graph(
+          app_info, format="dot", dark_mode=dark_mode
+      )
       return GetEventGraphResult(dot_src=dot_string)
 
     @app.get("/debug/trace/session/{session_id}", tags=[TAG_DEBUG])

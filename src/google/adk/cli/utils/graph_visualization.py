@@ -25,10 +25,12 @@ from ...workflow._execution_state import NodeStatus
 
 def plot_workflow_graph(
     app_info: dict[str, Any],
-    agent_state: dict[str, Any] = {},
+    agent_state: dict[str, Any] | None = None,
     format: str = "svg",
+    dark_mode: bool = True,
 ) -> str | bytes:
   """Plots the workflow graph with node statuses."""
+  agent_state = agent_state or {}
   root_agent = app_info.get("root_agent", {})
   graph = root_agent.get("graph", {})
   is_workflow = bool(graph)
@@ -59,9 +61,48 @@ def plot_workflow_graph(
   nodes_state = agent_state.get("nodes", {})
   dot = graphviz.Digraph(comment="Workflow Visualization")
 
+  if dark_mode:
+    graph_bgcolor = "#0F172A"
+    node_fillcolor = "#1E293B"
+    node_color = "#475569"
+    node_fontcolor = "#F8FAFC"
+    edge_color = "#94A3B8"
+    edge_fontcolor = "#CBD5E1"
+    start_fillcolor = "#059669"
+    start_color = "#047857"
+    end_fillcolor = "#DC2626"
+    end_color = "#B91C1C"
+    status_colors = {
+        NodeStatus.COMPLETED: "#16A34A",
+        NodeStatus.RUNNING: "#D97706",
+        NodeStatus.FAILED: "#EF4444",
+        NodeStatus.INACTIVE: "#1E293B",
+        NodeStatus.WAITING: "#9333EA",
+        NodeStatus.CANCELLED: "#475569",
+    }
+  else:
+    graph_bgcolor = "#F8FAFC"
+    node_fillcolor = "#FFFFFF"
+    node_color = "#94A3B8"
+    node_fontcolor = "#0F172A"
+    edge_color = "#64748B"
+    edge_fontcolor = "#475569"
+    start_fillcolor = "#10B981"
+    start_color = "#059669"
+    end_fillcolor = "#EF4444"
+    end_color = "#DC2626"
+    status_colors = {
+        NodeStatus.COMPLETED: "#69CB87",
+        NodeStatus.RUNNING: "#e8b589",
+        NodeStatus.FAILED: "salmon",
+        NodeStatus.INACTIVE: "#FFFFFF",
+        NodeStatus.WAITING: "#d2a6e0",
+        NodeStatus.CANCELLED: "lightgray",
+    }
+
   dot.attr(
       "graph",
-      bgcolor="#F8FAFC",
+      bgcolor=graph_bgcolor,
       pad="0.5",
       nodesep="0.5",
       ranksep="0.8",
@@ -73,21 +114,21 @@ def plot_workflow_graph(
       "node",
       shape="rect",
       style="rounded,filled",
-      fillcolor="#FFFFFF",
-      color="#94A3B8",
+      fillcolor=node_fillcolor,
+      color=node_color,
       penwidth="1.5",
       fontname="Helvetica",
-      fontcolor="#0F172A",
+      fontcolor=node_fontcolor,
       fontsize="12",
       margin="0.25,0.15",
   )
 
   dot.attr(
       "edge",
-      color="#64748B",
+      color=edge_color,
       penwidth="1.2",
       fontname="Helvetica",
-      fontcolor="#475569",
+      fontcolor=edge_fontcolor,
       fontsize="10",
       arrowhead="vee",
       arrowsize="0.7",
@@ -116,19 +157,7 @@ def plot_workflow_graph(
       except (ValueError, KeyError):
         status = NodeStatus.INACTIVE
 
-    fillcolor = "#FFFFFF"  # Default
-    if status == NodeStatus.COMPLETED:
-      fillcolor = "#69CB87"  # updated light green
-    elif status == NodeStatus.RUNNING:
-      fillcolor = "#e8b589"
-    elif status == NodeStatus.FAILED:
-      fillcolor = "salmon"
-    elif status == NodeStatus.INACTIVE:
-      fillcolor = "#FFFFFF"  # Let it match global style
-    elif status == NodeStatus.WAITING:
-      fillcolor = "#d2a6e0"
-    elif status == NodeStatus.CANCELLED:
-      fillcolor = "lightgray"
+    fillcolor = status_colors.get(status, node_fillcolor)
 
     node_type = node.get("type", "node")
     icons = {
@@ -186,8 +215,8 @@ def plot_workflow_graph(
           "START",
           shape="oval",
           style="filled",
-          fillcolor="#10B981",
-          color="#059669",
+          fillcolor=start_fillcolor,
+          color=start_color,
           fontcolor="#FFFFFF",
           fontname="Helvetica-Bold",
           width="0.9",
@@ -229,8 +258,8 @@ def plot_workflow_graph(
         "END",
         shape="oval",
         style="filled",
-        fillcolor="#EF4444",
-        color="#DC2626",
+        fillcolor=end_fillcolor,
+        color=end_color,
         fontcolor="#FFFFFF",
         fontname="Helvetica-Bold",
         width="0.9",
