@@ -17,11 +17,9 @@
 from __future__ import annotations
 
 from google.adk.events.event import Event
-from google.adk.workflow import FunctionNode
 from google.adk.workflow import JoinNode
 from google.adk.workflow import START
 from google.adk.workflow import Workflow
-from google.adk.workflow.utils._node_path_utils import is_direct_child
 from pydantic import BaseModel
 import pytest
 
@@ -43,47 +41,57 @@ class _OtherModel(BaseModel):
 async def test_workflow_output_schema_validates_terminal(
     request: pytest.FixtureRequest,
 ):
-  """Workflow.output_schema validates the terminal node's output."""
+  """Workflow.output_schema validates when downstream reads the output."""
 
   def produce() -> dict:
     return {'name': 'result', 'value': 10}
 
-  agent = Workflow(
+  def consume(node_input: dict) -> str:
+    return f"got {node_input['name']}"
+
+  inner = Workflow(
       name='wf',
       edges=[(START, produce)],
       output_schema=_OutputModel,
   )
-  ctx = await create_parent_invocation_context(request.function.__name__, agent)
-  events = [e async for e in agent.run_async(ctx)]
-
-  terminal = [
-      e
-      for e in events
-      if isinstance(e, Event)
-      and e.output is not None
-      and not is_direct_child(e.node_info.path, 'wf')
-  ]
-  assert len(terminal) == 1
-  assert terminal[0].output == {'name': 'result', 'value': 10}
+  outer = Workflow(
+      name='outer',
+      edges=[(START, inner, consume)],
+  )
+  ctx = await create_parent_invocation_context(
+      request.function.__name__, outer
+  )
+  events = [e async for e in outer.run_async(ctx)]
+  data_events = [e for e in events if isinstance(e, Event) and e.output]
+  assert any(e.output == 'got result' for e in data_events)
 
 
 @pytest.mark.asyncio
 async def test_workflow_output_schema_rejects_invalid(
     request: pytest.FixtureRequest,
 ):
-  """Workflow.output_schema rejects invalid terminal node output."""
+  """Workflow.output_schema rejects invalid output when downstream reads."""
 
   def produce_bad() -> dict:
     return {'wrong_field': 'oops'}
 
-  agent = Workflow(
+  def consume(node_input: dict) -> str:
+    return 'should not reach'
+
+  inner = Workflow(
       name='wf',
       edges=[(START, produce_bad)],
       output_schema=_OutputModel,
   )
-  ctx = await create_parent_invocation_context(request.function.__name__, agent)
+  outer = Workflow(
+      name='outer',
+      edges=[(START, inner, consume)],
+  )
+  ctx = await create_parent_invocation_context(
+      request.function.__name__, outer
+  )
   with pytest.raises(ValueError):
-    [e async for e in agent.run_async(ctx)]
+    [e async for e in outer.run_async(ctx)]
 
 
 @pytest.mark.asyncio
@@ -95,23 +103,26 @@ async def test_workflow_output_schema_coerces_defaults(
   def produce() -> dict:
     return {'name': 'x', 'value': 1}
 
-  agent = Workflow(
+  def consume(node_input: dict) -> dict:
+    return node_input
+
+  inner = Workflow(
       name='wf',
       edges=[(START, produce)],
       output_schema=_OtherModel,
   )
-  ctx = await create_parent_invocation_context(request.function.__name__, agent)
-  events = [e async for e in agent.run_async(ctx)]
-
-  terminal = [
-      e
-      for e in events
-      if isinstance(e, Event)
-      and e.output is not None
-      and not is_direct_child(e.node_info.path, 'wf')
-  ]
-  assert len(terminal) == 1
-  assert terminal[0].output == {
+  outer = Workflow(
+      name='outer',
+      edges=[(START, inner, consume)],
+  )
+  ctx = await create_parent_invocation_context(
+      request.function.__name__, outer
+  )
+  events = [e async for e in outer.run_async(ctx)]
+  data_events = [e for e in events if isinstance(e, Event) and e.output]
+  consume_events = [e for e in data_events if e.node_info.name == 'consume']
+  assert len(consume_events) == 1
+  assert consume_events[0].output == {
       'name': 'x',
       'value': 1,
       'extra': 'default',
@@ -156,7 +167,7 @@ async def test_nested_workflow_output_schema(
 async def test_workflow_output_schema_validates_multiple_terminals(
     request: pytest.FixtureRequest,
 ):
-  """Each terminal output event is validated against output_schema."""
+  """Each terminal output is validated when downstream reads."""
 
   def branch_a() -> dict:
     return {'name': 'from_a', 'value': 1}
@@ -164,7 +175,7 @@ async def test_workflow_output_schema_validates_multiple_terminals(
   def branch_b() -> dict:
     return {'name': 'from_b', 'value': 2}
 
-  agent = Workflow(
+  inner = Workflow(
       name='wf',
       edges=[
           (START, branch_a),
@@ -172,19 +183,26 @@ async def test_workflow_output_schema_validates_multiple_terminals(
       ],
       output_schema=_OtherModel,
   )
-  ctx = await create_parent_invocation_context(request.function.__name__, agent)
-  events = [e async for e in agent.run_async(ctx)]
 
-  terminal = [
+  def consume(node_input: list) -> list:
+    return node_input
+
+  outer = Workflow(
+      name='outer',
+      edges=[(START, inner, consume)],
+  )
+  ctx = await create_parent_invocation_context(
+      request.function.__name__, outer
+  )
+  events = [e async for e in outer.run_async(ctx)]
+  consume_events = [
       e
       for e in events
-      if isinstance(e, Event)
-      and e.output is not None
-      and not is_direct_child(e.node_info.path, 'wf')
+      if isinstance(e, Event) and e.output and e.node_info.name == 'consume'
   ]
-  assert len(terminal) == 2
-  # Both terminal events should have 'extra' filled by _OtherModel default.
-  terminal_data = sorted([e.output for e in terminal], key=lambda d: d['name'])
+  assert len(consume_events) == 1
+  # Both terminal outputs should have 'extra' filled by _OtherModel default.
+  terminal_data = sorted(consume_events[0].output, key=lambda d: d['name'])
   assert terminal_data == [
       {'name': 'from_a', 'value': 1, 'extra': 'default'},
       {'name': 'from_b', 'value': 2, 'extra': 'default'},
@@ -203,7 +221,7 @@ async def test_workflow_output_schema_rejects_invalid_among_multiple_terminals(
   def branch_bad() -> dict:
     return {'wrong_field': 'oops'}
 
-  agent = Workflow(
+  inner = Workflow(
       name='wf',
       edges=[
           (START, branch_good),
@@ -211,9 +229,19 @@ async def test_workflow_output_schema_rejects_invalid_among_multiple_terminals(
       ],
       output_schema=_OutputModel,
   )
-  ctx = await create_parent_invocation_context(request.function.__name__, agent)
+
+  def consume(node_input: list) -> str:
+    return 'should not reach'
+
+  outer = Workflow(
+      name='outer',
+      edges=[(START, inner, consume)],
+  )
+  ctx = await create_parent_invocation_context(
+      request.function.__name__, outer
+  )
   with pytest.raises(ValueError):
-    [e async for e in agent.run_async(ctx)]
+    [e async for e in outer.run_async(ctx)]
 
 
 # ── Primitive and generic type output_schema ─────────────────────────
@@ -223,75 +251,89 @@ async def test_workflow_output_schema_rejects_invalid_among_multiple_terminals(
 async def test_workflow_output_schema_int_coerces(
     request: pytest.FixtureRequest,
 ):
-  """Workflow output_schema=int coerces string to int."""
+  """Workflow output_schema=int coerces string to int at read time."""
 
   def produce() -> str:
     return '42'
 
-  agent = Workflow(
+  def consume(node_input: int) -> int:
+    return node_input
+
+  inner = Workflow(
       name='wf',
       edges=[(START, produce)],
       output_schema=int,
   )
-  ctx = await create_parent_invocation_context(request.function.__name__, agent)
-  events = [e async for e in agent.run_async(ctx)]
-
-  terminal = [
+  outer = Workflow(name='outer', edges=[(START, inner, consume)])
+  ctx = await create_parent_invocation_context(
+      request.function.__name__, outer
+  )
+  events = [e async for e in outer.run_async(ctx)]
+  consume_events = [
       e
       for e in events
-      if isinstance(e, Event)
-      and e.output is not None
-      and not is_direct_child(e.node_info.path, 'wf')
+      if isinstance(e, Event) and e.output is not None
+      and e.node_info.name == 'consume'
   ]
-  assert len(terminal) == 1
-  assert terminal[0].output == 42
+  assert len(consume_events) == 1
+  assert consume_events[0].output == 42
 
 
 @pytest.mark.asyncio
 async def test_workflow_output_schema_int_rejects_invalid(
     request: pytest.FixtureRequest,
 ):
-  """Workflow output_schema=int rejects non-coercible value."""
+  """Workflow output_schema=int rejects non-coercible value at read time."""
 
   def produce() -> dict:
     return {'key': 'value'}
 
-  agent = Workflow(
+  def consume(node_input: int) -> int:
+    return node_input
+
+  inner = Workflow(
       name='wf',
       edges=[(START, produce)],
       output_schema=int,
   )
-  ctx = await create_parent_invocation_context(request.function.__name__, agent)
+  outer = Workflow(name='outer', edges=[(START, inner, consume)])
+  ctx = await create_parent_invocation_context(
+      request.function.__name__, outer
+  )
   with pytest.raises(ValueError):
-    [e async for e in agent.run_async(ctx)]
+    [e async for e in outer.run_async(ctx)]
 
 
 @pytest.mark.asyncio
 async def test_workflow_output_schema_list_of_str(
     request: pytest.FixtureRequest,
 ):
-  """Workflow output_schema=list[str] validates list output."""
+  """Workflow output_schema=list[str] validates list output at read time."""
 
   def produce() -> list:
     return ['a', 'b', 'c']
 
-  agent = Workflow(
+  def consume(node_input: list) -> list:
+    return node_input
+
+  inner = Workflow(
       name='wf',
       edges=[(START, produce)],
       output_schema=list[str],
   )
-  ctx = await create_parent_invocation_context(request.function.__name__, agent)
-  events = [e async for e in agent.run_async(ctx)]
-
-  terminal = [
+  outer = Workflow(name='outer', edges=[(START, inner, consume)])
+  ctx = await create_parent_invocation_context(
+      request.function.__name__, outer
+  )
+  events = [e async for e in outer.run_async(ctx)]
+  consume_events = [
       e
       for e in events
-      if isinstance(e, Event)
-      and e.output is not None
-      and not is_direct_child(e.node_info.path, 'wf')
+      if isinstance(e, Event) and e.output is not None
+      and e.node_info.name == 'consume'
   ]
-  assert len(terminal) == 1
-  assert terminal[0].output == ['a', 'b', 'c']
+  assert len(consume_events) == 1
+  assert consume_events[0].output == ['a', 'b', 'c']
 
 
 @pytest.mark.asyncio
@@ -306,23 +348,27 @@ async def test_workflow_output_schema_list_of_basemodel(
         {'name': 'y', 'value': 2},
     ]
 
-  agent = Workflow(
+  def consume(node_input: list) -> list:
+    return node_input
+
+  inner = Workflow(
       name='wf',
       edges=[(START, produce)],
       output_schema=list[_OutputModel],
   )
-  ctx = await create_parent_invocation_context(request.function.__name__, agent)
-  events = [e async for e in agent.run_async(ctx)]
-
-  terminal = [
+  outer = Workflow(name='outer', edges=[(START, inner, consume)])
+  ctx = await create_parent_invocation_context(
+      request.function.__name__, outer
+  )
+  events = [e async for e in outer.run_async(ctx)]
+  consume_events = [
       e
       for e in events
-      if isinstance(e, Event)
-      and e.output is not None
-      and not is_direct_child(e.node_info.path, 'wf')
+      if isinstance(e, Event) and e.output is not None
+      and e.node_info.name == 'consume'
   ]
-  assert len(terminal) == 1
-  assert terminal[0].output == [
+  assert len(consume_events) == 1
+  assert consume_events[0].output == [
       {'name': 'x', 'value': 1},
       {'name': 'y', 'value': 2},
   ]
@@ -430,7 +476,7 @@ async def test_e2e_fan_out_join_with_schemas(
       for e in events
       if isinstance(e, Event)
       and e.output is not None
-      and not is_direct_child(e.node_info.path, 'wf')
+      and e.node_info.name == 'reviewer'
   ]
   assert len(terminal) == 1
   assert terminal[0].output == {
@@ -438,3 +484,4 @@ async def test_e2e_fan_out_join_with_schemas(
       'score': 85,
       'reviewer': 'auto',
   }
+  assert terminal[0].node_info.path == 'wf/reviewer'

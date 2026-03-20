@@ -56,7 +56,7 @@ from ._workflow_graph import WorkflowGraph
 from .utils._agent_state_utils import reconstruct_state_from_events
 from .utils._event_utils import enrich_event
 from .utils._node_output_utils import _get_node_output_and_route
-from .utils._node_path_utils import get_parent_path
+from .utils._node_path_utils import is_descendant
 from .utils._node_path_utils import is_direct_child
 from .utils._node_path_utils import join_paths
 from .utils._retry_utils import _get_retry_delay
@@ -239,6 +239,28 @@ class Workflow(BaseAgent, Node):
       return
 
     self.graph.validate_graph()
+
+  def _resolve_terminal_paths(self, prefix: str) -> set[str]:
+    """Recursively resolves leaf-level terminal event paths.
+
+    For each terminal node in the graph, computes its full path. If a
+    terminal is itself a Workflow, recurses into it to find its leaf
+    terminals. Returns the set of all leaf paths that produce the
+    workflow's output events.
+    """
+    if not self.graph:
+      return set()
+    paths: set[str] = set()
+    for name in self.graph._terminal_node_names:
+      full_path = join_paths(prefix, name)
+      node = next(
+          (n for n in self.graph.nodes if n.name == name), None
+      )
+      if isinstance(node, Workflow) and node.graph:
+        paths |= node._resolve_terminal_paths(full_path)
+      else:
+        paths.add(full_path)
+    return paths
 
   def _get_workflow_state(self, ctx: InvocationContext) -> WorkflowAgentState:
     state = self._load_agent_state(ctx, WorkflowAgentState)
@@ -574,11 +596,20 @@ class Workflow(BaseAgent, Node):
         and event.node_info.path
         and is_direct_child(event.node_info.path, run_state.node_path)
     )
+
+    # Collect events from all descendants into local_output_events so
+    # _get_node_output_events can find terminal node events from nested
+    # workflows via terminal_paths resolution.
+    is_from_descendant = (
+        not is_event_from_direct_child
+        and isinstance(event, Event)
+        and event.node_info.path
+        and is_descendant(run_state.node_path or '', event.node_info.path)
+    )
+
     if is_event_from_direct_child:
       run_state.local_output_events.append(event)
 
-      # If the event is a regular Event (e.g. intermediate output), update
-      # session state if needed, and yield it.
       if event.actions and event.actions.state_delta:
         for key, value in event.actions.state_delta.items():
           if value is None:
@@ -586,13 +617,15 @@ class Workflow(BaseAgent, Node):
           else:
             run_state.ctx.session.state[key] = value
 
+    elif is_from_descendant:
+      run_state.local_output_events.append(event)
+
     yield event
 
   async def _finalize_workflow(
       self,
       ctx: InvocationContext,
       agent_state: WorkflowAgentState,
-      local_output_events: list[Event],
   ) -> AsyncGenerator[Event, None]:
     """Finalizes the workflow if all nodes completed successfully."""
     # If any node is interrupted, pause execution by returning early.
@@ -607,35 +640,6 @@ class Workflow(BaseAgent, Node):
       if ctx.is_resumable:
         yield self._create_agent_state_event(ctx)
       return
-
-    # Emit the workflow's own output event(s) from terminal nodes.
-    # Terminal nodes are nodes with no outgoing edges in the graph.
-    from_names = {edge.from_node.name for edge in self.graph.edges}
-    terminal_paths = {
-        join_paths(ctx.node_path, node.name)
-        for node in self.graph.nodes
-        if node.name not in from_names
-    }
-
-    # Only set author for top-level workflows. Nested workflow output
-    # events are re-authored by the parent's process_next_item.
-    is_root = not get_parent_path(ctx.node_path or '')
-    author = self.name if is_root else ''
-
-    for event in local_output_events:
-      if event.node_info.path in terminal_paths and event.output is not None:
-        output = event.output
-        if self.output_schema:
-          output = self._validate_output_data(output)
-        yield enrich_event(
-            Event(
-                output=output,
-                route=event.actions.route if event.actions else None,
-                author=author,
-            ),
-            ctx,
-            branch=True,
-        )
 
     # If all nodes completed without interruption, mark agent as ended.
     ctx.set_agent_state(ctx.node_path, end_of_agent=True)
@@ -739,7 +743,5 @@ class Workflow(BaseAgent, Node):
         event_queue.task_done()
 
     # Finalize the workflow
-    async for event in self._finalize_workflow(
-        ctx, agent_state, local_output_events
-    ):
+    async for event in self._finalize_workflow(ctx, agent_state):
       yield event

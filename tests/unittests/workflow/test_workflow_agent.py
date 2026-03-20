@@ -37,6 +37,7 @@ from google.adk.workflow._trigger_processor import Trigger
 from google.adk.workflow._workflow import NodeState
 from google.adk.workflow._workflow import WorkflowAgentState
 from google.adk.workflow._workflow_graph import WorkflowGraph
+from google.adk.workflow.utils._node_path_utils import is_descendant
 from google.adk.workflow.utils._node_path_utils import is_direct_child
 from google.genai import types
 from pydantic import BaseModel
@@ -1500,17 +1501,17 @@ async def test_execution_id_uniqueness_nested(request: pytest.FixtureRequest):
       for e in events
       if isinstance(e, Event)
       and e.output is not None
-      and is_direct_child(e.node_info.path, outer_agent.name)
+      and is_descendant(outer_agent.name, e.node_info.path)
   ]
   execution_ids = []
   for e in node_output_events:
     if e.node_info.execution_id:
       execution_ids.append(e.node_info.execution_id)
 
-  # We expect 3 node output events (direct children of outer_agent):
-  # - OuterNodeA
-  # - inner_agent (_finalize_workflow output)
-  # - OuterNodeB
+  # We expect 3 node output events:
+  # - OuterNodeA (direct child)
+  # - InnerNode (descendant via inner_agent)
+  # - OuterNodeB (direct child)
   assert len(node_output_events) == 3
   assert len(set(execution_ids)) == 3
 

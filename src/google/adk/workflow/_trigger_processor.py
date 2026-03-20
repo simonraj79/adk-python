@@ -162,12 +162,27 @@ def _process_triggers(
   full_node_path = join_paths(run_state.node_path, node_name)
 
   # Fetch node output once — reused for dynamic future resolution and
-  # downstream triggering.
+  # downstream triggering. If the node has output_schema, validate and
+  # coerce the output here at read time.
+  node = run_state.nodes_map.get(node_name)
+
+  # If the node is a Workflow, resolve its leaf-level terminal paths
+  # so _get_node_output_and_route can find output events from nested
+  # terminal nodes without requiring event mutation.
+  terminal_paths: set[str] | None = None
+  if node is not None:
+    from ._workflow import Workflow
+
+    if isinstance(node, Workflow):
+      terminal_paths = node._resolve_terminal_paths(full_node_path)
+
   output_data, routes_to_match = _get_node_output_and_route(
       ctx=ctx,
       node_path=full_node_path,
       execution_id=execution_id,
       local_events=local_output_events,
+      output_schema=node.output_schema if node else None,
+      terminal_paths=terminal_paths,
   )
 
   if node_name in dynamic_futures:

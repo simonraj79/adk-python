@@ -115,11 +115,11 @@ class BaseNode(BaseModel):
 
   def _validate_input_data(self, data: Any) -> Any:
     """Validates data against input_schema if set."""
-    return self._validate_schema(data, getattr(self, 'input_schema', None))
+    return self._validate_schema(data, self.input_schema)
 
   def _validate_output_data(self, data: Any) -> Any:
     """Validates data against output_schema if set."""
-    return self._validate_schema(data, getattr(self, 'output_schema', None))
+    return self._validate_schema(data, self.output_schema)
 
   @staticmethod
   def _to_serializable(data: Any) -> Any:
