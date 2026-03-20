@@ -16,6 +16,7 @@
 
 from __future__ import annotations
 
+import html
 from typing import Any
 
 import graphviz
@@ -203,6 +204,18 @@ def plot_workflow_graph(
     node_label = f"{icon} {node_name}" if icon else node_name
 
     if is_conditional:
+      has_default = any(
+          not e.get("route") or e.get("route") == "__DEFAULT__"
+          for e in outgoing_edges
+          if not e.get("is_tool_edge")
+      )
+      if not has_default:
+        escaped_label = html.escape(node_label)
+        node_label = (
+            f"<{escaped_label}<br/><br/><font point-size='10'>⚠️ [NO"
+            " DEFAULT]</font>>"
+        )
+
       dot.node(
           node_name,
           node_label,
@@ -286,17 +299,9 @@ def plot_workflow_graph(
     is_terminal = False
     if not outgoing_edges:
       is_terminal = True
-    else:
-      has_default_handling = any(
-          not e.get("route") or e.get("route") == "__DEFAULT__"
-          for e in outgoing_edges
-      )
-      if not has_default_handling:
-        is_terminal = True
 
     if is_terminal:
-      is_conditional_terminal = bool(outgoing_edges)
-      terminal_nodes.append((node_name, is_conditional_terminal))
+      terminal_nodes.append(node_name)
 
   if is_workflow and terminal_nodes:
     dot.node(
@@ -311,9 +316,8 @@ def plot_workflow_graph(
         width="0.9",
         fixedsize="true",
     )
-    for t_node, is_cond in terminal_nodes:
-      label = "  __DEFAULT__" if is_cond else ""
-      dot.edge(t_node, "__END__", label=label)
+    for t_node in terminal_nodes:
+      dot.edge(t_node, "__END__")
 
   if format == "dot":
     return dot.source
