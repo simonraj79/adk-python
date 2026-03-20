@@ -14,16 +14,13 @@
 
 from __future__ import annotations
 
-from typing import Any
 from typing import Callable
 from typing import Optional
 from typing import TYPE_CHECKING
 
-from pydantic import BaseModel
-from pydantic import ConfigDict
-
 from ._definitions import RouteValue
 from ._node_status import NodeStatus
+from ._trigger import Trigger
 from ._workflow_graph import DEFAULT_ROUTE
 from ._workflow_graph import WorkflowGraph
 from .utils._node_output_utils import _get_node_output_and_route
@@ -34,15 +31,6 @@ if TYPE_CHECKING:
   from ..events.event import Event
   from ._run_state import _WorkflowRunState
   from ._workflow import WorkflowAgentState
-
-
-class Trigger(BaseModel):
-  """Represents a trigger for a node."""
-
-  model_config = ConfigDict(ser_json_bytes='base64')
-
-  input: Any = None
-  triggered_by: str = ''
 
 
 _TERMINAL_STATUSES = frozenset({

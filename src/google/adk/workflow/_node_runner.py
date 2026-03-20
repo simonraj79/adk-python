@@ -233,8 +233,6 @@ def _check_and_schedule_nodes(run_state: _WorkflowRunState) -> None:
   Args:
     run_state: The workflow runtime state.
   """
-  from ._trigger_processor import Trigger
-
   # Clean up nodes_map for dynamic nodes that have been removed from state
   # (cleaned up by _cleanup_child_executions in _process_triggers).
   for node_name in list(run_state.nodes_map.keys()):

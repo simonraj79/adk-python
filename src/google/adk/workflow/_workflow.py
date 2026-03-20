@@ -48,14 +48,13 @@ from ._node_status import NodeStatus
 from ._run_state import _NodeCompletion
 from ._run_state import _NodeResumption
 from ._run_state import _WorkflowRunState
+from ._trigger import Trigger
 from ._trigger_processor import _get_next_pending_nodes
 from ._trigger_processor import _process_triggers
-from ._trigger_processor import Trigger
 from ._workflow_graph import EdgeItem
 from ._workflow_graph import WorkflowGraph
 from .utils._agent_state_utils import reconstruct_state_from_events
 from .utils._event_utils import enrich_event
-from .utils._node_output_utils import _get_node_output_and_route
 from .utils._node_path_utils import is_descendant
 from .utils._node_path_utils import is_direct_child
 from .utils._node_path_utils import join_paths
@@ -357,7 +356,7 @@ class Workflow(BaseAgent, Node):
       node_input = self._parse_start_input(ctx.user_content)
 
     # Find all START successors and seed their trigger buffers.
-    from ._trigger_processor import Trigger
+    from ._trigger import Trigger
 
     for edge in self.graph.edges:
       if edge.from_node.name == START.name:

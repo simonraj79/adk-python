@@ -33,7 +33,7 @@ from google.adk.workflow import Edge
 from google.adk.workflow import START
 from google.adk.workflow import Workflow
 from google.adk.workflow._node_status import NodeStatus
-from google.adk.workflow._trigger_processor import Trigger
+from google.adk.workflow._trigger import Trigger
 from google.adk.workflow._workflow import NodeState
 from google.adk.workflow._workflow import WorkflowAgentState
 from google.adk.workflow._workflow_graph import WorkflowGraph

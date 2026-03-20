@@ -31,8 +31,8 @@ from google.adk.workflow._node_runner import _NodeCompletion
 from google.adk.workflow._node_runner import _WorkflowRunState
 from google.adk.workflow._node_state import NodeState
 from google.adk.workflow._node_status import NodeStatus
+from google.adk.workflow._trigger import Trigger
 from google.adk.workflow._trigger_processor import _cleanup_child_executions
-from google.adk.workflow._trigger_processor import Trigger
 from google.adk.workflow._workflow import WorkflowAgentState
 from google.adk.workflow._workflow_graph import WorkflowGraph
 from pydantic import ConfigDict
