@@ -59,6 +59,11 @@ class NodeRunner:
     self._triggered_by = triggered_by
     self._in_nodes = in_nodes
 
+  @property
+  def execution_id(self) -> str:
+    """The execution ID assigned to this node run."""
+    return self._execution_id
+
   async def run(
       self,
       node_input: Any = None,
@@ -97,7 +102,7 @@ class NodeRunner:
         node_path=self._build_node_path(),
         execution_id=self._execution_id,
         resume_inputs=resume_inputs,
-        schedule_dynamic_node=self._parent_ctx.schedule_dynamic_node,
+        schedule_dynamic_node_internal=self._parent_ctx._schedule_dynamic_node_internal,
         triggered_by=self._triggered_by,
         in_nodes=self._in_nodes,
     )

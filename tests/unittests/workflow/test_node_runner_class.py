@@ -320,26 +320,25 @@ async def test_node_path_includes_parent():
 async def test_execution_id_generated_when_omitted():
   """Each node run gets a unique execution ID by default."""
   node = _EchoNode(name='auto_id')
-  ctx, events = _make_ctx()
-  await NodeRunner(node=node, parent_ctx=ctx).run(node_input='data')
+  ctx, _ = _make_ctx()
 
-  output_events = [e for e in events if e.output is not None]
-  exec_id = output_events[0].node_info.execution_id
-  assert exec_id
-  assert isinstance(exec_id, str)
+  runner = NodeRunner(node=node, parent_ctx=ctx)
+
+  assert runner.execution_id
+  assert isinstance(runner.execution_id, str)
 
 
 @pytest.mark.asyncio
 async def test_explicit_execution_id_used():
-  """A caller-specified execution ID is used for the run."""
+  """A caller-specified execution ID is used on the runner and events."""
   node = _EchoNode(name='explicit_id')
   ctx, events = _make_ctx()
-  await NodeRunner(node=node, parent_ctx=ctx, execution_id='my-exec-id').run(
-      node_input='data'
-  )
 
-  output_events = [e for e in events if e.output is not None]
-  assert output_events[0].node_info.execution_id == 'my-exec-id'
+  runner = NodeRunner(node=node, parent_ctx=ctx, execution_id='my-exec-id')
+
+  assert runner.execution_id == 'my-exec-id'
+  await runner.run(node_input='data')
+  assert events[0].node_info.execution_id == 'my-exec-id'
 
 
 @pytest.mark.asyncio

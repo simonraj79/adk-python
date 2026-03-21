@@ -41,6 +41,8 @@ if TYPE_CHECKING:
   from ..sessions.state import State
   from ..tools.tool_confirmation import ToolConfirmation
   from ..workflow._definitions import NodeLike
+  from ..workflow._node_run_result import NodeRunResult
+  from ..workflow._schedule_dynamic_node import ScheduleDynamicNode as ScheduleDynamicNodeInternal
   from .invocation_context import InvocationContext
 
 
@@ -153,7 +155,10 @@ class Context(ReadonlyContext):
       triggered_by: str = '',
       in_nodes: set[str] | None = None,
       resume_inputs: dict[str, Any] | None = None,
-      schedule_dynamic_node: ScheduleDynamicNode | None = None,
+      schedule_dynamic_node: (
+          ScheduleDynamicNode | None
+      ) = None,  # TODO: remove after migrating to new Workflow
+      schedule_dynamic_node_internal: ScheduleDynamicNodeInternal | None = None,
       node_rerun_on_resume: bool = True,
       transfer_targets: list[Any] | None = None,
       retry_count: int = 0,
@@ -200,6 +205,7 @@ class Context(ReadonlyContext):
     )
     self._resume_inputs = resume_inputs or {}
     self.schedule_dynamic_node = schedule_dynamic_node
+    self._schedule_dynamic_node_internal = schedule_dynamic_node_internal
     self._node_rerun_on_resume = node_rerun_on_resume
     self._child_execution_counter = 0
     self._local_events = local_events if local_events is not None else []
@@ -375,6 +381,30 @@ class Context(ReadonlyContext):
         node_input,
         node_name=name,
         use_as_output=use_as_output,
+    )
+
+  async def _run_node_internal(
+      self, node: NodeLike, node_input: Any = None, *, name: str | None = None
+  ) -> NodeRunResult:
+    """Internal: run a node and return the full NodeRunResult.
+
+    Unlike run_node() which returns just the output, this returns the
+    full NodeRunResult for orchestrators that need route/interrupt info.
+    """
+    from ..workflow.utils._workflow_graph_utils import build_node
+
+    built_node = build_node(node)
+    if not self._schedule_dynamic_node_internal:
+      raise RuntimeError(
+          f'Node {built_node.name}: no internal scheduler available.'
+      )
+    execution_id = self.get_next_child_execution_id(built_node.name)
+    return await self._schedule_dynamic_node_internal(
+        self,
+        built_node,
+        execution_id,
+        node_input,
+        node_name=name,
     )
 
   # ============================================================================
