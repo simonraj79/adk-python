@@ -390,3 +390,100 @@ async def test_all_events_delivered():
   ctx, events = _make_ctx()
   await NodeRunner(node=node, parent_ctx=ctx).run(node_input='data')
   assert len(events) >= 1
+
+
+# --- Delta flushing tests ---
+
+
+@pytest.mark.asyncio
+async def test_state_delta_bundled_with_output_event():
+  """State deltas set before yield are flushed onto the output event."""
+
+  class _Node(BaseNode):
+
+    async def _run_impl(
+        self, *, ctx: Context, node_input: Any
+    ) -> AsyncGenerator[Any, None]:
+      ctx.state['color'] = 'blue'
+      ctx.state['count'] = 7
+      yield 'result'
+
+  ctx, events = _make_ctx()
+
+  await NodeRunner(node=_Node(name='bundled'), parent_ctx=ctx).run()
+
+  assert len(events) == 1
+  assert events[0].output == 'result'
+  assert events[0].actions.state_delta.get('color') == 'blue'
+  assert events[0].actions.state_delta.get('count') == 7
+
+
+@pytest.mark.asyncio
+async def test_state_after_last_yield_emitted_separately():
+  """State set after the last yield is emitted as a separate event."""
+
+  class _Node(BaseNode):
+
+    async def _run_impl(
+        self, *, ctx: Context, node_input: Any
+    ) -> AsyncGenerator[Any, None]:
+      yield 'early'
+      ctx.state['late_key'] = 'late_value'
+
+  ctx, events = _make_ctx()
+
+  await NodeRunner(node=_Node(name='late_state'), parent_ctx=ctx).run()
+
+  assert events[0].output == 'early'
+  assert events[1].actions.state_delta.get('late_key') == 'late_value'
+
+
+@pytest.mark.asyncio
+async def test_deltas_skip_partial_events():
+  """Partial events carry no deltas — deltas flush to next non-partial."""
+
+  class _Node(BaseNode):
+
+    async def _run_impl(
+        self, *, ctx: Context, node_input: Any
+    ) -> AsyncGenerator[Any, None]:
+      ctx.state['before_partial'] = True
+      yield Event(
+          content=types.Content(parts=[types.Part(text='streaming...')]),
+          partial=True,
+      )
+      ctx.state['after_partial'] = True
+      yield 'final'
+
+  ctx, events = _make_ctx()
+
+  await NodeRunner(node=_Node(name='partial_skip'), parent_ctx=ctx).run()
+
+  assert events[0].partial is True
+  assert not events[0].actions or not events[0].actions.state_delta
+  assert events[1].output == 'final'
+  assert events[1].actions.state_delta.get('before_partial') is True
+  assert events[1].actions.state_delta.get('after_partial') is True
+
+
+@pytest.mark.asyncio
+async def test_artifact_and_state_bundled_together():
+  """Both state and artifact deltas are flushed onto the same event."""
+
+  class _Node(BaseNode):
+
+    async def _run_impl(
+        self, *, ctx: Context, node_input: Any
+    ) -> AsyncGenerator[Any, None]:
+      ctx.state['s1'] = 'v1'
+      ctx.actions.artifact_delta['file.txt'] = 1
+      yield 'done'
+
+  ctx, events = _make_ctx()
+
+  await NodeRunner(node=_Node(name='both_deltas'), parent_ctx=ctx).run()
+
+  assert len(events) == 1
+  assert events[0].output == 'done'
+  assert events[0].actions.state_delta.get('s1') == 'v1'
+  assert events[0].actions.artifact_delta.get('file.txt') == 1

@@ -71,7 +71,7 @@ class NodeRunner:
     ctx = self._create_child_context(resume_inputs)
 
     output, route, interrupt_ids = await self._execute_node(ctx, node_input)
-    await self._emit_deltas(ctx)
+    await self._emit_remaining_deltas(ctx)
 
     return NodeRunResult(
         output=output,
@@ -112,6 +112,8 @@ class NodeRunner:
     route = None
     interrupt_ids: list[str] = []
     async for event in self._node.run(ctx=ctx, node_input=node_input):
+      if not event.partial:
+        self._flush_deltas(event, ctx)
       self._enrich_event(event, ctx)
       await ctx._invocation_context.enqueue_event(event)
 
@@ -129,26 +131,44 @@ class NodeRunner:
 
     return output, route, interrupt_ids
 
-  async def _emit_deltas(self, ctx: Context) -> None:
-    """Emit state and artifact deltas after node exhausts."""
+  async def _emit_remaining_deltas(self, ctx: Context) -> None:
+    """Emit any deltas that weren't flushed onto a yielded event."""
     from ..events.event import Event
     from ..events.event_actions import EventActions
 
-    has_state = bool(ctx.actions.state_delta)
-    has_artifact = bool(ctx.actions.artifact_delta)
-    if not has_state and not has_artifact:
+    state = ctx.actions.state_delta
+    artifact = ctx.actions.artifact_delta
+    if not state and not artifact:
       return
 
     delta_event = Event(
         actions=EventActions(
-            state_delta=dict(ctx.actions.state_delta) if has_state else {},
-            artifact_delta=(
-                dict(ctx.actions.artifact_delta) if has_artifact else {}
-            ),
+            state_delta=dict(state),
+            artifact_delta=dict(artifact),
         ),
     )
+    state.clear()
+    artifact.clear()
     self._enrich_event(delta_event, ctx)
     await ctx._invocation_context.enqueue_event(delta_event)
+
+  def _flush_deltas(self, event: Event, ctx: Context) -> None:
+    """Move pending state/artifact deltas from ctx onto the event."""
+    from ..events.event_actions import EventActions
+
+    state = ctx.actions.state_delta
+    artifact = ctx.actions.artifact_delta
+    if not state and not artifact:
+      return
+
+    if not event.actions:
+      event.actions = EventActions()
+    if state:
+      event.actions.state_delta.update(state)
+      state.clear()
+    if artifact:
+      event.actions.artifact_delta.update(artifact)
+      artifact.clear()
 
   def _enrich_event(self, event: Event, ctx: Context) -> None:
     """Set author, node_info, invocation_id on the event."""
