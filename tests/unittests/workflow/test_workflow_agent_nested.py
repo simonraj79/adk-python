@@ -619,7 +619,7 @@ async def test_nested_workflow_agent_with_hitl(
       # call_llm produces text response (no more function calls).
       (
           'outer_agent/nested_agent/llm_agent/call_llm',
-          'LLM response after tool',
+          {'node_name': 'call_llm', 'output': 'LLM response after tool'},
       ),
       # llm_agent completes.
       (
@@ -1076,7 +1076,7 @@ async def test_nested_workflow_agent_with_tool_calls(
       ),
       (
           'outer_agent/nested_agent/llm_agent/call_llm',
-          'LLM response after tools',
+          {'node_name': 'call_llm', 'output': 'LLM response after tools'},
       ),
       # Wrapper emits output before END_OF_AGENT.
       (

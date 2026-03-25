@@ -1823,6 +1823,8 @@ class AdkWebServer:
       agent_or_app = self.agent_loader.load_agent(app_name)
       root_agent = self._get_root_agent(agent_or_app)
       dot_graph = None
+      function_calls = event.get_function_calls()
+      function_responses = event.get_function_responses()
 
       if function_calls:
         function_call_highlights = []

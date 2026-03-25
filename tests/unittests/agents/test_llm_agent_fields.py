@@ -607,9 +607,9 @@ class TestParallelWorker:
                 'output': ['item1', 'item2'],
             },
         ),
-        # LLM content events (streaming text from each worker).
-        ('llm_agent__0', 'processed'),
-        ('llm_agent__1', 'processed'),
+        # LLM output events from each worker's call_llm node.
+        ('llm_agent__0', {'node_name': 'call_llm', 'output': 'processed'}),
+        ('llm_agent__1', {'node_name': 'call_llm', 'output': 'processed'}),
         # Wrapper output events for each worker.
         (
             'outer_agent',
@@ -678,9 +678,9 @@ class TestParallelWorker:
                 'output': ['item1', 'item2'],
             },
         ),
-        # LLM content events (streaming text from each worker).
-        ('llm_agent__0', 'processed'),
-        ('llm_agent__1', 'processed'),
+        # LLM output events from each worker's call_llm node.
+        ('llm_agent__0', {'node_name': 'call_llm', 'output': 'processed'}),
+        ('llm_agent__1', {'node_name': 'call_llm', 'output': 'processed'}),
         # Wrapper output events for each worker.
         (
             'outer_agent',
