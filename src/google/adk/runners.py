@@ -1825,7 +1825,8 @@ class Runner:
     """Closes the runner."""
     logger.info('Closing runner...')
     # Close Toolsets
-    await self._cleanup_toolsets(self._collect_toolset(self.agent))
+    if self.agent is not None:
+      await self._cleanup_toolsets(self._collect_toolset(self.agent))
 
     # Close Plugins
     if self.plugin_manager:

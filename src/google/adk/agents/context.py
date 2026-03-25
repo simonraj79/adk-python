@@ -320,12 +320,25 @@ class Context(ReadonlyContext):
     )
     return ctx_with_proxy
 
-  def get_next_child_execution_id(self, node_name: str) -> str:
-    """Generates the next deterministic child execution ID."""
-    self._child_execution_counter += 1
-    unique_string = (
-        f'{self._execution_id}-{self._child_execution_counter}-{node_name}'
-    )
+  def get_next_child_execution_id(
+      self, node_name: str, *, is_static_name: bool = False
+  ) -> str:
+    """Generates the next deterministic child execution ID.
+
+    Args:
+      node_name: The name of the child node.
+      is_static_name: If True, derive the ID from the name alone (no
+        counter). This produces the same ID regardless of call order,
+        which is required for parallel ``run_node`` calls that may
+        start in non-deterministic order.
+    """
+    if is_static_name:
+      unique_string = f'{self._execution_id}-{node_name}'
+    else:
+      self._child_execution_counter += 1
+      unique_string = (
+          f'{self._execution_id}-{self._child_execution_counter}-{node_name}'
+      )
     # TODO(swapnilag): use a better hash method.
     hashed_id = hashlib.sha256(unique_string.encode('utf-8')).hexdigest()[:15]
     return f'{node_name}_{hashed_id}'
@@ -377,7 +390,9 @@ class Context(ReadonlyContext):
     from ..workflow.utils._workflow_graph_utils import build_node  # pylint: disable=g-import-not-at-top
 
     built_node = build_node(node)
-    execution_id = self.get_next_child_execution_id(built_node.name)
+    execution_id = self.get_next_child_execution_id(
+        name or built_node.name, is_static_name=name is not None
+    )
 
     # Prefer the internal scheduler (new Workflow architecture) which
     # returns NodeRunResult. Fall back to the legacy scheduler.
@@ -420,7 +435,9 @@ class Context(ReadonlyContext):
       raise RuntimeError(
           f'Node {built_node.name}: no internal scheduler available.'
       )
-    execution_id = self.get_next_child_execution_id(built_node.name)
+    execution_id = self.get_next_child_execution_id(
+        name or built_node.name, is_static_name=name is not None
+    )
     return await self._schedule_dynamic_node_internal(
         self,
         built_node,
