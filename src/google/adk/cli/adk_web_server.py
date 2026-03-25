@@ -578,6 +578,69 @@ class AdkWebServer:
         auto_create_session=self.auto_create_session,
     )
 
+  def _navigate_to_node(self, app_info: dict, node_path: str) -> dict | None:
+    """Navigate to a specific node in the agent hierarchy.
+
+    Args:
+      app_info: The full app info structure
+      node_path: Path like "agent1/agent2/agent3"
+
+    Returns:
+      The agent data at that path, or None if not found
+    """
+    if not node_path:
+      return app_info.get("root_agent")
+
+    path_parts = node_path.split('/')
+    current = app_info.get("root_agent")
+
+    if not current:
+      return None
+
+    # Navigate through each level (skip first if it's the root name)
+    start_idx = 0
+    if path_parts[0] == current.get("name"):
+      start_idx = 1
+
+    for part in path_parts[start_idx:]:
+      # Look in graph.nodes
+      if current.get("graph") and current["graph"].get("nodes"):
+        found = None
+        for node in current["graph"]["nodes"]:
+          if node.get("name") == part:
+            found = node
+            break
+        if found:
+          current = found
+          continue
+
+      # Look in nodes array (for mesh agents)
+      if current.get("nodes"):
+        found = None
+        for node in current["nodes"]:
+          if node.get("name") == part:
+            found = node
+            break
+        if found:
+          current = found
+          continue
+
+      # Look in sub_agents
+      if current.get("sub_agents"):
+        found = None
+        for agent in current["sub_agents"]:
+          if agent.get("name") == part:
+            found = agent
+            break
+        if found:
+          current = found
+          continue
+
+      # Node not found in this level
+      return None
+
+    return current
+
   def _instantiate_extra_plugins(self) -> list[BasePlugin]:
     """Instantiate extra plugins from the configured list.
 
@@ -837,7 +900,11 @@ class AdkWebServer:
         return serialize_app_info(runner.app, readme_content)
 
     @app.get("/dev/build_graph_image/{app_name}")
-    async def get_app_info_image(app_name: str, dark_mode: bool = False) -> Any:
+    async def get_app_info_image(
+        app_name: str,
+        dark_mode: bool = False,
+        node: str = ""
+    ) -> Any:
       runner = await self.get_runner_async(app_name)
 
       if not runner.app:
@@ -846,6 +913,18 @@ class AdkWebServer:
         )
 
       app_info = serialize_app_info(runner.app)
+
+      # Navigate to specific level if node is provided
+      if node:
+        target_agent = self._navigate_to_node(app_info, node)
+        if not target_agent:
+          raise HTTPException(
+              status_code=404,
+              detail=f"Node not found: {node}"
+          )
+        # Create a temporary app_info structure for the target level
+        app_info = {"root_agent": target_agent}
+
       dot_string = plot_workflow_graph(
           app_info, format="dot", dark_mode=dark_mode
       )
