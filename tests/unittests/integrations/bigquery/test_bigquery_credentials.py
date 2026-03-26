@@ -14,7 +14,7 @@
 
 from unittest import mock
 
-from google.adk.tools.bigquery import BigQueryCredentialsConfig
+from google.adk.integrations.bigquery import BigQueryCredentialsConfig
 # Mock the Google OAuth and API dependencies
 import google.auth.credentials
 import google.oauth2.credentials
