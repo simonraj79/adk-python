@@ -27,10 +27,23 @@ definition. The rationales to have customized tool are:
    execute_sql can't arbitrarily mutate existing data.
 """
 
-from .bigquery_credentials import BigQueryCredentialsConfig
-from .bigquery_toolset import BigQueryToolset
+import importlib
+import sys
 
-__all__ = [
-    "BigQueryToolset",
-    "BigQueryCredentialsConfig",
-]
+# Redirect this module to integrations/bigquery for backward compatibility.
+_TARGET = "google.adk.integrations.bigquery"
+
+try:
+  _mod = importlib.import_module(_TARGET)
+  sys.modules[__name__] = _mod
+except ImportError:
+  # Fallback for static analysis or if import fails during transition
+  from google.adk.integrations.bigquery import BigQueryCredentialsConfig
+  from google.adk.integrations.bigquery import BigQueryToolset
+  from google.adk.integrations.bigquery import get_bigquery_skill
+
+  __all__ = [
+      "BigQueryToolset",
+      "BigQueryCredentialsConfig",
+      "get_bigquery_skill",
+  ]

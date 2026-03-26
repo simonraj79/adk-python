@@ -153,7 +153,12 @@ def test_ask_data_agent_exception(
 def test_get_stream_from_file(mock_post, case_file_path):
   """Runs a full integration test for the _get_stream function using data from a specific file."""
   # 1. Construct the full, absolute path to the data file
-  full_path = pathlib.Path(__file__).parent.parent / "bigquery" / case_file_path
+  full_path = (
+      pathlib.Path(__file__).parent.parent.parent
+      / "integrations"
+      / "bigquery"
+      / case_file_path
+  )
 
   # 2. Load the test case data from the specified YAML file
   with open(full_path, "r", encoding="utf-8") as f:
