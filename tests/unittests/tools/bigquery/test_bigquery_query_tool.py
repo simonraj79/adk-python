@@ -24,13 +24,13 @@ import uuid
 
 import dateutil
 import dateutil.relativedelta
-from google.adk.integrations.bigquery import BigQueryCredentialsConfig
-from google.adk.integrations.bigquery import BigQueryToolset
-from google.adk.integrations.bigquery import client as bq_client_lib
-from google.adk.integrations.bigquery import query_tool
-from google.adk.integrations.bigquery.config import BigQueryToolConfig
-from google.adk.integrations.bigquery.config import WriteMode
 from google.adk.tools.base_tool import BaseTool
+from google.adk.tools.bigquery import BigQueryCredentialsConfig
+from google.adk.tools.bigquery import BigQueryToolset
+from google.adk.tools.bigquery import client as bq_client_lib
+from google.adk.tools.bigquery import query_tool
+from google.adk.tools.bigquery.config import BigQueryToolConfig
+from google.adk.tools.bigquery.config import WriteMode
 from google.adk.tools.tool_context import ToolContext
 import google.auth
 from google.auth.exceptions import DefaultCredentialsError
