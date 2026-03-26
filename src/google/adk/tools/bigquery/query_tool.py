@@ -25,7 +25,7 @@ from google.auth.credentials import Credentials
 from google.cloud import bigquery
 
 from . import client
-from ...tools.tool_context import ToolContext
+from ..tool_context import ToolContext
 from .config import BigQueryToolConfig
 from .config import WriteMode
 
