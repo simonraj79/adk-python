@@ -50,6 +50,7 @@ class NodeRunner:
       execution_id: str | None = None,
       triggered_by: str = '',
       in_nodes: set[str] | None = None,
+      additional_output_for_ancestor: str | None = None,
   ) -> None:
     from ..platform import uuid as platform_uuid
 
@@ -58,6 +59,7 @@ class NodeRunner:
     self._execution_id = execution_id or platform_uuid.new_uuid()
     self._triggered_by = triggered_by
     self._in_nodes = in_nodes
+    self._additional_output_for_ancestor = additional_output_for_ancestor
 
   @property
   def execution_id(self) -> str:
@@ -97,6 +99,10 @@ class NodeRunner:
     """Create a child Context for the node, inheriting from parent."""
     from ..agents.context import Context
 
+    ancestors = list(self._parent_ctx._output_for_ancestors or [])
+    if self._additional_output_for_ancestor:
+      ancestors = [self._additional_output_for_ancestor] + ancestors
+
     return Context(
         self._parent_ctx._invocation_context,
         node_path=self._build_node_path(),
@@ -105,6 +111,7 @@ class NodeRunner:
         schedule_dynamic_node_internal=self._parent_ctx._schedule_dynamic_node_internal,
         triggered_by=self._triggered_by,
         in_nodes=self._in_nodes,
+        output_for_ancestors=ancestors,
     )
 
   async def _execute_node(
@@ -194,3 +201,5 @@ class NodeRunner:
     event.invocation_id = ctx._invocation_context.invocation_id
     event.node_info.path = ctx.node_path
     event.node_info.execution_id = self._execution_id
+    if event.output is not None:
+      event.node_info.output_for = [ctx.node_path] + ctx._output_for_ancestors

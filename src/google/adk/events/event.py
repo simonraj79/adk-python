@@ -57,6 +57,16 @@ class NodeInfo(BaseModel):
   """The execution ID of the parent node that dynamically scheduled
   this node. Used to reconstruct dynamic node state from session events."""
 
+  output_for: list[str] | None = None
+  """Node paths whose output this event represents.
+
+  Set on events that carry an output value. When set, the output field
+  of this event is also considered the output for each listed node path
+  in the same invocation. For example, ``["wf/A/B", "wf/A"]`` means
+  this event's output counts as the output for both ``wf/A/B`` and
+  ``wf/A``.
+  """
+
   @property
   def name(self) -> str:
     """The name of the node that generated the event."""

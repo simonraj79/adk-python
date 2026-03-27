@@ -313,6 +313,9 @@ class Workflow(BaseNode):
           node=node,
           parent_ctx=ctx,
           execution_id=execution_id,
+          additional_output_for_ancestor=(
+              ctx.node_path if use_as_output else None
+          ),
       )
       task = asyncio.create_task(runner.run(node_input=node_input))
 

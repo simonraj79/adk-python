@@ -162,6 +162,7 @@ class Context(ReadonlyContext):
       node_rerun_on_resume: bool = True,
       transfer_targets: list[Any] | None = None,
       retry_count: int = 0,
+      output_for_ancestors: list[str] | None = None,
   ) -> None:
     """Initializes the Context.
 
@@ -212,6 +213,12 @@ class Context(ReadonlyContext):
     self._transfer_targets = transfer_targets or []
     self._retry_count = retry_count
     self._output_delegated = False
+    self._output_for_ancestors: list[str] = output_for_ancestors or []
+    """Ancestor node paths whose output this node's output also represents.
+
+    E.g. ['wf/parent', 'wf/grandparent'] means this node's output event
+    is also considered the output for those ancestor paths.
+    """
 
     # Use a session proxy when local_events are provided (workflow mode).
     if local_events is not None:

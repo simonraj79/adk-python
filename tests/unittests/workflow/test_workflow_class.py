@@ -1210,6 +1210,13 @@ async def test_use_as_output_function_to_function():
   assert ('func_b', 'from_b') in by_node
   assert not any(name == 'func_a' for name, _ in by_node)
 
+  # output_for includes both child and parent paths.
+  output_event = [e for e in events if e.node_info.name == 'func_b'][0]
+  assert output_event.node_info.output_for == [
+      'wf/func_a/func_b',
+      'wf/func_a',
+  ]
+
 
 @pytest.mark.asyncio
 async def test_use_as_output_function_to_workflow():
@@ -1300,6 +1307,14 @@ async def test_use_as_output_nested_delegation():
   assert ('func_c', 'from_c') in by_node
   assert not any(name in ('func_a', 'func_b') for name, _ in by_node)
 
+  # output_for includes full ancestor chain.
+  output_event = [e for e in events if e.node_info.name == 'func_c'][0]
+  assert output_event.node_info.output_for == [
+      'wf/func_a/func_b/func_c',
+      'wf/func_a/func_b',
+      'wf/func_a',
+  ]
+
 
 @pytest.mark.asyncio
 async def test_use_as_output_with_downstream():
@@ -1374,3 +1389,9 @@ async def test_without_use_as_output_parent_emits_duplicate():
   # Both func_b AND func_a emit output (duplicate).
   assert ('func_b', 'from_b') in by_node
   assert ('func_a', 'from_b') in by_node
+
+  # Without delegation, output_for contains only the node's own path.
+  b_event = [e for e in events if e.node_info.name == 'func_b'][0]
+  assert b_event.node_info.output_for == ['wf/func_a/func_b']
+  a_event = [e for e in events if e.node_info.name == 'func_a'][0]
+  assert a_event.node_info.output_for == ['wf/func_a']
