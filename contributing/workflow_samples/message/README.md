@@ -7,6 +7,7 @@ This sample demonstrates different ways to send a message to a user using `Event
 1. **String Messages**: Standard string text replies.
 1. **Multi-modal Messages**: Returning mixed modality inputs, such as a string combined with an inline image.
 1. **Multiple Messages**: Emitting multiple full messages from the same node with a delay between them.
+1. **Streaming Messages**: Simulating an LLM streaming response by breaking a message into chunks and yielding them with the `partial=True` flag at intervals.
 
 ## Sample Inputs
 
@@ -25,6 +26,9 @@ This workflow executes sequentially and successfully without any expected user i
                       |
                       v
             [ multiple_messages ]
+                      |
+                      v
+             [ stream_sentence ]
                       |
                       v
                  (Workflow Ends)
@@ -68,4 +72,20 @@ To send messages in an ADK node, yield an `Event` object with the `message` argu
      await asyncio.sleep(1.0)
 
      yield Event(message="Done processing.")
+   ```
+
+1. **Stream a message in chunks**:
+   Provide the `partial=True` flag for intermediate chunks. This provides a better user experience by allowing the UI to show the response in a streaming fashion, thereby lowering the latency to see the first word. ADK automatically accumulates all partial messages and merges them into a final message for you for session storage.
+
+   > **Note**: To stream multiple messages or tokens smoothly, your node function **must be an asynchronous generator** (`async def`). This allows ADK to yield messages to the client immediately without blocking.
+
+   ```python
+   import asyncio
+
+   async def stream_sentence(node_input: str):
+       yield Event(message="How ", partial=True)
+       await asyncio.sleep(0.5)
+       yield Event(message="may I", partial=True)
+       await asyncio.sleep(0.5)
+       yield Event(message=" help you?", partial=True)
    ```

@@ -23,7 +23,7 @@ from google.genai import types
 
 def send_string(node_input: Any = None):
   """Sends a single string message."""
-  yield Event(message="1. This is a simple string message.")
+  yield Event(message="#1 This is a simple string message.")
 
 
 def send_multimodal(node_input: Any = None):
@@ -36,7 +36,7 @@ def send_multimodal(node_input: Any = None):
       message=[
           types.Part.from_text(
               text=(
-                  "2. Here is a multi-modal message with an inline image (red"
+                  "#2 Here is a multi-modal message with an inline image (red"
                   " square):"
               )
           ),
@@ -47,13 +47,34 @@ def send_multimodal(node_input: Any = None):
 
 async def multiple_messages(node_input: Any = None):
   """Sends multiple complete messages from the same node with an interval."""
-  yield Event(message="3. Processing step 1...")
+  yield Event(message="#3 Multiple messages")
   await asyncio.sleep(1.0)
 
-  yield Event(message="3. Processing step 2...")
+  yield Event(message="Processing step 1...")
   await asyncio.sleep(1.0)
 
-  yield Event(message="3. Done processing.")
+  yield Event(message="Processing step 2...")
+  await asyncio.sleep(1.0)
+
+  yield Event(message="Done processing.")
+
+
+async def stream_sentence(node_input: Any = None):
+  """
+  Demonstrates streaming by sending a sentence in chunks.
+  The `partial=True` flag tells the UI that this is part of an ongoing message.
+  """
+  yield Event(message="#4 Starting to stream...")
+  sentence = """\
+This is a streaming message sent in chunks.
+
+You need to enable 'Token Streaming' in the UI to see this message in chunks.
+"""
+
+  for i in range(0, len(sentence), 5):
+    chunk = sentence[i : i + 5]
+    yield Event(message=chunk, partial=True)
+    await asyncio.sleep(0.2)
 
 
 root_agent = Workflow(
@@ -64,6 +85,7 @@ root_agent = Workflow(
             send_string,
             send_multimodal,
             multiple_messages,
+            stream_sentence,
         ),
     ],
 )
