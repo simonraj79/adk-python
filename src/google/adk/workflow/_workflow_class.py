@@ -42,6 +42,7 @@ from ._workflow_graph import WorkflowGraph
 from .utils._node_path_utils import direct_child_name
 from .utils._node_path_utils import is_descendant
 from .utils._node_path_utils import is_direct_child
+from .utils._workflow_hitl_utils import unwrap_response as _unwrap_fr_response
 
 if TYPE_CHECKING:
   from ..agents.context import Context
@@ -523,7 +524,9 @@ class Workflow(BaseNode):
           if fr and fr.id and fr.id in interrupt_owner:
             owner = interrupt_owner[fr.id]
             children[owner].resolved_ids.add(fr.id)
-            children[owner].resolved_responses[fr.id] = fr.response
+            children[owner].resolved_responses[fr.id] = _unwrap_fr_response(
+                fr.response
+            )
         continue
 
       if not is_descendant(workflow_path, event.node_info.path):
