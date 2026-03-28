@@ -68,7 +68,12 @@ async def stream_sentence(node_input: Any = None):
   sentence = """\
 This is a streaming message sent in chunks.
 
-You need to enable 'Token Streaming' in the UI to see this message in chunks.
+You can stream in markdown as well. For example, the table below:
+
+| Header 1 | Header 2 |
+|----------|----------|
+| Cell 1   | Cell 2   |
+| Cell 3   | Cell 4   |
 """
 
   for i in range(0, len(sentence), 5):
