@@ -501,6 +501,21 @@ class Context(ReadonlyContext):
         raise NodeInterruptedError()
       return child_ctx.output
 
+    # Fall back to the early-2.0 scheduler (used by _workflow.py,
+    # LoopAgent, ParallelAgent, SequentialAgent).
+    if self.schedule_dynamic_node:
+      run_id = self.get_next_child_run_id(
+          name or built_node.name, is_static_name=name is not None
+      )
+      return await self.schedule_dynamic_node(
+          self,
+          built_node,
+          run_id,
+          node_input,
+          node_name=name,
+          use_as_output=use_as_output,
+      )
+
     # No orchestrator scheduler — run the node directly.
     result = await self._run_node_via_runner(
         built_node,
