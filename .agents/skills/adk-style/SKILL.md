@@ -5,12 +5,15 @@ description: ADK development style guide — architecture patterns, testing best
 
 # ADK Style Guide
 
-This skill has three reference documents:
+## Development Conventions
+[references/development.md](references/development.md) — public API vs internal methods, comments, file organization, imports, Pydantic patterns, formatting
 
-- [Development Conventions](references/development.md) — public API vs internal methods, comments, file organization, imports, Pydantic patterns, formatting
-- Architecture Reference (references/architecture/) — split by topic:
-  - [BaseNode](references/architecture/base-node.md) — `@final run()` + `_run_impl()`, async generator conventions
-  - [Runner](references/architecture/runner.md) — Runner vs NodeRunner vs Workflow separation
-  - [Events and Context](references/architecture/events-and-context.md) — event authoring, context as result channel
-  - [Checkpoint and Resume](references/architecture/checkpoint-resume.md) — HITL lifecycle, `rerun_on_resume`, `execution_id`
-- [Testing Guide](references/testing.md) — core principles, 9 rules for writing ADK tests, test structure template
+## Architecture (references/architecture/)
+- [BaseNode](references/architecture/base-node.md) — node contract, output/streaming, state/routing, HITL, configuration
+- [Context](references/architecture/context.md) — 1:1 node-context mapping, InvocationContext singleton, property reference
+- [NodeRunner](references/architecture/node-runner.md) — two communication channels, execution flow, output delegation
+- [Runner](references/architecture/runner.md) — Runner vs NodeRunner vs Workflow separation
+- [Checkpoint and Resume](references/architecture/checkpoint-resume.md) — HITL lifecycle, `rerun_on_resume`, `execution_id`
+
+## Testing
+[references/testing.md](references/testing.md) — core principles, 9 rules for writing ADK tests, test structure template
