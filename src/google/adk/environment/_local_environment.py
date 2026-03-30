@@ -27,8 +27,8 @@ from typing import Optional
 from typing_extensions import override
 
 from ..utils.feature_decorator import experimental
-from .base_environment import BaseEnvironment
-from .base_environment import ExecutionResult
+from ._base_environment import BaseEnvironment
+from ._base_environment import ExecutionResult
 
 logger = logging.getLogger('google_adk.' + __name__)
 
