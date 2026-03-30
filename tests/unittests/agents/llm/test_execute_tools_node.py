@@ -258,7 +258,7 @@ async def _create_resume_context(
   return WorkflowContext(
       invocation_context=invocation_context,
       node_path='test',
-      execution_id='test-execution',
+      run_id='test-execution',
       local_events=[],
       resume_inputs=resume_inputs,
   )

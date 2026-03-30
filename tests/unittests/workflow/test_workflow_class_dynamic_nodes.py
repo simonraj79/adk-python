@@ -375,14 +375,14 @@ async def test_dynamic_node_sequential_interrupts():
 
 
 @pytest.mark.asyncio
-async def test_dynamic_node_execution_id_reused_on_resume():
-  """Resumed dynamic child reuses execution_id from original run.
+async def test_dynamic_node_run_id_reused_on_resume():
+  """Resumed dynamic child reuses run_id from original run.
 
   Setup: Parent calls ctx.run_node(Interrupter). Interrupter
     interrupts with fc-1.
   Action: Send FR for fc-1.
   Assert: The resumed Interrupter's output event has the same
-    execution_id as the original interrupt event.
+    run_id as the original interrupt event.
   """
 
   class _Interrupter(BaseNode):
@@ -420,7 +420,7 @@ async def test_dynamic_node_execution_id_reused_on_resume():
   # Run 1: interrupts
   events1 = await _run(runner, ss, session, 'go')
   interrupt_event = [e for e in events1 if e.long_running_tool_ids][0]
-  original_exec_id = interrupt_event.node_info.execution_id
+  original_run_id = interrupt_event.node_info.run_id
 
   # Run 2: resume
   events2 = await _resume(runner, ss, session, 'fc-1', 'ok')
@@ -430,7 +430,7 @@ async def test_dynamic_node_execution_id_reused_on_resume():
       if e.output == 'resumed' and 'interrupter' in (e.node_info.path or '')
   ]
   assert len(resumed_output_events) == 1
-  assert resumed_output_events[0].node_info.execution_id == original_exec_id
+  assert resumed_output_events[0].node_info.run_id == original_run_id
 
 
 # =========================================================================

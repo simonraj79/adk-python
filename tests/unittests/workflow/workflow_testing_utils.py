@@ -187,7 +187,7 @@ def simplify_event_with_node(
     event: AdkEvent,
     node_name_map: dict[str, str] | None = None,
     include_state_delta: bool = False,
-    include_execution_id: bool = False,
+    include_run_id: bool = False,
 ) -> Any | None:
   if node_name_map is None:
     node_name_map = {}
@@ -222,8 +222,8 @@ def simplify_event_with_node(
 
     if include_state_delta and event.actions.state_delta:
       simplified_event['state_delta'] = event.actions.state_delta
-    if include_execution_id and hasattr(event, 'node_info'):
-      simplified_event['execution_id'] = event.node_info.execution_id
+    if include_run_id and hasattr(event, 'node_info'):
+      simplified_event['run_id'] = event.node_info.run_id
 
     return simplified_event
   elif event.content:
@@ -234,7 +234,7 @@ def simplify_events_with_node(
     events: list[AdkEvent],
     *,
     include_state_delta: bool = False,
-    include_execution_id: bool = False,
+    include_run_id: bool = False,
     map_dynamic_node_to_the_source: bool = False,
     use_node_path: bool = False,
     include_workflow_output: bool = False,
@@ -259,7 +259,7 @@ def simplify_events_with_node(
       continue
 
     simplified_event = simplify_event_with_node(
-        event, node_name_map, include_state_delta, include_execution_id
+        event, node_name_map, include_state_delta, include_run_id
     )
     if simplified_event:
       # Map the author to the source node name if it exists.
@@ -277,7 +277,7 @@ def simplify_events_with_node_and_agent_state(
     include_state_delta: bool = False,
     include_inputs_and_triggers: bool = False,
     include_resume_inputs: bool = False,
-    include_execution_id: bool = False,
+    include_run_id: bool = False,
     map_dynamic_node_to_the_source: bool = False,
     use_node_path: bool = False,
     include_workflow_output: bool = False,
@@ -287,8 +287,8 @@ def simplify_events_with_node_and_agent_state(
     fields_to_exclude.update({'input', 'triggered_by'})
   if not include_resume_inputs:
     fields_to_exclude.add('resume_inputs')
-  if not include_execution_id:
-    fields_to_exclude.add('execution_id')
+  if not include_run_id:
+    fields_to_exclude.add('run_id')
 
   results = []
   node_name_map = {}
@@ -306,7 +306,7 @@ def simplify_events_with_node_and_agent_state(
     ):
       continue
     simplified_event = simplify_event_with_node(
-        event, node_name_map, include_state_delta, include_execution_id
+        event, node_name_map, include_state_delta, include_run_id
     )
 
     # Map the author to the source node name if it exists.

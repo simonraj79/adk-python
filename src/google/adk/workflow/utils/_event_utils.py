@@ -30,7 +30,7 @@ def enrich_event(
     *,
     author: str = '',
     node_path: str = '',
-    execution_id: str = '',
+    run_id: str = '',
     branch: bool = False,
 ) -> Event:
   """Fills in standard metadata fields on an event if not already set.
@@ -38,7 +38,7 @@ def enrich_event(
   Fields that are already set on the event are not overwritten.
 
   Only ``invocation_id`` and ``node_path`` are filled from ``ctx``
-  automatically.  Other fields (``author``, ``execution_id``, ``branch``)
+  automatically.  Other fields (``author``, ``run_id``, ``branch``)
   are only set when explicitly requested — they have no safe default
   derivable from ``ctx`` alone (e.g. nested workflows need the parent's
   name, not ``ctx.agent.name``).
@@ -48,7 +48,7 @@ def enrich_event(
     ctx: The invocation context providing default values.
     author: If provided, sets the event author when missing.
     node_path: Override for the node path. Falls back to ``ctx.node_path``.
-    execution_id: If provided, sets the execution ID when missing.
+    run_id: If provided, sets the run ID when missing.
     branch: If True, sets the event branch from ``ctx.branch`` when missing.
 
   Returns:
@@ -60,8 +60,8 @@ def enrich_event(
     event.author = author
   if not event.node_info.path:
     event.node_info.path = node_path or ctx.node_path or ''
-  if not event.node_info.execution_id and execution_id:
-    event.node_info.execution_id = execution_id
+  if not event.node_info.run_id and run_id:
+    event.node_info.run_id = run_id
   if branch and not event.branch and ctx.branch:
     event.branch = ctx.branch
   return event

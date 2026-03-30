@@ -1430,8 +1430,8 @@ async def test_buffers_events_from_parallel_nodes(
 
 
 @pytest.mark.asyncio
-async def test_execution_id_uniqueness(request: pytest.FixtureRequest):
-  """Tests that execution_id is unique per node execution."""
+async def test_run_id_uniqueness(request: pytest.FixtureRequest):
+  """Tests that run_id is unique per node execution."""
   node_a = TestingNode(name='NodeA', output='A')
   # Loop NodeA 3 times: A -> A -> A (exit)
   tracker = {'count': 0}
@@ -1445,7 +1445,7 @@ async def test_execution_id_uniqueness(request: pytest.FixtureRequest):
   node_a.route = loop_controller
 
   agent = Workflow(
-      name='test_execution_id',
+      name='test_run_id',
       edges=[
           (START, node_a),
           Edge(node_a, node_a, route='continue'),
@@ -1459,17 +1459,17 @@ async def test_execution_id_uniqueness(request: pytest.FixtureRequest):
   ]
   assert len(node_a_events) == 3
 
-  # Check that all have execution_ids
-  execution_ids = [e.node_info.execution_id for e in node_a_events]
-  assert all(execution_ids)
+  # Check that all have run_ids
+  run_ids = [e.node_info.run_id for e in node_a_events]
+  assert all(run_ids)
 
   # Check that they are all different (unique per execution)
-  assert len(set(execution_ids)) == 3
+  assert len(set(run_ids)) == 3
 
 
 @pytest.mark.asyncio
-async def test_execution_id_uniqueness_nested(request: pytest.FixtureRequest):
-  """Tests that execution_id is unique in nested workflows."""
+async def test_run_id_uniqueness_nested(request: pytest.FixtureRequest):
+  """Tests that run_id is unique in nested workflows."""
   inner_node = TestingNode(name='InnerNode', output='Inner')
   inner_agent = Workflow(
       name='inner_agent',
@@ -1503,17 +1503,17 @@ async def test_execution_id_uniqueness_nested(request: pytest.FixtureRequest):
       and e.output is not None
       and is_descendant(outer_agent.name, e.node_info.path)
   ]
-  execution_ids = []
+  run_ids = []
   for e in node_output_events:
-    if e.node_info.execution_id:
-      execution_ids.append(e.node_info.execution_id)
+    if e.node_info.run_id:
+      run_ids.append(e.node_info.run_id)
 
   # We expect 3 node output events:
   # - OuterNodeA (direct child)
   # - InnerNode (descendant via inner_agent)
   # - OuterNodeB (direct child)
   assert len(node_output_events) == 3
-  assert len(set(execution_ids)) == 3
+  assert len(set(run_ids)) == 3
 
 
 @pytest.mark.asyncio

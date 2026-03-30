@@ -41,8 +41,8 @@ class _NodeCompletion:
   node_name: str
   """The name of the node that completed."""
 
-  execution_id: str | None = None
-  """Unique identifier for this specific execution of the node."""
+  run_id: str | None = None
+  """Unique identifier for this specific run of the node."""
 
   node_interrupted: bool = False
   """Whether the node was interrupted (e.g., by RequestInput or a
@@ -55,7 +55,7 @@ class _NodeCompletion:
   """Whether the node produced at least one Event with data set."""
 
   exception: Exception | None = None
-  """Exception that occurred during node execution, if any."""
+  """Exception that occurred during node run, if any."""
 
   is_cancelled: bool = False
   """Whether the node was cancelled."""

@@ -323,7 +323,7 @@ async def test_invalid_input_schema_raises(
   ctx = await create_parent_invocation_context(request.function.__name__, wf)
   ic = ctx.model_copy(update={'branch': None})
   agent_ctx = Context(
-      invocation_context=ic, node_path='wf', execution_id='exec'
+      invocation_context=ic, node_path='wf', run_id='exec'
   )
 
   with _mock_agent_run(agent, finish_output={'result': 'ok'}):

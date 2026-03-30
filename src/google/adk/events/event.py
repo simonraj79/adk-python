@@ -47,15 +47,15 @@ class NodeInfo(BaseModel):
   path will be "A/B". Agent state event will have path as "A".
   """
 
-  execution_id: str = ''
-  """The execution ID of the node that generated the event."""
+  run_id: str = ''
+  """The run ID of the node that generated the event."""
 
   source_node_name: str | None = None
   """The original node definition name for a dynamically scheduled
   node. Used to reconstruct dynamic node state from session events."""
 
-  parent_execution_id: str | None = None
-  """The execution ID of the parent node that dynamically scheduled
+  parent_run_id: str | None = None
+  """The run ID of the parent node that dynamically scheduled
   this node. Used to reconstruct dynamic node state from session events."""
 
   output_for: list[str] | None = None
@@ -102,7 +102,7 @@ class Event(LlmResponse):
   """Generic data output from a workflow node."""
 
   node_info: NodeInfo = Field(default_factory=NodeInfo)
-  """Workflow node metadata (path, execution_id, etc.)."""
+  """Workflow node metadata (path, run_id, etc.)."""
 
   long_running_tool_ids: set[str] | None = None
   """Set of ids of the long running function calls.

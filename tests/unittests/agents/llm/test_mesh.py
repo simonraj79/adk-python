@@ -132,7 +132,7 @@ async def _create_context(
   return Context(
       invocation_context=ic,
       node_path=node_path,
-      execution_id='test-exec',
+      run_id='test-exec',
       local_events=[],
       transfer_targets=transfer_targets,
   )
@@ -432,8 +432,8 @@ class TestBuildWorkflowContext:
     assert result._local_events == []
 
   @pytest.mark.asyncio
-  async def test_execution_id_inherited(self):
-    """Child context inherits execution_id from parent."""
+  async def test_run_id_inherited(self):
+    """Child context inherits run_id from parent."""
     coord = StubNode(name='parent')
     mesh = _Mesh(name='parent', nodes=[coord])
 
@@ -441,7 +441,7 @@ class TestBuildWorkflowContext:
 
     result = mesh._build_workflow_context(ctx, coord)
 
-    assert result.execution_id == ctx.execution_id
+    assert result.run_id == ctx.run_id
 
   @pytest.mark.asyncio
   async def test_target_descriptions_propagated(self):

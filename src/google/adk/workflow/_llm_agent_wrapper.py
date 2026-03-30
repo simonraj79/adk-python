@@ -179,7 +179,7 @@ class _LlmAgentWrapper(BaseNode):
     agent_ctx = Context(
         invocation_context=ic,
         node_path=ctx.node_path,
-        execution_id=ctx.execution_id,
+        run_id=ctx.run_id,
     )
     return agent_ctx, agent_input
 

@@ -139,7 +139,7 @@ async def test_workflow_pause_and_resume(
   simplified_events1 = (
       workflow_testing_utils.simplify_events_with_node_and_agent_state(
           copy.deepcopy(events1),
-          include_execution_id=True,
+          include_run_id=True,
       )
   )
 
@@ -162,7 +162,7 @@ async def test_workflow_pause_and_resume(
               'NodeB_agent': {
                   'status': NodeStatus.WAITING.value,
                   'interrupts': [function_call_id],
-                  'execution_id': ANY,
+                  'run_id': ANY,
               },
           },
       },
@@ -191,7 +191,7 @@ async def test_workflow_pause_and_resume(
       workflow_testing_utils.simplify_events_with_node_and_agent_state(
           copy.deepcopy(events2),
           include_resume_inputs=True,
-          include_execution_id=True,
+          include_run_id=True,
       )
   )
 
@@ -608,7 +608,7 @@ async def test_workflow_rerun_on_resume(
   simplified_events1 = (
       workflow_testing_utils.simplify_events_with_node_and_agent_state(
           copy.deepcopy(events1),
-          include_execution_id=True,
+          include_run_id=True,
       )
   )
   req_events = workflow_testing_utils.get_request_input_events(events1)
@@ -617,10 +617,10 @@ async def test_workflow_rerun_on_resume(
   invocation_id = events1[0].invocation_id
 
   if resumable:
-    node_a_execution_id_1 = simplified_events1[-1][1]['nodes']['NodeA'][
-        'execution_id'
+    node_a_run_id_1 = simplified_events1[-1][1]['nodes']['NodeA'][
+        'run_id'
     ]
-    assert node_a_execution_id_1
+    assert node_a_run_id_1
 
     assert simplified_events1[-1] == (
         'test_agent',
@@ -629,13 +629,13 @@ async def test_workflow_rerun_on_resume(
                 'NodeA': {
                     'status': NodeStatus.WAITING.value,
                     'interrupts': [interrupt_id1],
-                    'execution_id': node_a_execution_id_1,
+                    'run_id': node_a_run_id_1,
                 },
             },
         },
     )
   else:
-    node_a_execution_id_1 = ANY
+    node_a_run_id_1 = ANY
 
   # Run 2: provide input, node reruns and completes
   events2 = await runner.run_async(
@@ -648,15 +648,15 @@ async def test_workflow_rerun_on_resume(
       workflow_testing_utils.simplify_events_with_node_and_agent_state(
           copy.deepcopy(events2),
           include_resume_inputs=True,
-          include_execution_id=True,
+          include_run_id=True,
       )
   )
   if resumable:
-    # Verify execution_id stays the same even for rerun node
-    node_a_execution_id_2 = simplified_events2[0][1]['nodes']['NodeA'][
-        'execution_id'
+    # Verify run_id stays the same even for rerun node
+    node_a_run_id_2 = simplified_events2[0][1]['nodes']['NodeA'][
+        'run_id'
     ]
-    assert node_a_execution_id_1 == node_a_execution_id_2
+    assert node_a_run_id_1 == node_a_run_id_2
 
   expected_events2 = [
       (
@@ -666,7 +666,7 @@ async def test_workflow_rerun_on_resume(
                   'NodeA': {
                       'status': NodeStatus.RUNNING.value,
                       'resume_inputs': {interrupt_id1: {'approved': True}},
-                      'execution_id': node_a_execution_id_1,
+                      'run_id': node_a_run_id_1,
                   },
               }
           },
@@ -676,7 +676,7 @@ async def test_workflow_rerun_on_resume(
           {
               'node_name': 'NodeA',
               'output': {'approval': True},
-              'execution_id': node_a_execution_id_1,
+              'run_id': node_a_run_id_1,
           },
       ),
       (
@@ -723,7 +723,7 @@ async def test_workflow_rerun_with_multiple_inputs(
   simplified_events1 = (
       workflow_testing_utils.simplify_events_with_node_and_agent_state(
           copy.deepcopy(events1),
-          include_execution_id=True,
+          include_run_id=True,
       )
   )
   req_events1 = workflow_testing_utils.get_request_input_events(events1)
@@ -732,10 +732,10 @@ async def test_workflow_rerun_with_multiple_inputs(
   assert interrupt_id1 == 'req1'
   invocation_id = events1[0].invocation_id
   if resumable:
-    node_a_execution_id_1 = simplified_events1[-1][1]['nodes']['NodeA'][
-        'execution_id'
+    node_a_run_id_1 = simplified_events1[-1][1]['nodes']['NodeA'][
+        'run_id'
     ]
-    assert node_a_execution_id_1
+    assert node_a_run_id_1
 
     assert simplified_events1[-1] == (
         'test_agent',
@@ -744,13 +744,13 @@ async def test_workflow_rerun_with_multiple_inputs(
                 'NodeA': {
                     'status': NodeStatus.WAITING.value,
                     'interrupts': [interrupt_id1],
-                    'execution_id': node_a_execution_id_1,
+                    'run_id': node_a_run_id_1,
                 },
             },
         },
     )
   else:
-    node_a_execution_id_1 = ANY
+    node_a_run_id_1 = ANY
 
   # Run 2: provide 1st input, node reruns and requests 2nd input
   events2 = await runner.run_async(
@@ -763,7 +763,7 @@ async def test_workflow_rerun_with_multiple_inputs(
       workflow_testing_utils.simplify_events_with_node_and_agent_state(
           copy.deepcopy(events2),
           include_resume_inputs=True,
-          include_execution_id=True,
+          include_run_id=True,
       )
   )
   req_events2 = workflow_testing_utils.get_request_input_events(events2)
@@ -771,10 +771,10 @@ async def test_workflow_rerun_with_multiple_inputs(
   interrupt_id2 = get_request_input_interrupt_ids(req_events2[0])[0]
   assert interrupt_id2 == 'req2'
   if resumable:
-    node_a_execution_id_2 = simplified_events2[0][1]['nodes']['NodeA'][
-        'execution_id'
+    node_a_run_id_2 = simplified_events2[0][1]['nodes']['NodeA'][
+        'run_id'
     ]
-    assert node_a_execution_id_1 == node_a_execution_id_2
+    assert node_a_run_id_1 == node_a_run_id_2
 
   expected_events2 = [
       (
@@ -784,7 +784,7 @@ async def test_workflow_rerun_with_multiple_inputs(
                   'NodeA': {
                       'status': NodeStatus.RUNNING.value,
                       'resume_inputs': {interrupt_id1: {'text': 'response 1'}},
-                      'execution_id': node_a_execution_id_1,
+                      'run_id': node_a_run_id_1,
                   },
               }
           },
@@ -811,7 +811,7 @@ async def test_workflow_rerun_with_multiple_inputs(
                       'status': NodeStatus.WAITING.value,
                       'interrupts': [interrupt_id2],
                       'resume_inputs': {interrupt_id1: {'text': 'response 1'}},
-                      'execution_id': node_a_execution_id_1,
+                      'run_id': node_a_run_id_1,
                   },
               },
           },
@@ -835,14 +835,14 @@ async def test_workflow_rerun_with_multiple_inputs(
       workflow_testing_utils.simplify_events_with_node_and_agent_state(
           copy.deepcopy(events3),
           include_resume_inputs=True,
-          include_execution_id=True,
+          include_run_id=True,
       )
   )
   if resumable:
-    node_a_execution_id_3 = simplified_events3[0][1]['nodes']['NodeA'][
-        'execution_id'
+    node_a_run_id_3 = simplified_events3[0][1]['nodes']['NodeA'][
+        'run_id'
     ]
-    assert node_a_execution_id_1 == node_a_execution_id_3
+    assert node_a_run_id_1 == node_a_run_id_3
 
   expected_events3 = [
       (
@@ -855,7 +855,7 @@ async def test_workflow_rerun_with_multiple_inputs(
                           interrupt_id1: {'text': 'response 1'},
                           interrupt_id2: {'text': 'response 2'},
                       },
-                      'execution_id': node_a_execution_id_1,
+                      'run_id': node_a_run_id_1,
                   },
               }
           },
@@ -865,7 +865,7 @@ async def test_workflow_rerun_with_multiple_inputs(
           {
               'node_name': 'NodeA',
               'output': {'input1': 'response 1', 'input2': 'response 2'},
-              'execution_id': node_a_execution_id_1,
+              'run_id': node_a_run_id_1,
           },
       ),
       (

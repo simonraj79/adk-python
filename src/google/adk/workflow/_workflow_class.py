@@ -60,14 +60,14 @@ logger = logging.getLogger('google_adk.' + __name__)
 class _ChildScanState:
   """Per-child state accumulated during event scanning for resume."""
 
-  execution_id: str | None = None
-  """Latest execution_id seen for this child."""
+  run_id: str | None = None
+  """Latest run_id seen for this child."""
 
   output: Any = None
-  """Output value from the latest execution, if any."""
+  """Output value from the latest run, if any."""
 
   interrupt_ids: set[str] = field(default_factory=set)
-  """Interrupt IDs emitted during the latest execution."""
+  """Interrupt IDs emitted during the latest run."""
 
   resolved_ids: set[str] = field(default_factory=set)
   """Interrupt IDs resolved by FR events in the session."""
@@ -352,9 +352,9 @@ class Workflow(BaseNode):
     runner = NodeRunner(
         node=node,
         parent_ctx=ctx,
-        # Reuse execution_id on resume so events appear as one
-        # continuous execution. Fresh dispatches get a new UUID.
-        execution_id=node_state.execution_id,
+        # Reuse run_id on resume so events appear as one
+        # continuous run. Fresh dispatches get a new UUID.
+        run_id=node_state.run_id,
         triggered_by=trigger.triggered_by,
         in_nodes={  # TODO: move to WorkflowGraph and add tests.
             e.from_node.name
@@ -363,7 +363,7 @@ class Workflow(BaseNode):
         },
         additional_output_for_ancestor=(ctx.node_path if is_terminal else None),
     )
-    node_state.execution_id = runner.execution_id
+    node_state.run_id = runner.run_id
     resume_inputs = (
         dict(node_state.resume_inputs) if node_state.resume_inputs else None
     )
@@ -419,8 +419,8 @@ class Workflow(BaseNode):
           continue
 
         has_prior_events = True
-        dynamic_child.execution_id = (
-            event.node_info.execution_id or dynamic_child.execution_id
+        dynamic_child.run_id = (
+            event.node_info.run_id or dynamic_child.run_id
         )
 
         # Output: direct path or output_for delegation.
@@ -444,14 +444,14 @@ class Workflow(BaseNode):
       unresolved_interrupt_ids = (
           dynamic_child.interrupt_ids - dynamic_child.resolved_ids
       )
-      existing_execution_id = dynamic_child.execution_id
+      existing_run_id = dynamic_child.run_id
 
       if unresolved_interrupt_ids:
         # Node still has unresolved interrupts.
         loop_state.dynamic_nodes[node_path] = NodeState(
             status=NodeStatus.WAITING,
             interrupts=list(unresolved_interrupt_ids),
-            execution_id=existing_execution_id,
+            run_id=existing_run_id,
         )
       elif dynamic_child.interrupt_ids:
         # Node had interrupts, all resolved → ready to re-run.
@@ -462,14 +462,14 @@ class Workflow(BaseNode):
         loop_state.dynamic_nodes[node_path] = NodeState(
             status=NodeStatus.WAITING,
             interrupts=[],
-            execution_id=existing_execution_id,
+            run_id=existing_run_id,
             resume_inputs=dynamic_child.resolved_responses,
         )
       elif dynamic_child.output is not None:
         # Node completed with output.
         loop_state.dynamic_nodes[node_path] = NodeState(
             status=NodeStatus.COMPLETED,
-            execution_id=existing_execution_id,
+            run_id=existing_run_id,
         )
         loop_state.dynamic_outputs[node_path] = dynamic_child.output
 
@@ -485,7 +485,7 @@ class Workflow(BaseNode):
       child_ctx = Ctx(
           ctx._invocation_context,
           node_path=node_path,
-          execution_id=state.execution_id or '',
+          run_id=state.run_id or '',
           event_author=ctx.event_author,
           schedule_dynamic_node_internal=ctx._schedule_dynamic_node_internal,
       )
@@ -515,9 +515,9 @@ class Workflow(BaseNode):
       state = NodeState(
           status=NodeStatus.RUNNING,
           input=node_input,
-          execution_id=runner.execution_id,
+          run_id=runner.run_id,
           source_node_name=node.name,
-          parent_execution_id=ctx.execution_id,
+          parent_run_id=ctx.run_id,
       )
       loop_state.dynamic_nodes[node_path] = state
       task = asyncio.create_task(runner.run(node_input=node_input))
@@ -540,7 +540,7 @@ class Workflow(BaseNode):
       runner = NodeRunner(
           node=node.model_copy(update={'name': name}),
           parent_ctx=ctx,
-          execution_id=state.execution_id,
+          run_id=state.run_id,
           additional_output_for_ancestor=(
               ctx.node_path if use_as_output else None
           ),
@@ -575,7 +575,7 @@ class Workflow(BaseNode):
     async def _schedule_dynamic_node_callback(
         ctx: Context,
         node: BaseNode,
-        execution_id: str,
+        run_id: str,
         node_input: Any,
         *,
         node_name: str | None = None,
@@ -586,7 +586,7 @@ class Workflow(BaseNode):
       Args:
         ctx: The calling node's Context.
         node: The BaseNode to execute (original, before renaming).
-        execution_id: Unused. Kept for protocol compat; the
+        run_id: Unused. Kept for protocol compat; the
           callback generates its own via NodeRunner.
         node_input: Input data for the node.
         node_name: Deterministic tracking name from ctx.run_node().
@@ -728,7 +728,7 @@ class Workflow(BaseNode):
     """Reconstruct child node statuses and outputs from session events.
 
     Single forward pass through session events for this invocation.
-    For each direct child, tracks the latest execution_id's state:
+    For each direct child, tracks the latest run_id's state:
     output, interrupt IDs, and resolved IDs (from FR events). Then
     derives NodeState per child.
 
@@ -749,20 +749,20 @@ class Workflow(BaseNode):
 
     for child_name, child in children.items():
       unresolved = child.interrupt_ids - child.resolved_ids
-      existing_exec_id = child.execution_id
+      existing_evt_run_id = child.run_id
 
       if unresolved:
         # Node still has unresolved interrupts → stay WAITING.
         nodes[child_name] = NodeState(
             status=NodeStatus.WAITING,
             interrupts=list(unresolved),
-            execution_id=existing_exec_id,
+            run_id=existing_evt_run_id,
         )
       elif child.output is not None:
         # Node's all interrupts are resolved and had output in previous run.
         nodes[child_name] = NodeState(
             status=NodeStatus.COMPLETED,
-            execution_id=existing_exec_id,
+            run_id=existing_evt_run_id,
         )
         node_outputs[child_name] = child.output
       elif child.interrupt_ids:
@@ -772,7 +772,7 @@ class Workflow(BaseNode):
         nodes[child_name] = NodeState(
             status=NodeStatus.PENDING,
             resume_inputs=child.resolved_responses,
-            execution_id=existing_exec_id,
+            run_id=existing_evt_run_id,
         )
 
     # wait_for_output nodes that were triggered but produced no output
@@ -791,7 +791,7 @@ class Workflow(BaseNode):
     """Scan session events and collect per-child state.
 
     Forward pass through events for this invocation. For each direct
-    child, tracks the latest execution_id and accumulates output,
+    child, tracks the latest run_id and accumulates output,
     interrupt IDs, and resolved interrupt IDs.
 
     Returns:
@@ -833,10 +833,10 @@ class Workflow(BaseNode):
 
       child = children.setdefault(child_name, _ChildScanState())
 
-      # New execution_id → reset child state (previous execution stale).
-      exec_id = event.node_info.execution_id
-      if exec_id and child.execution_id != exec_id:
-        child.execution_id = exec_id
+      # New run_id → reset child state (previous run stale).
+      evt_run_id = event.node_info.run_id
+      if evt_run_id and child.run_id != evt_run_id:
+        child.run_id = evt_run_id
         child.output = None
         child.interrupt_ids.clear()
         child.resolved_ids.clear()

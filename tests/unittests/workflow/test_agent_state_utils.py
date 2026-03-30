@@ -52,13 +52,13 @@ def test_returns_none_when_no_interrupted_nodes():
   graph = _make_graph('A', 'B')
   events = [
       Event(
-          node_info=NodeInfo(path='wf/A', execution_id='exec-a'),
+          node_info=NodeInfo(path='wf/A', run_id='exec-a'),
           output='output_a',
           invocation_id='inv-1',
           author='wf',
       ),
       Event(
-          node_info=NodeInfo(path='wf/B', execution_id='exec-b'),
+          node_info=NodeInfo(path='wf/B', run_id='exec-b'),
           output='output_b',
           invocation_id='inv-1',
           author='wf',
@@ -78,13 +78,13 @@ def test_reconstructs_interrupted_node():
   graph = _make_graph('A', 'B')
   events = [
       Event(
-          node_info=NodeInfo(path='wf/A', execution_id='exec-a'),
+          node_info=NodeInfo(path='wf/A', run_id='exec-a'),
           output='output_a',
           invocation_id='inv-1',
           author='wf',
       ),
       Event(
-          node_info=NodeInfo(path='wf/B', execution_id='exec-b'),
+          node_info=NodeInfo(path='wf/B', run_id='exec-b'),
           long_running_tool_ids={'interrupt-1'},
           invocation_id='inv-1',
           author='wf',
@@ -111,7 +111,7 @@ def test_reconstructs_interrupted_node():
   assert 'B' in result
   assert result['B'].status == NodeStatus.WAITING
   assert result['B'].interrupts == ['interrupt-1']
-  assert result['B'].execution_id == 'exec-b'
+  assert result['B'].run_id == 'exec-b'
   # B's input should be reconstructed from upstream A's data output.
   assert result['B'].input == 'output_a'
 
@@ -121,13 +121,13 @@ def test_resolved_interrupt_clears_node():
   graph = _make_graph('A', 'B')
   events = [
       Event(
-          node_info=NodeInfo(path='wf/A', execution_id='exec-a'),
+          node_info=NodeInfo(path='wf/A', run_id='exec-a'),
           output='output_a',
           invocation_id='inv-1',
           author='wf',
       ),
       Event(
-          node_info=NodeInfo(path='wf/B', execution_id='exec-b'),
+          node_info=NodeInfo(path='wf/B', run_id='exec-b'),
           long_running_tool_ids={'interrupt-1'},
           invocation_id='inv-1',
           author='wf',
@@ -173,7 +173,7 @@ def test_skips_current_invocation_events():
   graph = _make_graph('A')
   events = [
       Event(
-          node_info=NodeInfo(path='wf/A', execution_id='exec-a'),
+          node_info=NodeInfo(path='wf/A', run_id='exec-a'),
           long_running_tool_ids={'interrupt-1'},
           invocation_id='inv-2',  # Same as current
           author='wf',
@@ -202,7 +202,7 @@ def test_dynamic_node_metadata_preserved():
   graph = _make_graph('A')
   events = [
       Event(
-          node_info=NodeInfo(path='wf/A', execution_id='exec-a'),
+          node_info=NodeInfo(path='wf/A', run_id='exec-a'),
           output='output_a',
           invocation_id='inv-1',
           author='wf',
@@ -210,9 +210,9 @@ def test_dynamic_node_metadata_preserved():
       Event(
           node_info=NodeInfo(
               path='wf/dyn-node-123',
-              execution_id='exec-dyn',
+              run_id='exec-dyn',
               source_node_name='my_dynamic_node',
-              parent_execution_id='exec-a',
+              parent_run_id='exec-a',
           ),
           long_running_tool_ids={'interrupt-1'},
           invocation_id='inv-1',
@@ -239,7 +239,7 @@ def test_dynamic_node_metadata_preserved():
   dyn_state = result['dyn-node-123']
   assert dyn_state.status == NodeStatus.WAITING
   assert dyn_state.source_node_name == 'my_dynamic_node'
-  assert dyn_state.parent_execution_id == 'exec-a'
+  assert dyn_state.parent_run_id == 'exec-a'
 
 
 def test_ignores_events_from_other_workflows():
@@ -248,7 +248,7 @@ def test_ignores_events_from_other_workflows():
   events = [
       # Event from a nested workflow (not direct child)
       Event(
-          node_info=NodeInfo(path='wf/nested_wf/A', execution_id='exec-a'),
+          node_info=NodeInfo(path='wf/nested_wf/A', run_id='exec-a'),
           long_running_tool_ids={'interrupt-1'},
           invocation_id='inv-1',
           author='wf',
@@ -278,26 +278,26 @@ def test_scopes_to_latest_interrupted_invocation():
   events = [
       # Invocation 1: A and B both completed (previous full run).
       Event(
-          node_info=NodeInfo(path='wf/A', execution_id='exec-a-old'),
+          node_info=NodeInfo(path='wf/A', run_id='exec-a-old'),
           output='old_output_a',
           invocation_id='inv-1',
           author='wf',
       ),
       Event(
-          node_info=NodeInfo(path='wf/B', execution_id='exec-b-old'),
+          node_info=NodeInfo(path='wf/B', run_id='exec-b-old'),
           output='old_output_b',
           invocation_id='inv-1',
           author='wf',
       ),
       # Invocation 2: A completed, B interrupted.
       Event(
-          node_info=NodeInfo(path='wf/A', execution_id='exec-a-new'),
+          node_info=NodeInfo(path='wf/A', run_id='exec-a-new'),
           output='new_output_a',
           invocation_id='inv-2',
           author='wf',
       ),
       Event(
-          node_info=NodeInfo(path='wf/B', execution_id='exec-b-new'),
+          node_info=NodeInfo(path='wf/B', run_id='exec-b-new'),
           long_running_tool_ids={'interrupt-2'},
           invocation_id='inv-2',
           author='wf',
@@ -321,9 +321,9 @@ def test_scopes_to_latest_interrupted_invocation():
   assert result is not None
   # Should use inv-2 events only, not inv-1.
   assert result['A'].status == NodeStatus.COMPLETED
-  assert result['A'].execution_id == 'exec-a-new'
+  assert result['A'].run_id == 'exec-a-new'
   assert result['B'].status == NodeStatus.WAITING
-  assert result['B'].execution_id == 'exec-b-new'
+  assert result['B'].run_id == 'exec-b-new'
 
 
 def test_start_node_not_in_reconstructed_state():
@@ -331,7 +331,7 @@ def test_start_node_not_in_reconstructed_state():
   graph = _make_graph('A')
   events = [
       Event(
-          node_info=NodeInfo(path='wf/A', execution_id='exec-a'),
+          node_info=NodeInfo(path='wf/A', run_id='exec-a'),
           long_running_tool_ids={'interrupt-1'},
           invocation_id='inv-1',
           author='wf',
@@ -362,13 +362,13 @@ def test_interrupted_node_input_from_upstream_data():
   call_llm_data = {'function_calls': [{'name': 'my_tool', 'args': {}}]}
   events = [
       Event(
-          node_info=NodeInfo(path='wf/call_llm', execution_id='exec-cl'),
+          node_info=NodeInfo(path='wf/call_llm', run_id='exec-cl'),
           output=call_llm_data,
           invocation_id='inv-1',
           author='wf',
       ),
       Event(
-          node_info=NodeInfo(path='wf/execute_tools', execution_id='exec-et'),
+          node_info=NodeInfo(path='wf/execute_tools', run_id='exec-et'),
           long_running_tool_ids={'lr-1'},
           invocation_id='inv-1',
           author='wf',
@@ -399,19 +399,19 @@ def test_interrupted_node_input_multiple_data_events():
   graph = _make_graph('A', 'B')
   events = [
       Event(
-          node_info=NodeInfo(path='wf/A', execution_id='exec-a'),
+          node_info=NodeInfo(path='wf/A', run_id='exec-a'),
           output='first',
           invocation_id='inv-1',
           author='wf',
       ),
       Event(
-          node_info=NodeInfo(path='wf/A', execution_id='exec-a'),
+          node_info=NodeInfo(path='wf/A', run_id='exec-a'),
           output='second',
           invocation_id='inv-1',
           author='wf',
       ),
       Event(
-          node_info=NodeInfo(path='wf/B', execution_id='exec-b'),
+          node_info=NodeInfo(path='wf/B', run_id='exec-b'),
           long_running_tool_ids={'interrupt-1'},
           invocation_id='inv-1',
           author='wf',
@@ -446,7 +446,7 @@ def test_duplicate_interrupt_id_not_resolved_by_earlier_response():
   events = [
       # First interrupt
       Event(
-          node_info=NodeInfo(path='wf/A', execution_id='exec-a1'),
+          node_info=NodeInfo(path='wf/A', run_id='exec-a1'),
           long_running_tool_ids={'review'},
           invocation_id='inv-1',
           author='wf',
@@ -478,7 +478,7 @@ def test_duplicate_interrupt_id_not_resolved_by_earlier_response():
       ),
       # Node reruns and interrupts again with the SAME id
       Event(
-          node_info=NodeInfo(path='wf/A', execution_id='exec-a2'),
+          node_info=NodeInfo(path='wf/A', run_id='exec-a2'),
           long_running_tool_ids={'review'},
           invocation_id='inv-2',
           author='wf',
@@ -512,7 +512,7 @@ def test_duplicate_interrupt_id_fully_resolved():
   events = [
       # First FC + FR
       Event(
-          node_info=NodeInfo(path='wf/A', execution_id='exec-a1'),
+          node_info=NodeInfo(path='wf/A', run_id='exec-a1'),
           long_running_tool_ids={'review'},
           invocation_id='inv-1',
           author='wf',
@@ -543,7 +543,7 @@ def test_duplicate_interrupt_id_fully_resolved():
       ),
       # Second FC + FR (same id)
       Event(
-          node_info=NodeInfo(path='wf/A', execution_id='exec-a2'),
+          node_info=NodeInfo(path='wf/A', run_id='exec-a2'),
           long_running_tool_ids={'review'},
           invocation_id='inv-2',
           author='wf',
@@ -588,7 +588,7 @@ def test_interrupted_node_input_none_when_no_upstream_data():
   graph = _make_graph('A')
   events = [
       Event(
-          node_info=NodeInfo(path='wf/A', execution_id='exec-a'),
+          node_info=NodeInfo(path='wf/A', run_id='exec-a'),
           long_running_tool_ids={'interrupt-1'},
           invocation_id='inv-1',
           author='wf',

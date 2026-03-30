@@ -32,7 +32,7 @@ from google.adk.workflow._node_runner import _WorkflowRunState
 from google.adk.workflow._node_state import NodeState
 from google.adk.workflow._node_status import NodeStatus
 from google.adk.workflow._trigger import Trigger
-from google.adk.workflow._trigger_processor import _cleanup_child_executions
+from google.adk.workflow._trigger_processor import _cleanup_child_runs
 from google.adk.workflow._workflow import WorkflowAgentState
 from google.adk.workflow._workflow_graph import WorkflowGraph
 from pydantic import ConfigDict
@@ -79,39 +79,39 @@ class MultiEventNode(BaseNode):
 
 
 class TestCleanupChildExecutions:
-  """Tests for _cleanup_child_executions function."""
+  """Tests for _cleanup_child_runs function."""
 
   def test_removes_only_terminal_children(self):
     """Test that terminal children are removed while non-terminal are kept."""
     agent_state = WorkflowAgentState()
-    parent_exec_id = 'parent-exec-123'
+    parent_run_id = 'parent-exec-123'
 
     agent_state.nodes['parent_node'] = NodeState(
         status=NodeStatus.COMPLETED,
-        execution_id=parent_exec_id,
+        run_id=parent_run_id,
     )
     agent_state.nodes['child_completed'] = NodeState(
         status=NodeStatus.COMPLETED,
-        execution_id='child-exec-1',
-        parent_execution_id=parent_exec_id,
+        run_id='child-exec-1',
+        parent_run_id=parent_run_id,
     )
     agent_state.nodes['child_failed'] = NodeState(
         status=NodeStatus.FAILED,
-        execution_id='child-exec-2',
-        parent_execution_id=parent_exec_id,
+        run_id='child-exec-2',
+        parent_run_id=parent_run_id,
     )
     agent_state.nodes['child_cancelled'] = NodeState(
         status=NodeStatus.CANCELLED,
-        execution_id='child-exec-3',
-        parent_execution_id=parent_exec_id,
+        run_id='child-exec-3',
+        parent_run_id=parent_run_id,
     )
     agent_state.nodes['child_running'] = NodeState(
         status=NodeStatus.RUNNING,
-        execution_id='child-exec-4',
-        parent_execution_id=parent_exec_id,
+        run_id='child-exec-4',
+        parent_run_id=parent_run_id,
     )
 
-    _cleanup_child_executions(parent_exec_id, agent_state)
+    _cleanup_child_runs(parent_run_id, agent_state)
 
     assert 'child_completed' not in agent_state.nodes
     assert 'child_failed' not in agent_state.nodes
@@ -122,45 +122,45 @@ class TestCleanupChildExecutions:
   def test_preserves_non_terminal_children(self):
     """Test that running/pending children are not removed."""
     agent_state = WorkflowAgentState()
-    parent_exec_id = 'parent-exec-123'
+    parent_run_id = 'parent-exec-123'
 
     agent_state.nodes['child_running'] = NodeState(
         status=NodeStatus.RUNNING,
-        execution_id='child-exec-1',
-        parent_execution_id=parent_exec_id,
+        run_id='child-exec-1',
+        parent_run_id=parent_run_id,
     )
     agent_state.nodes['child_pending'] = NodeState(
         status=NodeStatus.PENDING,
-        execution_id='child-exec-2',
-        parent_execution_id=parent_exec_id,
+        run_id='child-exec-2',
+        parent_run_id=parent_run_id,
     )
     agent_state.nodes['child_waiting'] = NodeState(
         status=NodeStatus.WAITING,
-        execution_id='child-exec-3',
-        parent_execution_id=parent_exec_id,
+        run_id='child-exec-3',
+        parent_run_id=parent_run_id,
     )
 
-    _cleanup_child_executions(parent_exec_id, agent_state)
+    _cleanup_child_runs(parent_run_id, agent_state)
 
     assert 'child_running' in agent_state.nodes
     assert 'child_pending' in agent_state.nodes
     assert 'child_waiting' in agent_state.nodes
 
   def test_does_not_remove_unrelated_nodes(self):
-    """Test that nodes with different parent_execution_id are preserved."""
+    """Test that nodes with different parent_run_id are preserved."""
     agent_state = WorkflowAgentState()
 
     agent_state.nodes['child_of_other'] = NodeState(
         status=NodeStatus.COMPLETED,
-        execution_id='other-exec',
-        parent_execution_id='other-parent',
+        run_id='other-exec',
+        parent_run_id='other-parent',
     )
     agent_state.nodes['no_parent'] = NodeState(
         status=NodeStatus.COMPLETED,
-        execution_id='solo-exec',
+        run_id='solo-exec',
     )
 
-    _cleanup_child_executions('parent-exec-123', agent_state)
+    _cleanup_child_runs('parent-exec-123', agent_state)
 
     assert 'child_of_other' in agent_state.nodes
     assert 'no_parent' in agent_state.nodes
@@ -169,7 +169,7 @@ class TestCleanupChildExecutions:
     """Test cleanup with empty agent state does not raise."""
     agent_state = WorkflowAgentState()
 
-    _cleanup_child_executions('any-parent-id', agent_state)
+    _cleanup_child_runs('any-parent-id', agent_state)
 
     assert len(agent_state.nodes) == 0
 
@@ -220,7 +220,7 @@ class TestChildExecutionCleanupE2E:
     final_nodes = _get_final_agent_state_nodes(events)
     for node_name, node_state in final_nodes.items():
       assert (
-          node_state.get('parent_execution_id') is None
+          node_state.get('parent_run_id') is None
       ), f'Dynamic child {node_name!r} was not cleaned up'
 
   @pytest.mark.asyncio
@@ -254,7 +254,7 @@ class TestChildExecutionCleanupE2E:
     final_nodes = _get_final_agent_state_nodes(events)
     for node_name, node_state in final_nodes.items():
       assert (
-          node_state.get('parent_execution_id') is None
+          node_state.get('parent_run_id') is None
       ), f'Dynamic child {node_name!r} was not cleaned up'
 
 
@@ -322,7 +322,7 @@ class TestCheckAndScheduleNodes:
     # Set node_a to RUNNING but not in running_tasks (simulating resume)
     mock_run_state.agent_state.nodes['node_a'] = NodeState(
         status=NodeStatus.RUNNING,
-        execution_id='exec-123',
+        run_id='exec-123',
         input='test_input',
     )
 
@@ -341,7 +341,7 @@ class TestCheckAndScheduleNodes:
     # Set node_a to RUNNING with an existing task
     mock_run_state.agent_state.nodes['node_a'] = NodeState(
         status=NodeStatus.RUNNING,
-        execution_id='exec-123',
+        run_id='exec-123',
         input='test_input',
     )
     existing_task = mock.MagicMock()
@@ -417,7 +417,7 @@ class TestExecuteNode:
         node_input='test_input',
         triggered_by='__START__',
         in_nodes={'__START__'},
-        execution_id='exec-123',
+        run_id='exec-123',
         current_node_path='test_workflow',
         schedule_dynamic_node=mock_schedule_dynamic_node,
     ):
@@ -440,7 +440,7 @@ class TestExecuteNode:
         node_input=None,
         triggered_by='',
         in_nodes=set(),
-        execution_id='exec-123',
+        run_id='exec-123',
         current_node_path='my_workflow',
         schedule_dynamic_node=mock_schedule_dynamic_node,
     ):
@@ -463,7 +463,7 @@ class TestExecuteNode:
         node_input=None,
         triggered_by='',
         in_nodes=set(),
-        execution_id='exec-123',
+        run_id='exec-123',
         current_node_path='test_workflow',
         schedule_dynamic_node=mock_schedule_dynamic_node,
     ):
@@ -473,10 +473,10 @@ class TestExecuteNode:
     assert events[0].node_name == 'my_node'
 
   @pytest.mark.asyncio
-  async def test_execute_node_assigns_execution_id(
+  async def test_execute_node_assigns_run_id(
       self, mock_ctx, mock_schedule_dynamic_node
   ):
-    """Test that _execute_node assigns execution_id to events."""
+    """Test that _execute_node assigns run_id to events."""
     node = SimpleNode(name='test_node', output_data='output')
 
     events = []
@@ -486,14 +486,14 @@ class TestExecuteNode:
         node_input=None,
         triggered_by='',
         in_nodes=set(),
-        execution_id='my-exec-id',
+        run_id='my-exec-id',
         current_node_path='test_workflow',
         schedule_dynamic_node=mock_schedule_dynamic_node,
     ):
       events.append(event)
 
     assert len(events) == 1
-    assert events[0].node_info.execution_id == 'my-exec-id'
+    assert events[0].node_info.run_id == 'my-exec-id'
 
   @pytest.mark.asyncio
   async def test_execute_node_with_multiple_events(
@@ -516,7 +516,7 @@ class TestExecuteNode:
         node_input=None,
         triggered_by='',
         in_nodes=set(),
-        execution_id='exec-123',
+        run_id='exec-123',
         current_node_path='test_workflow',
         schedule_dynamic_node=mock_schedule_dynamic_node,
     ):
@@ -541,7 +541,7 @@ class TestExecuteNode:
         node_input=None,
         triggered_by='',
         in_nodes=set(),
-        execution_id='exec-123',
+        run_id='exec-123',
         current_node_path='test_workflow',
         schedule_dynamic_node=mock_schedule_dynamic_node,
     ):
@@ -567,7 +567,7 @@ class TestExecuteNode:
         node_input=None,
         triggered_by='',
         in_nodes=set(),
-        execution_id='exec-123',
+        run_id='exec-123',
         current_node_path='test_workflow',
         schedule_dynamic_node=mock_schedule_dynamic_node,
     ):
@@ -585,7 +585,7 @@ class TestNodeCompletion:
     completion = _NodeCompletion(node_name='test_node')
 
     assert completion.node_name == 'test_node'
-    assert completion.execution_id is None
+    assert completion.run_id is None
     assert completion.node_interrupted is False
     assert completion.interrupt_ids == []
     assert completion.has_output is False
@@ -595,7 +595,7 @@ class TestNodeCompletion:
     """Test _NodeCompletion with interrupt."""
     completion = _NodeCompletion(
         node_name='test_node',
-        execution_id='exec-123',
+        run_id='exec-123',
         node_interrupted=True,
         interrupt_ids=['int-1', 'int-2'],
     )

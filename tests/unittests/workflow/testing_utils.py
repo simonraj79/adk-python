@@ -121,7 +121,7 @@ async def create_workflow_context(
   return WorkflowContext(
       invocation_context=invocation_context,
       node_path='test',
-      execution_id='test-execution',
+      run_id='test-execution',
       local_events=[],
       transfer_targets=transfer_targets,
   )

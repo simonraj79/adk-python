@@ -57,7 +57,7 @@ def _schedule_node(
 ) -> None:
   """Schedules a node to run.
 
-  Sets the node status to RUNNING, assigns an execution ID if not present,
+  Sets the node status to RUNNING, assigns a run ID if not present,
   and creates an asyncio task to execute the node.
 
   Args:
@@ -72,8 +72,8 @@ def _schedule_node(
 
   node_state = run_state.agent_state.nodes[node_name]
   node_state.status = NodeStatus.RUNNING
-  if not node_state.execution_id:
-    node_state.execution_id = str(uuid.uuid4())
+  if not node_state.run_id:
+    node_state.run_id = str(uuid.uuid4())
   node = run_state.nodes_map[node_name]
 
   resume_inputs = node_state.resume_inputs
@@ -95,7 +95,7 @@ def _schedule_node(
           triggered_by=triggered_by,
           in_nodes=in_nodes,
           resume_inputs=resume_inputs,
-          execution_id=node_state.execution_id,
+          run_id=node_state.run_id,
           retry_count=node_state.retry_count,
       ),
       name=node_name,
@@ -131,7 +131,7 @@ def _schedule_dynamic_node(
     run_state: _WorkflowRunState,
     current_ctx: Context,
     node: BaseNode,
-    execution_id: str,
+    run_id: str,
     node_input: Any,
     *,
     node_name: str | None = None,
@@ -148,16 +148,16 @@ def _schedule_dynamic_node(
     run_state: The workflow runtime state.
     current_ctx: The workflow context of the parent node scheduling this.
     node: The node instance to execute.
-    execution_id: Unique identifier for this execution.
+    run_id: Unique identifier for this run.
     node_input: Input data to pass to the node.
-    node_name: Optional name for the node. Defaults to execution_id.
+    node_name: Optional name for the node. Defaults to run_id.
     use_as_output: If True, this node's output is used as the parent
         node's output. The parent's own output event is suppressed.
 
   Returns:
     A Future that will resolve with the node's output when complete.
   """
-  node_name = node_name or execution_id
+  node_name = node_name or run_id
 
   # Record which dynamic child's output should replace the parent's.
   # Full paths as keys avoid name collisions.
@@ -187,7 +187,7 @@ def _schedule_dynamic_node(
       output, _ = _get_node_output_and_route(
           ctx=run_state.ctx,
           node_path=full_path,
-          execution_id=execution_id,
+          run_id=run_id,
           local_events=run_state.local_output_events,
           output_schema=node.output_schema if node else None,
           terminal_paths=terminal_paths,
@@ -196,7 +196,7 @@ def _schedule_dynamic_node(
       return future
     elif node_state.status == NodeStatus.FAILED:
       future.set_exception(
-          Exception(f'Node execution ({execution_id}) failed.')
+          Exception(f'Node run ({run_id}) failed.')
       )
       return future
     elif node_state.status == NodeStatus.WAITING:
@@ -215,15 +215,15 @@ def _schedule_dynamic_node(
 
   # 3. Initialize/Update State
   if node_name not in run_state.agent_state.nodes:
-    # New execution
+    # New run
     # This schedule is called from node which will act as parent.
-    parent_exec_id = current_ctx.execution_id if current_ctx else None
+    parent_run_id = current_ctx.run_id if current_ctx else None
 
     run_state.agent_state.nodes[node_name] = NodeState(
         status=NodeStatus.PENDING,
         input=node_input,
-        execution_id=execution_id,
-        parent_execution_id=parent_exec_id,
+        run_id=run_id,
+        parent_run_id=parent_run_id,
         source_node_name=node.name,
     )
 
@@ -244,7 +244,7 @@ def _check_and_schedule_nodes(run_state: _WorkflowRunState) -> None:
     run_state: The workflow runtime state.
   """
   # Clean up nodes_map for dynamic nodes that have been removed from state
-  # (cleaned up by _cleanup_child_executions in _process_triggers).
+  # (cleaned up by _cleanup_child_runs in _process_triggers).
   for node_name in list(run_state.nodes_map.keys()):
     if (
         node_name not in run_state.static_node_names
@@ -285,7 +285,7 @@ def _check_and_schedule_nodes(run_state: _WorkflowRunState) -> None:
 
         node_state.input = item.input
         node_state.triggered_by = item.triggered_by
-        node_state.execution_id = None
+        node_state.run_id = None
         node_state.status = NodeStatus.PENDING
         _schedule_node(run_state, node_name)
 
@@ -294,10 +294,10 @@ def _create_error_event(
     ctx: InvocationContext,
     node_path: str,
     node_name: str,
-    execution_id: str,
+    run_id: str,
     exception: Exception,
 ) -> Event:
-  """Creates an error event for a failed node execution."""
+  """Creates an error event for a failed node run."""
   return enrich_event(
       Event(
           error_code=type(exception).__name__,
@@ -306,7 +306,7 @@ def _create_error_event(
       ctx,
       author=get_node_name_from_path(node_path),
       node_path=join_paths(node_path, node_name),
-      execution_id=execution_id,
+      run_id=run_id,
       branch=True,
   )
 
@@ -318,25 +318,25 @@ async def _node_runner(
     triggered_by: str,
     in_nodes: set[str],
     resume_inputs: dict[str, Any] | None,
-    execution_id: str,
+    run_id: str,
     retry_count: int,
 ) -> None:
   """Runs a node in a cancellable task and streams events to the queue.
 
-  This function wraps the execution of a single node. It streams events
+  This function wraps a single node run. It streams events
   produced by the node into the event_queue. If the node is interrupted
   (e.g., by yielding RequestInput or a long-running tool), it sets
-  node_interrupted=True in _NodeCompletion. After execution finishes or
+  node_interrupted=True in _NodeCompletion. After the run finishes or
   fails, it puts a final _NodeCompletion object in the queue.
 
   Args:
     run_state: The workflow runtime state.
     node: The node instance to execute.
     node_input: Input data passed to the node.
-    triggered_by: Name of the node that triggered this execution.
+    triggered_by: Name of the node that triggered this run.
     in_nodes: Set of predecessor node names in the graph.
     resume_inputs: Inputs provided when resuming from an interrupt.
-    execution_id: Unique identifier for this execution.
+    run_id: Unique identifier for this run.
     retry_count: Number of times this node has been retried.
   """
   node_interrupted = False
@@ -347,8 +347,8 @@ async def _node_runner(
   # Capture dynamic node metadata once for tagging events.
   _node_state = run_state.agent_state.nodes.get(node_name)
   _source_node_name = _node_state.source_node_name if _node_state else None
-  _parent_execution_id = (
-      _node_state.parent_execution_id if _node_state else None
+  _parent_run_id = (
+      _node_state.parent_run_id if _node_state else None
   )
 
   # Create a closure for schedule_dynamic_node that captures run_state
@@ -356,7 +356,7 @@ async def _node_runner(
     def schedule_dynamic_node_fn(
         current_ctx: Context,
         node: BaseNode,
-        execution_id: str,
+        run_id: str,
         node_input: Any,
         *,
         node_name: str | None = None,
@@ -366,7 +366,7 @@ async def _node_runner(
           run_state=run_state,
           current_ctx=current_ctx,
           node=node,
-          execution_id=execution_id,
+          run_id=run_id,
           node_input=node_input,
           node_name=node_name,
           use_as_output=use_as_output,
@@ -386,7 +386,7 @@ async def _node_runner(
           triggered_by=triggered_by,
           in_nodes=in_nodes,
           resume_inputs=resume_inputs,
-          execution_id=execution_id,
+          run_id=run_id,
           retry_count=retry_count,
           current_node_path=run_state.node_path,
           schedule_dynamic_node=make_schedule_dynamic_node(),
@@ -441,8 +441,8 @@ async def _node_runner(
         ):
           if not event.node_info.source_node_name:
             event.node_info.source_node_name = _source_node_name
-          if not event.node_info.parent_execution_id:
-            event.node_info.parent_execution_id = _parent_execution_id
+          if not event.node_info.parent_run_id:
+            event.node_info.parent_run_id = _parent_run_id
 
         if isinstance(event, Event) and event.output is not None:
           has_output = True
@@ -458,7 +458,7 @@ async def _node_runner(
     await run_state.event_queue.put(
         _NodeCompletion(
             node_name=node_name,
-            execution_id=execution_id,
+            run_id=run_id,
             node_interrupted=node_interrupted,
             interrupt_ids=interrupt_ids,
             has_output=has_output,
@@ -471,7 +471,7 @@ async def _node_runner(
             run_state.ctx,
             run_state.node_path,
             node_name,
-            execution_id,
+            run_id,
             timeout_err,
         )
     )
@@ -485,7 +485,7 @@ async def _node_runner(
     await run_state.event_queue.put(
         _NodeCompletion(
             node_name=node_name,
-            execution_id=execution_id,
+            run_id=run_id,
             node_interrupted=True,
         )
     )
@@ -493,7 +493,7 @@ async def _node_runner(
     await run_state.event_queue.put(
         _NodeCompletion(
             node_name=node_name,
-            execution_id=execution_id,
+            run_id=run_id,
             is_cancelled=True,
         )
     )
@@ -506,7 +506,7 @@ async def _node_runner(
             run_state.ctx,
             run_state.node_path,
             node_name,
-            execution_id,
+            run_id,
             e,
         )
     )
@@ -517,7 +517,7 @@ async def _node_runner(
 
 async def process_next_item(
     ctx: InvocationContext,
-    execution_id: str,
+    run_id: str,
     parent_node_path: str,
     node: BaseNode,
     item: Any,
@@ -526,11 +526,11 @@ async def process_next_item(
 
   This function converts various types of items (e.g., RequestInput, raw data)
   into Event objects and ensures they have the necessary metadata
-  (author, node_name, invocation_id, execution_id).
+  (author, node_name, invocation_id, run_id).
 
   Args:
     ctx: The invocation context.
-    execution_id: Unique identifier for the current node execution.
+    run_id: Unique identifier for the current node run.
     parent_node_path: The path of the workflow agent.
     node: The node instance.
     item: The item yielded by the node.
@@ -576,7 +576,7 @@ async def process_next_item(
       ctx,
       author=get_node_name_from_path(parent_node_path),
       node_path=join_paths(parent_node_path, node.name),
-      execution_id=execution_id,
+      run_id=run_id,
       branch=True,
   )
 
@@ -592,7 +592,7 @@ async def _execute_node(
     triggered_by: str,
     in_nodes: set[str],
     resume_inputs: dict[str, Any] | None = None,
-    execution_id: str,
+    run_id: str,
     current_node_path: str,
     schedule_dynamic_node: ScheduleDynamicNode,
     transfer_targets: list[_TransferTargetInfo] | None = None,
@@ -607,10 +607,10 @@ async def _execute_node(
     node: The node to execute.
     ctx: The invocation context.
     node_input: Input data for the node.
-    triggered_by: Name of the node that triggered this execution.
+    triggered_by: Name of the node that triggered this run.
     in_nodes: Set of predecessor node names in the graph.
     resume_inputs: Inputs provided when resuming from an interrupt.
-    execution_id: Unique identifier for this execution.
+    run_id: Unique identifier for this run.
     current_node_path: The path of the workflow agent authoring
       events.
     schedule_dynamic_node: Function to schedule dynamic nodes.
@@ -618,7 +618,7 @@ async def _execute_node(
     retry_count: Number of times this node has been retried.
 
   Yields:
-    Event objects from the node execution.
+    Event objects from the node run.
   """
   child_path = join_paths(current_node_path, node.name)
   local_events: list[Event] = []
@@ -628,7 +628,7 @@ async def _execute_node(
       triggered_by=triggered_by,
       in_nodes=in_nodes,
       resume_inputs=resume_inputs,
-      execution_id=execution_id,
+      run_id=run_id,
       retry_count=retry_count,
       schedule_dynamic_node=schedule_dynamic_node,
       node_rerun_on_resume=node.rerun_on_resume,
@@ -643,7 +643,7 @@ async def _execute_node(
   ):
     async for event in process_next_item(
         ctx,
-        execution_id,
+        run_id,
         current_node_path,
         node,
         item,

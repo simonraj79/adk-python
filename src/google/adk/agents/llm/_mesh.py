@@ -738,7 +738,7 @@ class _Mesh(Node):
     return Context(
         invocation_context=ic,
         node_path=node_path,
-        execution_id=ctx.execution_id,
+        run_id=ctx.run_id,
         local_events=[],
         transfer_targets=targets,
     )

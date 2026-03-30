@@ -48,7 +48,7 @@ def test_events_merges_local_events_without_duplicates():
   ctx = workflow_context.Context(
       invocation_context,
       node_path='test_node_path',
-      execution_id='test_exec_id',
+      run_id='test_run_id',
       local_events=local_events,
   )
   proxy = ctx.session
@@ -74,7 +74,7 @@ def test_other_attributes_are_delegated():
   ctx = workflow_context.Context(
       invocation_context,
       node_path='test_node_path',
-      execution_id='test_exec_id',
+      run_id='test_run_id',
       local_events=[],
   )
   proxy = ctx.session
@@ -94,7 +94,7 @@ def test_set_events_raises_attribute_error():
   ctx = workflow_context.Context(
       invocation_context,
       node_path='test_node_path',
-      execution_id='test_exec_id',
+      run_id='test_run_id',
       local_events=[],
   )
   proxy = ctx.session
@@ -116,7 +116,7 @@ def test_actual_session_returns_underlying_session():
   ctx = workflow_context.Context(
       invocation_context,
       node_path='test_node_path',
-      execution_id='test_exec_id',
+      run_id='test_run_id',
       local_events=[],
   )
   proxy = ctx.session
@@ -135,7 +135,7 @@ def test_transfer_targets_defaults_to_empty_list():
   ctx = workflow_context.Context(
       invocation_context,
       node_path='test_node_path',
-      execution_id='test_exec_id',
+      run_id='test_run_id',
       local_events=[],
   )
   assert ctx.transfer_targets == []
@@ -157,7 +157,7 @@ def test_transfer_targets_returns_provided_values():
   ctx = workflow_context.Context(
       invocation_context,
       node_path='test_node_path',
-      execution_id='test_exec_id',
+      run_id='test_run_id',
       local_events=[],
       transfer_targets=targets,
   )

@@ -396,7 +396,7 @@ class Workflow(BaseAgent, Node):
   ) -> tuple[list[Event], dict[str, str]]:
     """Processes interrupt responses and returns events and completed nodes."""
     resume_response_events: list[Event] = []
-    completed_node_execution_ids: dict[str, str] = {}
+    completed_node_run_ids: dict[str, str] = {}
 
     # Check for and process any function responses that resolve interrupts.
     # Based on node's rerun_on_resume setting, we either mark the node
@@ -437,7 +437,7 @@ class Workflow(BaseAgent, Node):
             ctx,
             author=self.name,
             node_path=join_paths(ctx.node_path or '', node_name),
-            execution_id=node_state.execution_id or '',
+            run_id=node_state.run_id or '',
             branch=True,
         )
 
@@ -446,13 +446,13 @@ class Workflow(BaseAgent, Node):
         # otherwise it remains WAITING.
         if not node_state.interrupts:
           node_state.status = NodeStatus.COMPLETED
-          completed_node_execution_ids[node_name] = (
-              event.node_info.execution_id or ''
+          completed_node_run_ids[node_name] = (
+              event.node_info.run_id or ''
           )
         else:
           node_state.status = NodeStatus.WAITING
 
-    return resume_response_events, completed_node_execution_ids
+    return resume_response_events, completed_node_run_ids
 
   async def _handle_node_completion(
       self,
@@ -562,7 +562,7 @@ class Workflow(BaseAgent, Node):
         run_state=run_state,
         schedule_node=lambda n: _schedule_node(run_state, n),
         node_name=node_name,
-        execution_id=completion.execution_id,
+        run_id=completion.run_id,
     )
 
     _check_and_schedule_nodes(run_state)
@@ -660,14 +660,14 @@ class Workflow(BaseAgent, Node):
     # Rehydrate dynamic nodes from registry
     self._rehydrate_dynamic_nodes(agent_state, nodes_map)
 
-    # Holds all dynamically scheduled node futures, keyed by execution_id.
+    # Holds all dynamically scheduled node futures, keyed by run_id.
     _dynamic_futures: dict[str, asyncio.Future[Any]] = {}
 
     # Read/Write buffer for local events.
     local_output_events: list[Event] = []
 
     # Process interruptions and resumptions
-    resume_response_events, completed_node_execution_ids = (
+    resume_response_events, completed_node_run_ids = (
         self._process_resumptions(ctx, agent_state, nodes_map)
     )
 
@@ -697,13 +697,13 @@ class Workflow(BaseAgent, Node):
       for event in resume_response_events:
         yield event
 
-    if completed_node_execution_ids:
-      for node_name, execution_id in completed_node_execution_ids.items():
+    if completed_node_run_ids:
+      for node_name, run_id in completed_node_run_ids.items():
         _process_triggers(
             run_state=run_state,
             schedule_node=lambda n: _schedule_node(run_state, n),
             node_name=node_name,
-            execution_id=execution_id,
+            run_id=run_id,
         )
 
     # On the first turn, seed triggers for START's successors.

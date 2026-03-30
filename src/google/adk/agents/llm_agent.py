@@ -625,7 +625,7 @@ class LlmAgent(_Mesh, BaseLlmAgent):
     root_ctx = Context(
         invocation_context=ctx,
         node_path=self.name,
-        execution_id='',
+        run_id='',
         local_events=[],
         transfer_targets=[],
     )

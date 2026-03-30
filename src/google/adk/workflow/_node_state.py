@@ -32,7 +32,7 @@ class NodeState(BaseModel):
   model_config = ConfigDict(extra='ignore', ser_json_bytes='base64')
 
   status: NodeStatus = NodeStatus.INACTIVE
-  """The execution status of the node."""
+  """The run status of the node."""
 
   input: Any = None
   """The input provided to the node."""
@@ -41,7 +41,7 @@ class NodeState(BaseModel):
   """The node that triggered the current node."""
 
   retry_count: int = Field(default=0, exclude_if=lambda v: v == 0)
-  """The retry count number for this node execution."""
+  """The retry count number for this node run."""
 
   interrupts: list[str] = Field(default_factory=list)
   """The interrupt ids that are pending to be resolved."""
@@ -49,12 +49,12 @@ class NodeState(BaseModel):
   resume_inputs: dict[str, Any] = Field(default_factory=dict)
   """The responses for resuming the node, keyed by interrupt id."""
 
-  execution_id: str | None = None
-  """The execution id of this node execution."""
+  run_id: str | None = None
+  """The run ID of this node run."""
 
-  parent_execution_id: Optional[str] = None
-  """The execution id of the parent node which dynamically
-  scheduled this node execution."""
+  parent_run_id: Optional[str] = None
+  """The run ID of the parent node which dynamically
+  scheduled this node run."""
 
   source_node_name: Optional[str] = None
   """The original node definition which was dynamically scheduled."""

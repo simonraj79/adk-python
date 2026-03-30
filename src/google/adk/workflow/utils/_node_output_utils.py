@@ -30,15 +30,15 @@ def _get_node_output_events(
     *,
     ctx: InvocationContext,
     node_path: str,
-    execution_id: str,
+    run_id: str,
     local_events: list[Event] | None = None,
     terminal_paths: set[str] | None = None,
 ) -> list[Event]:
-  """Fetches all Events for a node execution.
+  """Fetches all Events for a node run.
 
   history_events are outputs from previous runs, loaded when resuming.
   local_events are new outputs from the current run. We need both to collect
-  all outputs from a node's execution, especially if it was interrupted and
+  all outputs from a node's run, especially if it was interrupted and
   resumed, ensuring downstream nodes get the complete input.
 
   Args:
@@ -53,7 +53,7 @@ def _get_node_output_events(
   def _matches(e: Event) -> bool:
     if (
         e.node_info.path == node_path
-        and e.node_info.execution_id == execution_id
+        and e.node_info.run_id == run_id
     ):
       return True
     if _terminal_paths and e.node_info.path in _terminal_paths:
@@ -88,12 +88,12 @@ def _get_node_output_and_route(
     *,
     ctx: InvocationContext,
     node_path: str,
-    execution_id: str,
+    run_id: str,
     local_events: list[Event] | None = None,
     output_schema: Any | None = None,
     terminal_paths: set[str] | None = None,
 ) -> tuple[Any, RouteValue | list[RouteValue] | None]:
-  """Fetches the Event outputs and route for a node execution.
+  """Fetches the Event outputs and route for a node run.
 
   Args:
     output_schema: If set, validates and coerces each output value against
@@ -106,7 +106,7 @@ def _get_node_output_and_route(
   events = _get_node_output_events(
       ctx=ctx,
       node_path=node_path,
-      execution_id=execution_id,
+      run_id=run_id,
       local_events=local_events,
       terminal_paths=terminal_paths,
   )
@@ -117,7 +117,7 @@ def _get_node_output_and_route(
     if len(events_with_route) > 1:
       raise ValueError(
           f'Node {node_path} produced multiple Events with '
-          'route tags. Only one Event per execution '
+          'route tags. Only one Event per run '
           'can specify routes.'
       )
     if events_with_route:
@@ -130,7 +130,7 @@ def _get_node_output_and_route(
   elif len(events_with_data) > 1 and not terminal_paths:
     raise ValueError(
         f'Node {node_path} produced multiple Events with output data.'
-        ' A node execution should produce at most one output event.'
+        ' A node run should produce at most one output event.'
     )
   else:
     outputs = [e.output for e in events_with_data]

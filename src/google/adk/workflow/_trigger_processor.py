@@ -40,19 +40,19 @@ _TERMINAL_STATUSES = frozenset({
 })
 
 
-def _cleanup_child_executions(
-    parent_execution_id: str,
+def _cleanup_child_runs(
+    parent_run_id: str,
     agent_state: WorkflowAgentState,
 ) -> None:
-  """Removes terminal dynamic child nodes spawned by a parent execution.
+  """Removes terminal dynamic child nodes spawned by a parent run.
 
   When a parent node completes, any dynamic child nodes it spawned
-  (identified by parent_execution_id) that have reached a terminal
+  (identified by parent_run_id) that have reached a terminal
   state are removed from agent_state to avoid stale state on
   re-trigger.
 
   Children that are still running or pending are left in place so they
-  can finish execution; they will self-clean via the self-cleanup
+  can finish running; they will self-clean via the self-cleanup
   block at the end of ``_process_triggers``.
 
   The terminal-status check is sufficient because node status is only
@@ -61,13 +61,13 @@ def _cleanup_child_executions(
   here has already been fully processed.
 
   Args:
-    parent_execution_id: The execution ID of the parent node.
+    parent_run_id: The run ID of the parent node.
     agent_state: The workflow agent state containing node states.
   """
   nodes_to_remove = [
       name
       for name, state in agent_state.nodes.items()
-      if state.parent_execution_id == parent_execution_id
+      if state.parent_run_id == parent_run_id
       and state.status in _TERMINAL_STATUSES
   ]
   for name in nodes_to_remove:
@@ -122,7 +122,7 @@ def _process_triggers(
     run_state: _WorkflowRunState,
     schedule_node: Callable[[str], None],
     node_name: str,
-    execution_id: str,
+    run_id: str,
 ) -> None:
   """Process triggers for a completed node and schedule downstream nodes.
 
@@ -137,9 +137,9 @@ def _process_triggers(
 
   Args:
     run_state: The workflow runtime state.
-    schedule_node: Callback to schedule a node for execution.
+    schedule_node: Callback to schedule a node to run.
     node_name: Name of the node that just completed.
-    execution_id: The execution ID of the completed node.
+    run_id: The run ID of the completed node.
   """
   ctx = run_state.ctx
   graph = run_state.graph
@@ -183,7 +183,7 @@ def _process_triggers(
   output_data, routes_to_match = _get_node_output_and_route(
       ctx=ctx,
       node_path=full_node_path,
-      execution_id=execution_id,
+      run_id=run_id,
       local_events=local_output_events,
       output_schema=node.output_schema if node else None,
       terminal_paths=terminal_paths,
@@ -193,12 +193,12 @@ def _process_triggers(
     if not dynamic_futures[node_name].done():
       dynamic_futures[node_name].set_result(output_data)
     del dynamic_futures[node_name]
-  elif node_state and node_state.parent_execution_id:
+  elif node_state and node_state.parent_run_id:
     # If the node is dynamic and was resumed (so it's not in
     # dynamic_futures), we need to wake up the parent node if it is
     # currently interrupted.
     for p_name, p_state in agent_state.nodes.items():
-      if p_state.execution_id == node_state.parent_execution_id:
+      if p_state.run_id == node_state.parent_run_id:
         if p_state.status == NodeStatus.WAITING:
           schedule_node(p_name)
         break
@@ -208,11 +208,11 @@ def _process_triggers(
     node_state.resume_inputs.clear()
     node_state.input = None
     node_state.triggered_by = None
-    node_state.execution_id = None
+    node_state.run_id = None
 
-  # Clean up terminal dynamic child nodes spawned by this execution.
-  if execution_id:
-    _cleanup_child_executions(execution_id, agent_state)
+  # Clean up terminal dynamic child nodes spawned by this run.
+  if run_id:
+    _cleanup_child_runs(run_id, agent_state)
 
   # Nodes in WAITING state skip downstream triggering.
   if node_state and node_state.status == NodeStatus.WAITING:
@@ -228,15 +228,15 @@ def _process_triggers(
     )
 
   # Self-cleanup: if this node is a dynamic child and its parent's
-  # execution has reached a terminal state (or the execution_id was
+  # run has reached a terminal state (or the run_id was
   # already cleared), this node's state is no longer needed.  This
   # handles the fire-and-forget case where a child finishes after its
   # parent.
-  if node_state and node_state.parent_execution_id:
-    parent_execution_active = any(
-        s.execution_id == node_state.parent_execution_id
+  if node_state and node_state.parent_run_id:
+    parent_run_active = any(
+        s.run_id == node_state.parent_run_id
         and s.status not in _TERMINAL_STATUSES
         for s in agent_state.nodes.values()
     )
-    if not parent_execution_active:
+    if not parent_run_active:
       del agent_state.nodes[node_name]

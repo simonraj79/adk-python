@@ -51,10 +51,10 @@ if TYPE_CHECKING:
 # workflow.
 # First argument is the Context.
 # Second is the node to be scheduled,
-# Third is the execution_id of the node to be scheduled.
+# Third is the run_id of the node to be scheduled.
 # Fourth is the node_input to be passed to the node.
 # Fifth (optional) is the node_name to be used for the dynamic node. If not
-# provided, the execution_id will be used as the node_name.
+# provided, the run_id will be used as the node_name.
 # Make sure the node_name is unique across all nodes in the workflow.
 # This node_name is also used to skip the node during resume if the node has
 # already been executed.
@@ -67,7 +67,7 @@ class ScheduleDynamicNode(Protocol):
       self,
       ctx: 'Context',
       node: Any,
-      execution_id: str,
+      run_id: str,
       node_input: Any,
       *,
       node_name: str | None = None,
@@ -137,9 +137,9 @@ class Context(ReadonlyContext):
   """The context within an agent run.
 
   When used in a workflow, additional fields are available:
-  ``node_path``, ``execution_id``, ``triggered_by``, ``in_nodes``,
+  ``node_path``, ``run_id``, ``triggered_by``, ``in_nodes``,
   ``resume_inputs``, ``transfer_targets``, ``retry_count``,
-  ``run_node()``, and ``get_next_child_execution_id()``.
+  ``run_node()``, and ``get_next_child_run_id()``.
   """
 
   def __init__(
@@ -151,7 +151,7 @@ class Context(ReadonlyContext):
       tool_confirmation: ToolConfirmation | None = None,
       # Workflow-specific fields (optional)
       node_path: str = '',
-      execution_id: str = '',
+      run_id: str = '',
       local_events: list[Event] | None = None,
       triggered_by: str = '',
       in_nodes: set[str] | None = None,
@@ -176,7 +176,7 @@ class Context(ReadonlyContext):
         request_confirmation.
       tool_confirmation: The tool confirmation of the current tool call.
       node_path: The path of the current node in the workflow graph.
-      execution_id: The execution ID of the current node.
+      run_id: The execution ID of the current node.
       local_events: Local events for session proxy (workflow only).
       triggered_by: The name of the node that triggered the current node.
       in_nodes: Names of predecessor nodes.
@@ -203,7 +203,7 @@ class Context(ReadonlyContext):
 
     # Workflow-specific fields
     self._node_path = node_path
-    self._execution_id = execution_id
+    self._run_id = run_id
     self._triggered_by = triggered_by
     self._in_nodes = (
         frozenset(in_nodes) if in_nodes is not None else frozenset()
@@ -212,7 +212,7 @@ class Context(ReadonlyContext):
     self.schedule_dynamic_node = schedule_dynamic_node
     self._schedule_dynamic_node_internal = schedule_dynamic_node_internal
     self._node_rerun_on_resume = node_rerun_on_resume
-    self._child_execution_counter = 0
+    self._child_run_counter = 0
     self._local_events = local_events if local_events is not None else []
     self._transfer_targets = transfer_targets or []
     self._retry_count = retry_count
@@ -289,9 +289,9 @@ class Context(ReadonlyContext):
     return self._node_path
 
   @property
-  def execution_id(self) -> str:
+  def run_id(self) -> str:
     """Returns the execution ID of the current node."""
-    return self._execution_id
+    return self._run_id
 
   @property
   def triggered_by(self) -> str:
@@ -317,7 +317,7 @@ class Context(ReadonlyContext):
   def output(self) -> Any:
     """The node's result value. Source of truth for node output.
 
-    Set once per execution. Also set by the framework when the node
+    Set once per run. Also set by the framework when the node
     yields Event(output=X) or yields a raw value. If the value was
     set via yield, the output Event is already enqueued. If set
     directly, the framework emits the output Event after _run_impl
@@ -406,10 +406,10 @@ class Context(ReadonlyContext):
     """
     return base_name
 
-  def get_next_child_execution_id(
+  def get_next_child_run_id(
       self, node_name: str, *, is_static_name: bool = False
   ) -> str:
-    """Generates the next deterministic child execution ID.
+    """Generates the next deterministic child run ID.
 
     Args:
       node_name: The name of the child node.
@@ -419,11 +419,11 @@ class Context(ReadonlyContext):
         start in non-deterministic order.
     """
     if is_static_name:
-      unique_string = f'{self._execution_id}-{node_name}'
+      unique_string = f'{self._run_id}-{node_name}'
     else:
-      self._child_execution_counter += 1
+      self._child_run_counter += 1
       unique_string = (
-          f'{self._execution_id}-{self._child_execution_counter}-{node_name}'
+          f'{self._run_id}-{self._child_run_counter}-{node_name}'
       )
     # TODO(swapnilag): use a better hash method.
     hashed_id = hashlib.sha256(unique_string.encode('utf-8')).hexdigest()[:15]
@@ -439,10 +439,10 @@ class Context(ReadonlyContext):
   ) -> Any:
     """Executes a node dynamically.
 
-    This method allows a node within a workflow to trigger the execution of
+    This method allows a node within a workflow to trigger the run of
     another node (or a callable that can be built into a node) and
     asynchronously wait for its result. The dynamically executed node becomes
-    a child execution of the current node in the workflow.
+    a child run of the current node in the workflow.
 
     IMPORTANT: Always ``await`` this method directly. Wrapping it in
     ``asyncio.create_task()`` means the task runs unsupervised — errors
@@ -454,7 +454,7 @@ class Context(ReadonlyContext):
         callable that can be built into a node.
       node_input: The input data to be passed to the dynamically executed node.
         Defaults to None.
-      name: An optional, unique name for this dynamic node execution. If not
+      name: An optional, unique name for this dynamic node run. If not
         provided, a name will be generated based on the node's type and a unique
         identifier. This name is used for tracking and can be helpful for
         resuming workflows.
@@ -489,7 +489,7 @@ class Context(ReadonlyContext):
       child_ctx = await self._schedule_dynamic_node_internal(
           self,
           built_node,
-          node_name,  # tracking name, not execution_id
+          node_name,  # tracking name, not run_id
           node_input,
           node_name=node_name,
           use_as_output=use_as_output,

@@ -45,13 +45,13 @@ class NodeRunner:
       *,
       node: BaseNode,
       parent_ctx: Context,
-      execution_id: str | None = None,
+      run_id: str | None = None,
       # Graph context
       triggered_by: str = '',
       in_nodes: set[str] | None = None,
       # Output delegation (use_as_output)
       additional_output_for_ancestor: str | None = None,
-      # Resume state from a previous execution
+      # Resume state from a previous run
       prior_output: Any = None,
       prior_interrupt_ids: set[str] | None = None,
   ) -> None:
@@ -60,24 +60,24 @@ class NodeRunner:
     Args:
       node: The BaseNode to execute.
       parent_ctx: The parent node's Context.
-      execution_id: Unique ID for this execution. Auto-generated
+      run_id: Unique ID for this run. Auto-generated
         (UUID) if not provided.
-      triggered_by: Name of the node that triggered this execution.
+      triggered_by: Name of the node that triggered this run.
       in_nodes: Names of predecessor nodes in the graph.
       additional_output_for_ancestor: Ancestor node path whose
         output this node's output also represents (use_as_output).
-      prior_output: Output from a previous execution, carried
+      prior_output: Output from a previous run, carried
         forward on resume when the node had both output and
         interrupts.
       prior_interrupt_ids: Unresolved interrupt IDs (set) from a
-        previous execution, carried forward on resume.
+        previous run, carried forward on resume.
     """
     from ..platform import uuid as platform_uuid
 
     # Core
     self._node = node
     self._parent_ctx = parent_ctx
-    self._execution_id = execution_id or platform_uuid.new_uuid()
+    self._run_id = run_id or platform_uuid.new_uuid()
 
     # Graph context
     self._triggered_by = triggered_by
@@ -91,9 +91,9 @@ class NodeRunner:
     self._prior_interrupt_ids = prior_interrupt_ids
 
   @property
-  def execution_id(self) -> str:
-    """The execution ID assigned to this node run."""
-    return self._execution_id
+  def run_id(self) -> str:
+    """The run ID assigned to this node run."""
+    return self._run_id
 
   async def run(
       self,
@@ -127,7 +127,7 @@ class NodeRunner:
 
     If prior_output or prior_interrupt_ids were provided at
     construction (resume scenario), pre-populates ctx with state
-    from the previous execution.
+    from the previous run.
     """
     from ..agents.context import Context
 
@@ -141,7 +141,7 @@ class NodeRunner:
     ctx = Context(
         self._parent_ctx._invocation_context,
         node_path=self._build_node_path(),
-        execution_id=self._execution_id,
+        run_id=self._run_id,
         resume_inputs=resume_inputs,
         schedule_dynamic_node_internal=(
             self._parent_ctx._schedule_dynamic_node_internal
@@ -269,6 +269,6 @@ class NodeRunner:
     event.author = ctx.event_author or self._node.name
     event.invocation_id = ctx._invocation_context.invocation_id
     event.node_info.path = ctx.node_path
-    event.node_info.execution_id = self._execution_id
+    event.node_info.run_id = self._run_id
     if event.output is not None:
       event.node_info.output_for = [ctx.node_path] + ctx._output_for_ancestors

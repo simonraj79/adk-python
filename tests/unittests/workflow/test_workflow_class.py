@@ -979,32 +979,32 @@ async def test_parallel_events_all_delivered():
   assert Counter(capture.received_inputs) == Counter(['A', 'B'])
 
 
-# 31. test_execution_id_uniqueness
+# 31. test_run_id_uniqueness
 @pytest.mark.asyncio
-async def test_execution_id_unique_per_node():
-  """Each node run gets a unique execution_id.
+async def test_run_id_unique_per_node():
+  """Each node run gets a unique run_id.
 
-  Maps to: test_execution_id_uniqueness in test_workflow_agent.py.
+  Maps to: test_run_id_uniqueness in test_workflow_agent.py.
   """
   a = _OutputNode(name='a', value='A')
   b = _OutputNode(name='b', value='B')
   wf = Workflow(name='wf', edges=[(START, a, b)])
 
   events, _, _ = await _run_workflow(wf)
-  exec_ids = [
-      e.node_info.execution_id for e in events if e.node_info.execution_id
+  run_ids = [
+      e.node_info.run_id for e in events if e.node_info.run_id
   ]
 
-  assert len(exec_ids) >= 2
-  assert len(set(exec_ids)) >= 2
+  assert len(run_ids) >= 2
+  assert len(set(run_ids)) >= 2
 
 
-# 32. test_execution_id_uniqueness_nested
+# 32. test_run_id_uniqueness_nested
 @pytest.mark.asyncio
-async def test_execution_id_unique_nested():
+async def test_run_id_unique_nested():
   """Nested workflow nodes also get unique IDs.
 
-  Maps to: test_execution_id_uniqueness_nested
+  Maps to: test_run_id_uniqueness_nested
   in test_workflow_agent.py.
   """
   inner_a = _OutputNode(name='inner_a', value='IA')
@@ -1013,11 +1013,11 @@ async def test_execution_id_unique_nested():
   wf = Workflow(name='wf', edges=[(START, outer_a, inner)])
 
   events, _, _ = await _run_workflow(wf)
-  exec_ids = [
-      e.node_info.execution_id for e in events if e.node_info.execution_id
+  run_ids = [
+      e.node_info.run_id for e in events if e.node_info.run_id
   ]
 
-  assert len(set(exec_ids)) >= 2
+  assert len(set(run_ids)) >= 2
 
 
 # 33. test_resume_with_manual_state_verifies_input_persistence
@@ -1932,12 +1932,12 @@ async def test_wait_for_output_node_preserved_across_resume():
   assert 'done' in outputs
 
 
-# --- execution_id reuse on resume ---
+# --- run_id reuse on resume ---
 
 
 @pytest.mark.asyncio
-async def test_execution_id_reused_on_resume():
-  """Resumed node reuses execution_id from original interrupted run."""
+async def test_run_id_reused_on_resume():
+  """Resumed node reuses run_id from original interrupted run."""
 
   class _InterruptOnce(BaseNode):
 
@@ -1970,14 +1970,14 @@ async def test_execution_id_reused_on_resume():
     events1.append(event)
 
   fc_id = None
-  original_exec_id = None
+  original_run_id = None
   for e in events1:
     if e.long_running_tool_ids:
       fc_id = list(e.long_running_tool_ids)[0]
-      original_exec_id = e.node_info.execution_id
+      original_run_id = e.node_info.run_id
 
   assert fc_id is not None
-  assert original_exec_id is not None
+  assert original_run_id is not None
 
   # Run 2: resume
   msg2 = types.Content(
@@ -1990,11 +1990,11 @@ async def test_execution_id_reused_on_resume():
   ):
     events2.append(event)
 
-  # Resumed node should have the same execution_id
+  # Resumed node should have the same run_id
   resumed_events = [
       e
       for e in events2
       if e.node_info.path == 'wf/ask' and e.output is not None
   ]
   assert len(resumed_events) == 1
-  assert resumed_events[0].node_info.execution_id == original_exec_id
+  assert resumed_events[0].node_info.run_id == original_run_id
