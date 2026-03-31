@@ -83,7 +83,6 @@ class LocalEnvironment(BaseEnvironment):
       logger.debug('Removed temporary workspace: %s', self._working_dir)
       self._working_dir = None
 
-
   @override
   async def execute(
       self,
@@ -138,7 +137,6 @@ class LocalEnvironment(BaseEnvironment):
 
     path = self._resolve_path(path)
     return await asyncio.to_thread(self._sync_write, path, content)
-
 
   def _resolve_path(self, path: str) -> str:
     """Resolve a relative path against the working directory."""
