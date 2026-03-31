@@ -16,18 +16,16 @@
 
 Tests call ``ToolCallNode.run()`` directly with a hand-built Context,
 verifying that a single tool call produces the expected function response
-event and ToolCallResult output.
+output.
 """
 
 from __future__ import annotations
 
 from google.adk.agents.llm._tool_call_node import ToolCallNode
-from google.adk.agents.llm._tool_call_node import ToolCallResult
 from google.adk.tools.function_tool import FunctionTool
 from google.genai import types
 
 from tests.unittests.agents.llm.event_utils import collect_events
-from tests.unittests.agents.llm.event_utils import function_response_dicts
 from tests.unittests.agents.llm.event_utils import output_events
 from tests.unittests.workflow import testing_utils
 
@@ -35,7 +33,7 @@ from tests.unittests.workflow import testing_utils
 class TestToolCallNode:
 
   async def test_simple_tool_call(self):
-    """Tool call returns a value — yields function response + ToolCallResult."""
+    """Tool call returns a value — yields normalized response dict."""
 
     def add(x: int, y: int) -> int:
       """Add two numbers."""
@@ -49,15 +47,9 @@ class TestToolCallNode:
     node = ToolCallNode(name='tool_call__fc-1', tool=tool)
     events = await collect_events(node, ctx, fc)
 
-    assert {'result': 5} in function_response_dicts(events)
-
     outputs = output_events(events)
     assert len(outputs) == 1
-    result = outputs[0].output
-    assert isinstance(result, ToolCallResult)
-    assert result.name == 'add'
-    assert result.output == {'result': 5}
-    assert result.function_call_id == 'fc-1'
+    assert outputs[0].output == {'result': 5}
 
   async def test_tool_returning_dict(self):
     """Tool returning a dict — output preserved as-is."""
@@ -76,7 +68,7 @@ class TestToolCallNode:
 
     outputs = output_events(events)
     assert len(outputs) == 1
-    assert outputs[0].output.output == {'found': True, 'value': 42}
+    assert outputs[0].output == {'found': True, 'value': 42}
 
   async def test_tool_with_no_args(self):
     """Tool with no args — empty args dict passed."""
@@ -93,7 +85,9 @@ class TestToolCallNode:
     node = ToolCallNode(name='tool_call__fc-3', tool=tool)
     events = await collect_events(node, ctx, fc)
 
-    assert {'result': '12:00'} in function_response_dicts(events)
+    outputs = output_events(events)
+    assert len(outputs) == 1
+    assert outputs[0].output == {'result': '12:00'}
 
   async def test_function_call_id_auto_generated(self):
     """FunctionCall without id — ToolCallNode generates one."""
@@ -112,10 +106,11 @@ class TestToolCallNode:
 
     outputs = output_events(events)
     assert len(outputs) == 1
-    assert outputs[0].output.function_call_id
+    # The output is the response dict; function_call_id is on the context.
+    assert outputs[0].output == {'result': 'ok'}
 
   async def test_tool_sets_transfer_action(self):
-    """Tool that sets transfer_to_agent — action captured in ToolCallResult."""
+    """Tool that sets transfer_to_agent — action on context, not output."""
 
     def transfer_tool(tool_context) -> str:
       """Transfer."""
@@ -132,6 +127,5 @@ class TestToolCallNode:
 
     outputs = output_events(events)
     assert len(outputs) == 1
-    result = outputs[0].output
-    assert result.actions is not None
-    assert result.actions.transfer_to_agent == 'other_agent'
+    assert outputs[0].output == {'result': 'transferring'}
+    # Actions are on the context, verified via ParallelToolCallNode tests.

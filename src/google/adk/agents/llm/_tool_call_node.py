@@ -20,45 +20,21 @@ from typing import Any
 from typing import AsyncGenerator
 
 from google.genai import types
-from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
 from typing_extensions import override
 
-from ...events.event_actions import EventActions
 from ...tools.base_tool import BaseTool
 from ...workflow._base_node import BaseNode
 from ..context import Context
-from ._functions import __build_response_event as _build_response_event
-
-
-class ToolCallResult(BaseModel):
-  """Result of a single tool call."""
-
-  model_config = ConfigDict(arbitrary_types_allowed=True)
-
-  name: str
-  """The tool/function name that was called."""
-
-  function_call_id: str
-  """The unique id of the function call."""
-
-  output: Any = None
-  """The function response output."""
-
-  error: str | None = None
-  """Error message if the tool call failed."""
-
-  actions: EventActions | None = None
-  """Actions set by the tool (e.g. transfer_to_agent, auth requests)."""
 
 
 class ToolCallNode(BaseNode):
   """Executes a single tool call.
 
   Calls ``tool.run_async(tool_context=ctx)`` and yields the function
-  response event plus a structured ``ToolCallResult`` for the parent
-  ``ParallelToolCallNode`` to collect.
+  response value.  The parent ``ParallelToolCallNode`` reads the child
+  context's output and actions to build a merged function response event.
   """
 
   model_config = ConfigDict(arbitrary_types_allowed=True)
@@ -75,7 +51,6 @@ class ToolCallNode(BaseNode):
       node_input: Any,
   ) -> AsyncGenerator[Any, None]:
     function_call: types.FunctionCall = node_input
-    invocation_context = ctx.get_invocation_context()
 
     function_args = (
         copy.deepcopy(function_call.args) if function_call.args else {}
@@ -91,28 +66,8 @@ class ToolCallNode(BaseNode):
     if self.tool.is_long_running and not function_response:
       return
 
-    # TODO: clean up to avoid setting meta ids directly.
-    function_response_event = _build_response_event(
-        self.tool, function_response, ctx, invocation_context
-    )
-    # Yield the content event (goes to session).
-    yield function_response_event
+    # Normalize to dict (Gemini API requires function responses to be dicts).
+    if not isinstance(function_response, dict):
+      function_response = {'result': function_response}
 
-    # Yield as a non-Event value so BaseNode.run() wraps it as
-    # Event(output=ToolCallResult(...)).  This separate output-only event
-    # lets ctx.run_node() return the result to ParallelToolCallNode.
-    output = (
-        function_response
-        if isinstance(function_response, dict)
-        else {'result': function_response}
-    )
-    assert output is not None, (
-        f'Tool {self.tool.name} produced None output.'
-        ' Function responses must be dicts.'
-    )
-    yield ToolCallResult(
-        name=self.tool.name,
-        function_call_id=ctx.function_call_id,
-        output=output,
-        actions=function_response_event.actions,
-    )
+    yield function_response

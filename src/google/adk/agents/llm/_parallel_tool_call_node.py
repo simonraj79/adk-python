@@ -38,14 +38,13 @@ from ._functions import generate_auth_event
 from ._functions import generate_request_confirmation_event
 from ._functions import get_long_running_function_calls
 from ._tool_call_node import ToolCallNode
-from ._tool_call_node import ToolCallResult
 
 
 class ParallelToolCallResult(BaseModel):
   """Result of parallel tool execution."""
 
-  tool_results: dict[str, ToolCallResult]
-  """Mapping from function_call_id to ToolCallResult."""
+  tool_results: dict[str, Any]
+  """Mapping from function_call_id to function response dict."""
 
   transfer_to_agent: str | None = None
   """Agent name to transfer control to, if any."""
@@ -61,32 +60,27 @@ class ParallelToolCallResult(BaseModel):
 
 
 def _build_merged_event(
-    tool_results: list[ToolCallResult],
+    completed: list[tuple[types.FunctionCall, Context]],
     invocation_context: InvocationContext,
 ) -> Event:
-  """Builds a merged function response Event from ToolCallResults."""
-  merged_parts = [
-      types.Part.from_function_response(
-          name=tr.name,
-          response=(
-              tr.output
-              if isinstance(tr.output, dict)
-              else {'result': tr.output}
-          ),
-      )
-      for tr in tool_results
-  ]
-  # Set function_response.id on each part.
-  for part, tr in zip(merged_parts, tool_results):
-    part.function_response.id = tr.function_call_id
+  """Builds a merged function response Event from completed tool contexts."""
+  merged_parts = []
+  for fc, child_ctx in completed:
+    response = child_ctx.output
+    part = types.Part.from_function_response(
+        name=fc.name,
+        response=response,
+    )
+    part.function_response.id = child_ctx.function_call_id
+    merged_parts.append(part)
 
-  # Merge actions from all tool results.
+  # Merge actions from all child contexts.
   merged_actions_data: dict[str, Any] = {}
-  for tr in tool_results:
-    if tr.actions:
+  for _, child_ctx in completed:
+    if child_ctx.actions:
       merged_actions_data = deep_merge_dicts(
           merged_actions_data,
-          tr.actions.model_dump(exclude_none=True),
+          child_ctx.actions.model_dump(exclude_none=True),
       )
   merged_actions = EventActions.model_validate(merged_actions_data)
 
@@ -144,22 +138,23 @@ class ParallelToolCallNode(BaseNode):
 
     run_results = await asyncio.gather(*tasks)
 
-    # Collect ToolCallResults from completed tool calls.
-    tool_results: list[ToolCallResult] = [
-        r.output for r in run_results
-        if r.output is not None and isinstance(r.output, ToolCallResult)
+    # Pair each function call with its child context; keep only completed ones.
+    completed: list[tuple[types.FunctionCall, Context]] = [
+        (fc, child_ctx)
+        for fc, child_ctx in zip(function_calls, run_results)
+        if child_ctx.output is not None
     ]
 
-    if not tool_results:
+    if not completed:
       if long_running_tool_ids:
         yield _long_running_interrupt_event(
             invocation_context, function_calls, long_running_tool_ids
         )
       return
 
-    # Build merged event from ToolCallResults for auth/confirmation checks
+    # Build merged event from child contexts for auth/confirmation checks
     # and session content.
-    merged_event = _build_merged_event(tool_results, invocation_context)
+    merged_event = _build_merged_event(completed, invocation_context)
 
     # Generate auth event if any tool requested credentials.
     # TODO: unify below auth / confirmation handling based on RFC 683.
@@ -199,7 +194,9 @@ class ParallelToolCallNode(BaseNode):
 
     # Check for pending long-running tools that returned None.
     if long_running_tool_ids:
-      responded_ids = {tr.function_call_id for tr in tool_results}
+      responded_ids = {
+          child_ctx.function_call_id for _, child_ctx in completed
+      }
       pending_ids = long_running_tool_ids - responded_ids
       if pending_ids:
         yield _long_running_interrupt_event(
@@ -222,7 +219,10 @@ class ParallelToolCallNode(BaseNode):
     # Build structured result for parent to read via ctx.run_node.
     actions = merged_event.actions
     result = ParallelToolCallResult(
-        tool_results={tr.function_call_id: tr for tr in tool_results},
+        tool_results={
+            child_ctx.function_call_id: child_ctx.output
+            for _, child_ctx in completed
+        },
         transfer_to_agent=actions.transfer_to_agent if actions else None,
         request_task=actions.request_task if actions else None,
         finish_task=actions.finish_task if actions else None,
