@@ -234,6 +234,7 @@ class LlmCallNode(BaseNode):
             for p in finalized_event.content.parts
             if p.text and not p.thought
         )
+        finalized_event.node_info.message_as_output = True
 
       if not has_long_running:
         yield finalized_event

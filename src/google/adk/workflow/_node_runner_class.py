@@ -205,6 +205,8 @@ class NodeRunner:
 
     if event.output is not None:
       ctx._output_emitted = True
+    if event.node_info.message_as_output:
+      ctx._output_delegated = True
 
   async def _flush_output_and_deltas(self, ctx: Context) -> None:
     """Emit deferred output and/or unflushed state/artifact deltas."""

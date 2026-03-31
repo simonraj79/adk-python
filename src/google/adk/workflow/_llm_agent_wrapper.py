@@ -236,11 +236,9 @@ class _LlmAgentWrapper(BaseNode):
           output = validate_schema(self.agent.output_schema, output)
         if self.agent.output_key:
           ctx.actions.state_delta[self.agent.output_key] = output
-        # Mark output as delegated so the wrapper's NodeRunner
-        # captures the value without enqueuing a separate output
-        # event. The LlmCallNode content event (already enqueued)
-        # carries the visible response; this avoids duplication.
-        ctx._output_delegated = True
+        # LlmCallNode's content event has message_as_output=True,
+        # which auto-sets _output_delegated via NodeRunner. No
+        # separate output event will be enqueued.
         yield output
       return
       yield  # noqa: unreachable — keeps this an async generator

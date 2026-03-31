@@ -118,12 +118,10 @@ class SingleAgentReactNode(BaseNode):
       llm_ctx = await ctx._run_node_internal(llm_node)
 
       if not isinstance(llm_ctx.output, LlmCallResult):
-        # Pure text response — done.  Set _output_delegated so the
-        # parent NodeRunner captures the value without enqueuing a
-        # separate output event (the LlmCallNode content event,
-        # already enqueued, carries the visible response).
+        # Pure text response — done. The LlmCallNode content event
+        # (already enqueued) has message_as_output=True, which
+        # auto-sets _output_delegated via NodeRunner.
         if llm_ctx.output is not None:
-          ctx._output_delegated = True
           yield llm_ctx.output
         break
 

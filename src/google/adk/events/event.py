@@ -68,6 +68,13 @@ class NodeInfo(BaseModel):
   ``wf/A``.
   """
 
+  message_as_output: bool = False
+  """When True, this event's content is the node's output.
+
+  No separate output event is needed — the content event already
+  carries the output value.
+  """
+
   @property
   def name(self) -> str:
     """The name of the node that generated the event."""

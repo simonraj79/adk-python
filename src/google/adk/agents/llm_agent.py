@@ -354,6 +354,7 @@ class LlmAgent(_Mesh, BaseLlmAgent):
         event.actions.state_delta[self.output_key] = result
       if set_event_output:
         event.output = result
+        event.node_info.message_as_output = True
         if self.mode == 'single_turn':
           # Single_turn output goes only in event.output, not content.
           # Prevents redundant text from polluting the coordinator's
