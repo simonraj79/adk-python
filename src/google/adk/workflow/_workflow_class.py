@@ -29,7 +29,6 @@ from typing import AsyncGenerator
 from typing import TYPE_CHECKING
 
 from pydantic import Field
-from pydantic import PrivateAttr
 
 from ._base_node import BaseNode
 from ._base_node import START
@@ -182,14 +181,17 @@ class Workflow(BaseNode):
   their parent and throttling them would cause deadlock.
   """
 
-  _graph: WorkflowGraph | None = PrivateAttr(default=None)
+  graph: WorkflowGraph | None = Field(
+      description='The compiled workflow graph.',
+      default=None,
+  )
 
   # --- Construction ---
 
   def model_post_init(self, context: Any) -> None:
     super().model_post_init(context)
-    if self.edges:
-      self._graph = self._build_graph()
+    if self.edges and self.graph is None:
+      self.graph = self._build_graph()
 
   def _build_graph(self) -> WorkflowGraph:
     """Convert edge definitions to a validated WorkflowGraph."""
@@ -206,7 +208,7 @@ class Workflow(BaseNode):
       node_input: Any,
   ) -> AsyncGenerator[Any, None]:
     """Orchestration loop: SETUP -> LOOP -> FINALIZE."""
-    if self._graph is None:
+    if self.graph is None:
       return
 
     # Set event_author so child events are attributed to this workflow.
@@ -287,7 +289,7 @@ class Workflow(BaseNode):
       self, loop_state: _LoopState, node_input: Any
   ) -> None:
     """Seed triggers for START's direct successors."""
-    for edge in self._graph.edges:
+    for edge in self.graph.edges:
       if edge.from_node.name == START.name:
         loop_state.trigger_buffer.setdefault(edge.to_node.name, []).append(
             Trigger(input=node_input, triggered_by=START.name)
@@ -356,7 +358,7 @@ class Workflow(BaseNode):
   ) -> None:
     """Create NodeRunner and start asyncio task for a node."""
     node = self._get_static_node_by_name(node_name)
-    is_terminal = node_name in self._graph._terminal_node_names
+    is_terminal = node_name in self.graph._terminal_node_names
 
     node_state = loop_state.nodes[node_name]
     # Reuse run_id on resume; assign a new sequential id for fresh runs.
@@ -370,7 +372,7 @@ class Workflow(BaseNode):
         triggered_by=trigger.triggered_by,
         in_nodes={  # TODO: move to WorkflowGraph and add tests.
             e.from_node.name
-            for e in self._graph.edges
+            for e in self.graph.edges
             if e.to_node.name == node_name
         },
         additional_output_for_ancestor=(ctx.node_path if is_terminal else None),
@@ -431,7 +433,7 @@ class Workflow(BaseNode):
     next_nodes = _get_next_pending_nodes(
         node_name=node_name,
         routes_to_match=route,
-        graph=self._graph,
+        graph=self.graph,
     )
     for target_name in next_nodes:
       loop_state.trigger_buffer.setdefault(target_name, []).append(
@@ -606,7 +608,7 @@ class Workflow(BaseNode):
     known children or nodes dict (it would have been triggered).
     """
     known_names = set(children) | set(nodes)
-    for graph_node in self._graph.nodes:
+    for graph_node in self.graph.nodes:
       if (
           not graph_node.wait_for_output
           or graph_node.name in nodes
@@ -615,7 +617,7 @@ class Workflow(BaseNode):
         continue
       predecessors = {
           e.from_node.name
-          for e in self._graph.edges
+          for e in self.graph.edges
           if e.to_node.name == graph_node.name
       }
       if predecessors & known_names:
@@ -650,7 +652,7 @@ class Workflow(BaseNode):
     # TODO: Replace structural terminal detection with Event.output_for.
     terminal_outputs = [
         loop_state.node_outputs[name]
-        for name in self._graph._terminal_node_names
+        for name in self.graph._terminal_node_names
         if name in loop_state.node_outputs
     ]
     if len(terminal_outputs) == 1:
@@ -668,12 +670,12 @@ class Workflow(BaseNode):
     """Check if any terminal node produced output."""
     return any(
         name in loop_state.node_outputs
-        for name in self._graph._terminal_node_names
+        for name in self.graph._terminal_node_names
     )
 
   def _get_static_node_by_name(self, name: str) -> BaseNode:
     """Find a node in the graph by name."""
-    for node in self._graph.nodes:
+    for node in self.graph.nodes:
       if node.name == name:
         return node
     raise ValueError(f'Node {name} not found in graph.')
