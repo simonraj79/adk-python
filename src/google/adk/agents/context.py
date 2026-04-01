@@ -434,6 +434,7 @@ class Context(ReadonlyContext):
       *,
       name: str | None = None,
       use_as_output: bool = False,
+      run_id: str | None = None,
   ) -> Any:
     """Executes a node dynamically.
 
@@ -459,6 +460,9 @@ class Context(ReadonlyContext):
       use_as_output: If True, the dynamic node's output is used as the
         calling node's output. The calling node's own output event is
         suppressed to avoid duplication.
+      run_id: An optional custom run ID for the dynamic node execution.
+        If not provided, a default run ID is generated. Useful for
+        correlating events across runs.
 
     Returns:
       The output of the dynamically executed node, once it finishes executing.
@@ -501,6 +505,7 @@ class Context(ReadonlyContext):
           node_input,
           node_name=node_name,
           use_as_output=use_as_output,
+          run_id=run_id,
       )
       if child_ctx.interrupt_ids:
         # Propagate child's interrupt_ids to this node's ctx

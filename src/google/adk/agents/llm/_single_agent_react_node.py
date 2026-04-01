@@ -57,11 +57,12 @@ class SingleAgentReactNode(BaseNode):
   async def _schedule_node(
       current_ctx: Context,
       node: BaseNode,
-      run_id: str,
+      _node_name: str,
       node_input: Any,
       *,
-      node_name: str | None = None,
-      use_as_output: bool = False,
+      node_name: str | None = None,  # noqa: ARG004
+      use_as_output: bool = False,  # noqa: ARG004
+      run_id: str | None = None,
   ):
     """Schedule a child node via NodeRunner.
 
@@ -73,7 +74,7 @@ class SingleAgentReactNode(BaseNode):
     runner = NodeRunner(
         node=node,
         parent_ctx=current_ctx,
-        run_id=run_id,
+        run_id=run_id or _node_name,
     )
     return await runner.run(node_input=node_input)
 

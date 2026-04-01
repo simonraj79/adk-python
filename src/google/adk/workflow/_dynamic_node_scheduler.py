@@ -99,24 +99,26 @@ class DynamicNodeScheduler:
       self,
       ctx: Context,
       node: BaseNode,
-      run_id: str,
+      _node_name: str,
       node_input: Any,
       *,
       node_name: str | None = None,
       use_as_output: bool = False,
+      run_id: str | None = None,
   ) -> Context:
     """Schedule a dynamic node: dedup, resume, or fresh run.
 
     Args:
       ctx: The calling node's Context.
       node: The BaseNode to execute (original, before renaming).
-      run_id: Unused. Kept for protocol compat; NodeRunner
-        generates its own.
+      _node_name: Deprecated positional. Use ``node_name`` kwarg
+        instead. Will be removed in a future cleanup.
       node_input: Input data for the node.
       node_name: Deterministic tracking name from ctx.run_node().
         Always provided (user-specified or auto-generated).
       use_as_output: If True, the child's output replaces the
         calling node's output.
+      run_id: Optional custom run ID for the child node execution.
 
     Returns:
       Child Context with output, route, and interrupt_ids set.
@@ -178,6 +180,7 @@ class DynamicNodeScheduler:
         node_path,
         node_input,
         use_as_output,
+        run_id=run_id,
     )
 
   # --- Lazy scan ---
@@ -303,6 +306,8 @@ class DynamicNodeScheduler:
       node_path: str,
       node_input: Any,
       use_as_output: bool,
+      *,
+      run_id: str | None = None,
   ) -> Context:
     """Run a dynamic node for the first time."""
     from ._node_runner_class import NodeRunner
@@ -310,8 +315,7 @@ class DynamicNodeScheduler:
     state = NodeState(
         status=NodeStatus.RUNNING,
         input=node_input,
-        # TODO: Right now, dynamic node with same node path is only run once.
-        run_id='1',
+        run_id=run_id if run_id is not None else '1',
         source_node_name=node.name,
         parent_run_id=ctx.run_id,
     )

@@ -1052,3 +1052,41 @@ async def test_dynamic_node_keeps_run_id_on_resume():
   assert approver_run_ids_1
   assert approver_run_ids_2
   assert approver_run_ids_1[0] == approver_run_ids_2[0]
+
+
+# =========================================================================
+# Custom run_id
+# =========================================================================
+
+
+@pytest.mark.asyncio
+async def test_custom_run_id_used_on_events():
+  """ctx.run_node(run_id=...) sets the custom run_id on child events."""
+
+  class _Child(BaseNode):
+
+    async def _run_impl(self, *, ctx, node_input):
+      yield f'done: {node_input}'
+
+  class _Parent(BaseNode):
+    rerun_on_resume: bool = True
+
+    async def _run_impl(self, *, ctx, node_input):
+      result = await ctx.run_node(
+          _Child(name='child'), node_input='hello', run_id='my-custom-id'
+      )
+      yield result
+
+  wf = Workflow(name='wf', edges=[(START, _Parent(name='parent'))])
+  ss = InMemorySessionService()
+  runner = Runner(app_name='test', node=wf, session_service=ss)
+  session = await ss.create_session(app_name='test', user_id='u')
+
+  events = await _run(runner, ss, session, 'go')
+
+  child_events = [
+      e for e in events
+      if e.node_info and e.node_info.path and 'child' in e.node_info.path
+  ]
+  assert child_events
+  assert all(e.node_info.run_id == 'my-custom-id' for e in child_events)
