@@ -15,18 +15,22 @@
 from __future__ import annotations
 
 import copy
-import uuid
 from typing import Any
 from typing import AsyncGenerator
+import uuid
 
 from google.genai import types
 from pydantic import ConfigDict
 from pydantic import Field
 from typing_extensions import override
 
+from ...events.event import Event
 from ...tools.base_tool import BaseTool
 from ...workflow._base_node import BaseNode
 from ..context import Context
+from ._execute_tools_node import _long_running_interrupt_event
+from ._functions import generate_auth_event
+from ._functions import generate_request_confirmation_event
 
 
 class ToolCallNode(BaseNode):
@@ -64,10 +68,41 @@ class ToolCallNode(BaseNode):
     )
 
     if self.tool.is_long_running and not function_response:
+      yield _long_running_interrupt_event(
+          ctx.get_invocation_context(), [function_call], {ctx.function_call_id}
+      )
       return
 
     # Normalize to dict (Gemini API requires function responses to be dicts).
     if not isinstance(function_response, dict):
       function_response = {'result': function_response}
+
+    invocation_context = ctx.get_invocation_context()
+    part = types.Part.from_function_response(
+        name=function_call.name,
+        response=function_response,
+    )
+    part.function_response.id = ctx.function_call_id
+    response_event = Event(
+        invocation_id=invocation_context.invocation_id,
+        author=invocation_context.agent.name,
+        branch=invocation_context.branch,
+        content=types.Content(role='user', parts=[part]),
+        actions=ctx.actions,
+    )
+
+    auth_event = generate_auth_event(invocation_context, response_event)
+    if auth_event:
+      yield auth_event.model_copy()
+
+    confirmation_event = generate_request_confirmation_event(
+        invocation_context, [function_call], response_event
+    )
+    if confirmation_event:
+      yield confirmation_event.model_copy()
+
+    if auth_event or confirmation_event:
+      yield response_event.model_copy()
+      return
 
     yield function_response

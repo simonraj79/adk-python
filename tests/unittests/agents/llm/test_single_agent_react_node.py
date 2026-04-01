@@ -402,15 +402,17 @@ class TestInterruptAndResume:
         ],
     )
 
-    # Run 1: LLM → [approve, review] → interrupt with 2 pending IDs
+    # Run 1: LLM → [approve, review] → interrupts with 1 pending ID each
     events1 = await _run_turn(runner, 'Approve and review')
-    interrupt = next(e for e in events1 if e.long_running_tool_ids)
-    assert len(interrupt.long_running_tool_ids) == 2
+    interrupts = [e for e in events1 if e.long_running_tool_ids]
+    assert len(interrupts) == 2
     assert len(mock_model.requests) == 1
 
     # Run 2: Resume both FRs → LLM → text → done
     invocation_id = events1[0].invocation_id
-    fc_ids = list(interrupt.long_running_tool_ids)
+    fc_ids = []
+    for interrupt in interrupts:
+      fc_ids.extend(list(interrupt.long_running_tool_ids))
     resume_msg = types.Content(
         role='user',
         parts=[

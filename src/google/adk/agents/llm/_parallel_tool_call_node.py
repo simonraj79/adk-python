@@ -31,12 +31,8 @@ from ...tools.base_tool import BaseTool
 from ...workflow._base_node import BaseNode
 from ..context import Context
 from ..invocation_context import InvocationContext
-from ._execute_tools_node import _long_running_interrupt_event
 from ._functions import _get_tool
 from ._functions import deep_merge_dicts
-from ._functions import generate_auth_event
-from ._functions import generate_request_confirmation_event
-from ._functions import get_long_running_function_calls
 from ._tool_call_node import ToolCallNode
 
 
@@ -101,11 +97,6 @@ class ParallelToolCallNode(BaseNode):
       ]
     invocation_context = ctx.get_invocation_context()
 
-    # Detect long-running tools before execution.
-    long_running_tool_ids = get_long_running_function_calls(
-        function_calls, self.tools_dict
-    )
-
     # Execute each function call in parallel via ToolCallNode.
     tasks = []
     for i, fc in enumerate(function_calls):
@@ -133,51 +124,16 @@ class ParallelToolCallNode(BaseNode):
         if child_ctx.output is not None
     ]
 
+    interrupted_ctxs = [
+        child_ctx for child_ctx in run_results if child_ctx.interrupt_ids
+    ]
+
     if not completed:
-      if long_running_tool_ids:
-        yield _long_running_interrupt_event(
-            invocation_context, function_calls, long_running_tool_ids
-        )
       return
 
     # Build merged event from child contexts for auth/confirmation checks
     # and session content.
     merged_event = _build_merged_event(completed, invocation_context)
-
-    # Generate auth event if any tool requested credentials.
-    # TODO: unify below auth / confirmation handling based on RFC 683.
-    auth_event = generate_auth_event(invocation_context, merged_event)
-    if auth_event:
-      yield auth_event.model_copy()
-
-    # Generate confirmation event if any tool requested confirmation.
-    confirmation_event = generate_request_confirmation_event(
-        invocation_context, function_calls, merged_event
-    )
-    if confirmation_event:
-      yield confirmation_event.model_copy()
-
-    # Auth/confirmation are interrupts — yield function response but
-    # do not set output (no continuation).
-    if auth_event or confirmation_event:
-      yield merged_event.model_copy()
-      return
-
-    # Handle pending long-running tools (mixed case).
-    pending_ids = set()
-    if long_running_tool_ids:
-      function_call_event = Event(
-          invocation_id=invocation_context.invocation_id,
-          author=invocation_context.agent.name,
-          content=types.Content(
-              role='model',
-              parts=[types.Part(function_call=fc) for fc in function_calls],
-          ),
-      )
-      yield function_call_event
-
-      responded_ids = {child_ctx.function_call_id for _, child_ctx in completed}
-      pending_ids = long_running_tool_ids - responded_ids
 
     # Bubble up actions to parent context for checking termination conditions.
     actions = merged_event.actions
@@ -193,11 +149,8 @@ class ParallelToolCallNode(BaseNode):
           actions.skip_summarization or ctx.actions.skip_summarization
       )
 
-    if pending_ids:
+    if interrupted_ctxs:
       yield merged_event.model_copy()
-      yield _long_running_interrupt_event(
-          invocation_context, function_calls, pending_ids
-      )
       return
 
     # Check for structured output.
