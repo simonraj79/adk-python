@@ -505,7 +505,7 @@ class Context(ReadonlyContext):
           node_input,
           node_name=node_name,
           use_as_output=use_as_output,
-          run_id=run_id,
+          run_id=run_id or '1',
       )
       if child_ctx.interrupt_ids:
         # Propagate child's interrupt_ids to this node's ctx
@@ -563,6 +563,7 @@ class Context(ReadonlyContext):
           schedule_run_id,
           node_input,
           node_name=node_name,
+          run_id=run_id or '1',
       )
 
     return await self._run_node_via_runner(

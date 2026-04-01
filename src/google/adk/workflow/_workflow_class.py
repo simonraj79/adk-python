@@ -257,8 +257,10 @@ class Workflow(BaseNode):
     # TODO: Handle dynamic task failures and interrupts here.
     # Currently, dynamic node completion is handled inline in the
     # _schedule_dynamic_node_callback closure. But failures are not caught.
-    if loop_state.dynamic_pending_tasks:
-      await asyncio.wait(loop_state.dynamic_pending_tasks.values())
+    dynamic_tasks = loop_state.get_dynamic_tasks()
+    if dynamic_tasks:
+      await asyncio.wait(dynamic_tasks)
+
 
   # --- Scheduling ---
 
@@ -682,9 +684,9 @@ class Workflow(BaseNode):
 
   async def _cleanup_all_tasks(self, loop_state: _LoopState) -> None:
     """Cancel remaining tasks to prevent leaks."""
-    all_tasks = list(loop_state.pending_tasks.values()) + list(
-        loop_state.dynamic_pending_tasks.values()
-    )
+    dynamic_tasks = loop_state.get_dynamic_tasks()
+
+    all_tasks = list(loop_state.pending_tasks.values()) + dynamic_tasks
     if all_tasks:
       logger.warning(
           'Workflow %s: cancelling %d leftover tasks.',
