@@ -152,6 +152,7 @@ class NodeRunner:
         run_id=self._run_id,
         resume_inputs=resume_inputs,
         schedule_dynamic_node_internal=scheduler,
+        node_rerun_on_resume=self._node.rerun_on_resume,
         triggered_by=self._triggered_by,
         in_nodes=self._in_nodes,
         output_for_ancestors=ancestors,

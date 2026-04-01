@@ -857,7 +857,7 @@ async def test_chain_syntax():
 # 26. test_run_async_with_implicit_graph_fan_out
 @pytest.mark.asyncio
 async def test_fan_out():
-  """Fan-out from A to (B, C) — both receive A's output.
+  """Fan-out to multiple terminals raises ValueError.
 
   Maps to: test_run_async_with_implicit_graph_fan_out
   in test_workflow_agent.py.
@@ -873,10 +873,8 @@ async def test_fan_out():
       ],
   )
 
-  events, _, _ = await _run_workflow(wf)
-
-  assert b.received_inputs == ['A']
-  assert c.received_inputs == ['A']
+  with pytest.raises(ValueError, match='multiple terminal nodes'):
+    await _run_workflow(wf)
 
 
 # 27. test_run_async_with_implicit_graph_fan_in
@@ -932,7 +930,7 @@ async def test_fan_out_fan_in():
 # 29. test_run_async_parallel_nodes_interleaved_events
 @pytest.mark.asyncio
 async def test_parallel_events_interleaved():
-  """Parallel nodes both produce output events.
+  """Parallel terminal nodes both producing output raises ValueError.
 
   Maps to: test_run_async_parallel_nodes_interleaved_events
   in test_workflow_agent.py.
@@ -947,10 +945,8 @@ async def test_parallel_events_interleaved():
       ],
   )
 
-  events, _, _ = await _run_workflow(wf)
-
-  assert 'A' in _outputs(events)
-  assert 'B' in _outputs(events)
+  with pytest.raises(ValueError, match='multiple terminal nodes'):
+    await _run_workflow(wf)
 
 
 # 30. test_buffers_events_from_parallel_nodes
@@ -1147,7 +1143,6 @@ async def test_resume_downstream_receives_output():
 
 
 # 34. test_run_async_with_multiple_node_outputs_fails
-@pytest.mark.xfail(reason='Runner does not propagate background task errors.')
 @pytest.mark.asyncio
 async def test_multiple_outputs_rejected():
   """Node yielding two outputs raises error.
@@ -1202,7 +1197,7 @@ async def test_fan_in_with_route():
 # 36. test_run_async_with_implicit_graph_fan_out_with_route
 @pytest.mark.asyncio
 async def test_fan_out_with_route():
-  """Fan-out via route — both targets receive router's output.
+  """Fan-out via route to multiple terminals raises ValueError.
 
   Maps to: test_run_async_with_implicit_graph_fan_out_with_route
   in test_workflow_agent.py.
@@ -1218,16 +1213,14 @@ async def test_fan_out_with_route():
       ],
   )
 
-  events, _, _ = await _run_workflow(wf)
-
-  assert b.received_inputs == ['R']
-  assert c.received_inputs == ['R']
+  with pytest.raises(ValueError, match='multiple terminal nodes'):
+    await _run_workflow(wf)
 
 
 # 37. test_run_async_with_implicit_graph_fan_in_out_with_route
 @pytest.mark.asyncio
 async def test_fan_in_out_with_route():
-  """Fan-in/out with routes — both routers feed both targets.
+  """Fan-in/out with routes to multiple terminals raises ValueError.
 
   Maps to: test_run_async_with_implicit_graph_fan_in_out_with_route
   in test_workflow_agent.py.
@@ -1245,10 +1238,8 @@ async def test_fan_in_out_with_route():
       ],
   )
 
-  events, _, _ = await _run_workflow(wf)
-
-  assert Counter(c.received_inputs) == Counter(['A', 'B'])
-  assert Counter(d.received_inputs) == Counter(['A', 'B'])
+  with pytest.raises(ValueError, match='multiple terminal nodes'):
+    await _run_workflow(wf)
 
 
 # 38. test_run_async_streaming_behavior
@@ -1598,12 +1589,9 @@ async def test_use_as_output_duplicate_raises():
   node_a = FunctionNode(func=func_a, rerun_on_resume=True)
 
   wf = Workflow(name='wf', edges=[(START, node_a)])
-  events, _, _ = await _run_workflow(wf)
 
-  # The second use_as_output=True call causes func_a to fail.
-  # func_a never completes, so no output from func_a appears.
-  by_node = _output_by_node(events)
-  assert not any(name == 'func_a' for name, _ in by_node)
+  with pytest.raises(ValueError, match='use_as_output'):
+    await _run_workflow(wf)
 
 
 @pytest.mark.asyncio

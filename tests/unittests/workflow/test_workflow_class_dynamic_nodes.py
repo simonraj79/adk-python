@@ -897,9 +897,6 @@ async def test_dynamic_node_none_output_not_rerun():
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(
-    reason='rerun_on_resume=False auto-complete not implemented (doc 17)'
-)
 async def test_dynamic_node_rerun_on_resume_false():
   """Dynamic child with rerun_on_resume=False auto-completes on resume.
 

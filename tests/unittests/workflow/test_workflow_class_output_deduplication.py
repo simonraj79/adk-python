@@ -23,6 +23,7 @@ from typing import Any
 from google.adk.apps.app import App
 from google.adk.events.event import Event
 from google.adk.workflow._workflow_class import Workflow
+import pytest
 
 from . import testing_utils
 
@@ -95,13 +96,13 @@ async def test_nested_with_output_schema_validates_at_read_time(
   assert out_events[0].output == 'raw_data'
 
 
-async def test_multiple_terminals_in_nested_workflow(
+async def test_multiple_terminals_in_nested_workflow_raises(
     request,
 ):
-  """Fan-out inside nested workflow emits both terminal outputs, no finalize.
+  """Fan-out with no join raises ValueError for multiple terminal outputs.
 
   Setup: outer → inner → (branch_a, branch_b).
-  Assert: 2 output events (one per branch), no outer finalize event.
+  Assert: ValueError because inner has two terminal nodes producing output.
   """
 
   async def branch_a(node_input: Any):
@@ -118,16 +119,9 @@ async def test_multiple_terminals_in_nested_workflow(
 
   app = App(name=request.function.__name__, root_node=outer)
   runner = testing_utils.InMemoryRunner(app=app)
-  events = await runner.run_async(testing_utils.get_user_content('hi'))
-  out_events = _output_events(events)
 
-  branch_events = [
-      e for e in out_events if e.node_info.name in ('branch_a', 'branch_b')
-  ]
-  assert len(branch_events) == 2
-
-  root_events = [e for e in out_events if e.node_info.path == 'outer']
-  assert len(root_events) == 0
+  with pytest.raises(ValueError, match='multiple terminal nodes'):
+    await runner.run_async(testing_utils.get_user_content('hi'))
 
 
 async def test_non_terminal_output_not_exposed_as_workflow_output(

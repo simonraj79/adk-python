@@ -138,8 +138,8 @@ class DynamicNodeScheduler:
       if state.status == NodeStatus.COMPLETED:
         return self._make_cached_ctx(ctx, node_path, state)
 
-      # Waiting with unresolved interrupts → propagate.
       if state.status == NodeStatus.WAITING:
+        # Unresolved interrupts remain → propagate to parent.
         if state.interrupts:
           self._loop_state.interrupt_ids.update(state.interrupts)
           return self._make_cached_ctx(
@@ -148,7 +148,14 @@ class DynamicNodeScheduler:
               state,
               interrupt_ids=set(state.interrupts),
           )
-        # All resolved → re-run with resume_inputs.
+        # All resolved → re-run or auto-complete.
+        if not node.rerun_on_resume:
+          # All resolved, no rerun → auto-complete with resume_inputs.
+          output = dict(state.resume_inputs)
+          state.status = NodeStatus.COMPLETED
+          self._loop_state.dynamic_outputs[node_path] = output
+          return self._make_cached_ctx(ctx, node_path, state)
+        # All resolved, rerun → re-execute with resume_inputs.
         return await self._resume_node(
             ctx,
             node,

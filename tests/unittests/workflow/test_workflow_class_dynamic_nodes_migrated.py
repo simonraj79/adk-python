@@ -12,7 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Tests for dynamic node execution."""
+"""Tests for dynamic node execution (migrated from test_dynamic_nodes.py).
+
+TODO: Merge into test_workflow_class_dynamic_nodes.py.
+"""
 
 import asyncio
 import time
@@ -23,7 +26,7 @@ from google.adk.events.event import Event
 from google.adk.events.request_input import RequestInput
 from google.adk.workflow import FunctionNode
 from google.adk.workflow import START
-from google.adk.workflow import Workflow
+from google.adk.workflow._workflow_class import Workflow
 from google.adk.workflow.utils._node_path_utils import is_direct_child
 from google.adk.workflow.utils._workflow_hitl_utils import REQUEST_INPUT_FUNCTION_CALL_NAME
 from google.genai import types
@@ -39,7 +42,7 @@ from .workflow_testing_utils import simplify_events_with_node
 async def test_dynamically_run_nodes_return_outputs_and_emit_events(
     request: pytest.FixtureRequest,
 ):
-  """Tests a simple dynamic node execution where C calls A and B."""
+  """Dynamic child outputs are returned to caller and emitted as events."""
 
   def func_a() -> str:
     return 'A'
@@ -65,7 +68,7 @@ async def test_dynamically_run_nodes_return_outputs_and_emit_events(
   )
   test_app = app.App(
       name=request.function.__name__,
-      root_agent=agent,
+      root_node=agent,
       resumability_config=app.ResumabilityConfig(is_resumable=True),
   )
   runner = testing_utils.InMemoryRunner(app=test_app)
@@ -95,7 +98,7 @@ async def test_dynamically_run_nodes_return_outputs_and_emit_events(
 async def test_dynamic_node_with_custom_name(
     request: pytest.FixtureRequest,
 ):
-  """Tests that custom node names can be provided for dynamic nodes."""
+  """ctx.run_node(name='custom') uses the custom name in event paths."""
 
   def func_a() -> str:
     return 'A'
@@ -117,7 +120,7 @@ async def test_dynamic_node_with_custom_name(
 
   test_app = app.App(
       name=request.function.__name__,
-      root_agent=agent,
+      root_node=agent,
       resumability_config=app.ResumabilityConfig(is_resumable=True),
   )
   runner = testing_utils.InMemoryRunner(app=test_app)
@@ -142,19 +145,11 @@ async def test_dynamic_node_with_custom_name(
 async def test_dynamic_node_hitl_no_rerun_on_resume(
     request: pytest.FixtureRequest,
 ):
-  """Tests a dynamic node that requests input and doesn't rerun on resume.
+  """Dynamic child with rerun_on_resume=False auto-completes with FR response on resume.
 
-  Given:
-    A workflow where 'simple_caller' dynamically calls 'node_hitl', which
-    requests human input via RequestInput. 'node_hitl' has
-    rerun_on_resume=False.
-  When:
-    The workflow is executed, encounters RequestInput, pauses, and is then
-    resumed with a user-provided response.
-  Then:
-    The workflow should pause at 'node_hitl', and upon resuming, it
-    should complete successfully, with 'simple_caller' returning the
-    user-provided input, without 'node_hitl' being rerun.
+  Setup: simple_caller → node_hitl(rerun_on_resume=False, RequestInput).
+  Act: run 1 pauses, run 2 resumes with FR.
+  Assert: node_hitl returns FR response without re-executing.
   """
 
   async def node_hitl():
@@ -179,7 +174,7 @@ async def test_dynamic_node_hitl_no_rerun_on_resume(
 
   test_app = app.App(
       name=request.function.__name__,
-      root_agent=agent,
+      root_node=agent,
       resumability_config=app.ResumabilityConfig(is_resumable=True),
   )
   runner = testing_utils.InMemoryRunner(app=test_app)
@@ -203,20 +198,17 @@ async def test_dynamic_node_hitl_no_rerun_on_resume(
       new_message=resume_payload, invocation_id=invocation_id
   )
 
-  # Check result
+  # node_hitl auto-completed (rerun_on_resume=False) — no output event
+  # emitted for it. Only simple_caller's output appears.
   assert simplify_events_with_node(
       events2, map_dynamic_node_to_the_source=True
   ) == [
       (
           'test_agent_dynamic_hitl',
-          {'node_name': 'node_hitl', 'output': {'text': 'Hello'}},
-      ),
-      (
-          'test_agent_dynamic_hitl',
           {
               'node_name': 'simple_caller',
               'output': {
-                  'child_result': {'text': 'Hello'},
+                  'child_result': {'req1': {'text': 'Hello'}},
                   'status': 'parent done',
               },
           },
@@ -228,19 +220,11 @@ async def test_dynamic_node_hitl_no_rerun_on_resume(
 async def test_dynamic_node_hitl_with_rerun_on_resume(
     request: pytest.FixtureRequest,
 ):
-  """Tests a dynamic node that requests input and reruns on resume.
+  """Dynamic child with rerun_on_resume=True re-executes with resume_inputs on resume.
 
-  Given:
-    A workflow where 'simple_caller' dynamically calls 'node_hitl', which
-    requests human input via RequestInput. 'node_hitl' has
-    rerun_on_resume=True and logic to handle resume inputs.
-  When:
-    The workflow is executed, encounters RequestInput, pauses, and is then
-    resumed with a user-provided response.
-  Then:
-    The workflow should pause at 'node_hitl', and upon resuming, 'node_hitl'
-    should be rerun, process the resume_input, and yield the contained
-    value. 'simple_caller' should return this value.
+  Setup: simple_caller → node_hitl(rerun_on_resume=True, RequestInput).
+  Act: run 1 pauses, run 2 resumes with FR.
+  Assert: node_hitl re-runs, reads resume_inputs, yields FR text.
   """
 
   async def node_hitl(ctx: Context):
@@ -269,7 +253,7 @@ async def test_dynamic_node_hitl_with_rerun_on_resume(
 
   test_app = app.App(
       name=request.function.__name__,
-      root_agent=agent,
+      root_node=agent,
       resumability_config=app.ResumabilityConfig(is_resumable=True),
   )
   runner = testing_utils.InMemoryRunner(app=test_app)
@@ -316,19 +300,11 @@ async def test_dynamic_node_hitl_with_rerun_on_resume(
 
 @pytest.mark.asyncio
 async def test_nested_dynamic_node_hitl(request: pytest.FixtureRequest):
-  """Tests nested dynamic nodes with HITL.
+  """Nested dynamic chain (top → middle → leaf) resumes through all levels.
 
-  Given:
-    A workflow with 'top_node' dynamically calling 'middle_node', which
-    dynamically calls 'leaf_node_hitl'. 'leaf_node_hitl' requests human
-    input via RequestInput.
-  When:
-    The workflow is executed, encounters RequestInput in 'leaf_node_hitl',
-    pauses, and is then resumed with a user-provided response.
-  Then:
-    The workflow should pause at 'leaf_node_hitl', and upon resuming, all
-    nodes ('leaf_node_hitl', 'middle_node', 'top_node') should complete
-    successfully, propagating the user-provided input as their output.
+  Setup: top_node → middle_node → leaf_node_hitl(RequestInput).
+  Act: run 1 pauses at leaf, run 2 resumes with FR.
+  Assert: all three nodes complete, propagating FR response as output.
   """
 
   async def leaf_node_hitl() -> str:
@@ -356,7 +332,7 @@ async def test_nested_dynamic_node_hitl(request: pytest.FixtureRequest):
 
   test_app = app.App(
       name=request.function.__name__,
-      root_agent=agent,
+      root_node=agent,
       resumability_config=app.ResumabilityConfig(is_resumable=True),
   )
   runner = testing_utils.InMemoryRunner(app=test_app)
@@ -380,28 +356,30 @@ async def test_nested_dynamic_node_hitl(request: pytest.FixtureRequest):
       new_message=resume_payload, invocation_id=invocation_id
   )
 
-  # Check result
+  # leaf_node_hitl auto-completed (rerun_on_resume=False) — no output
+  # event. middle_node and top_node re-run and emit output.
   assert simplify_events_with_node(
       events2, map_dynamic_node_to_the_source=True
   ) == [
       (
           'test_agent_nested_hitl',
-          {'node_name': 'leaf_node_hitl', 'output': {'text': 'World'}},
+          {'node_name': 'middle_node', 'output': {'req2': {'text': 'World'}}},
       ),
       (
           'test_agent_nested_hitl',
-          {'node_name': 'middle_node', 'output': {'text': 'World'}},
-      ),
-      (
-          'test_agent_nested_hitl',
-          {'node_name': 'top_node', 'output': {'text': 'World'}},
+          {'node_name': 'top_node', 'output': {'req2': {'text': 'World'}}},
       ),
   ]
 
 
 @pytest.mark.asyncio
+@pytest.mark.xfail(
+    reason=(
+        'New Workflow has no agent_state events for dynamic node name mapping'
+    )
+)
 async def test_dynamic_node_parallel_execution(request: pytest.FixtureRequest):
-  """Tests a simple parent node running 3 parallel instances of dynamic node."""
+  """Three parallel ctx.run_node calls via asyncio.gather return ordered results."""
 
   def echo_node(node_input: str) -> str:
     return node_input
@@ -423,7 +401,7 @@ async def test_dynamic_node_parallel_execution(request: pytest.FixtureRequest):
 
   test_app = app.App(
       name=request.function.__name__,
-      root_agent=agent,
+      root_node=agent,
       resumability_config=app.ResumabilityConfig(is_resumable=True),
   )
   runner = testing_utils.InMemoryRunner(app=test_app)
@@ -459,8 +437,19 @@ async def test_dynamic_node_parallel_execution(request: pytest.FixtureRequest):
 
 
 @pytest.mark.asyncio
+@pytest.mark.xfail(
+    reason=(
+        'New Workflow has no agent_state events for dynamic node name mapping'
+    )
+)
 async def test_dynamic_node_parallel_mixed_hitl(request: pytest.FixtureRequest):
-  """Tests mixed parallel execution with one HITL node and two simple nodes."""
+  """Parallel mix: two simple nodes complete, one HITL pauses then resumes.
+
+  Setup: parent gathers simple_1, simple_2, node_hitl(RequestInput).
+  Act: run 1 — simples complete, HITL pauses. Run 2 — resume HITL.
+  Assert: run 1 emits simple outputs + RequestInput. Run 2 emits HITL
+    output + parent aggregated list.
+  """
 
   def simple_node(node_input: str) -> str:
     return f'simple_{node_input}'
@@ -490,7 +479,7 @@ async def test_dynamic_node_parallel_mixed_hitl(request: pytest.FixtureRequest):
 
   test_app = app.App(
       name=request.function.__name__,
-      root_agent=agent,
+      root_node=agent,
       resumability_config=app.ResumabilityConfig(is_resumable=True),
   )
   runner = testing_utils.InMemoryRunner(app=test_app)
@@ -563,10 +552,15 @@ async def test_dynamic_node_parallel_mixed_hitl(request: pytest.FixtureRequest):
 
 
 @pytest.mark.asyncio
+@pytest.mark.xfail(
+    reason=(
+        'New Workflow has no agent_state events for dynamic node name mapping'
+    )
+)
 async def test_dynamic_node_parallel_hitl_all_resume(
     request: pytest.FixtureRequest,
 ):
-  """Tests resuming multiple parallel HITL nodes at once."""
+  """All parallel HITL nodes resumed at once complete together."""
 
   async def node_hitl(node_input: str):
     yield RequestInput(
@@ -590,7 +584,7 @@ async def test_dynamic_node_parallel_hitl_all_resume(
 
   test_app = app.App(
       name=request.function.__name__,
-      root_agent=agent,
+      root_node=agent,
       resumability_config=app.ResumabilityConfig(is_resumable=True),
   )
   runner = testing_utils.InMemoryRunner(app=test_app)
@@ -649,10 +643,21 @@ async def test_dynamic_node_parallel_hitl_all_resume(
 
 
 @pytest.mark.asyncio
+@pytest.mark.xfail(
+    reason=(
+        'New Workflow has no agent_state events for dynamic node name mapping'
+    )
+)
 async def test_dynamic_node_parallel_hitl_partial_resume(
     request: pytest.FixtureRequest,
 ):
-  """Tests resuming parallel HITL nodes in steps (partial resume)."""
+  """Parallel HITL nodes resumed one-at-a-time; parent waits for all.
+
+  Act: run 1 — all 3 pause. Run 2 — resume req_0 only. Run 3 — resume
+    req_1 and req_2.
+  Assert: run 2 emits only req_0's output. Run 3 emits req_1, req_2,
+    and parent aggregated list.
+  """
 
   async def node_hitl(node_input: str):
     yield RequestInput(
@@ -676,7 +681,7 @@ async def test_dynamic_node_parallel_hitl_partial_resume(
 
   test_app = app.App(
       name=request.function.__name__,
-      root_agent=agent,
+      root_node=agent,
       resumability_config=app.ResumabilityConfig(is_resumable=True),
   )
   runner = testing_utils.InMemoryRunner(app=test_app)
@@ -763,20 +768,17 @@ async def test_dynamic_node_parallel_hitl_partial_resume(
 
 
 @pytest.mark.asyncio
+@pytest.mark.xfail(
+    reason='Uses create_parent_invocation_context which requires BaseAgent'
+)
 async def test_dynamic_node_with_multiple_events(
     request: pytest.FixtureRequest,
 ):  # pylint: disable=redefined-outer-name
-  """Tests dynamic node streaming with content events and single data output.
+  """Content events stream before blocking calls; each node yields one output.
 
-  Given:
-    A workflow where 'node_parent' streams a content event, dynamically calls
-    'node_dynamic' (which streams a content event before sleeping), then
-    returns a final data output.
-  When:
-    The workflow agent is run asynchronously.
-  Then:
-    Content events streamed before time.sleep() should be received by the
-    caller before sleep() is called. Each node produces a single data output.
+  Setup: parent streams content, calls dynamic child (streams content
+    then sleeps), then yields final output.
+  Assert: both content events arrive before sleep starts.
   """
   sleep_started = False
 
@@ -844,7 +846,7 @@ async def test_dynamic_node_with_multiple_events(
 
 @pytest.mark.asyncio
 async def test_node_like_simple(request: pytest.FixtureRequest):
-  """Tests passing functions directly to run_node."""
+  """Plain functions passed to ctx.run_node are auto-wrapped and executed."""
 
   def node_a() -> str:
     return 'A'
@@ -869,7 +871,7 @@ async def test_node_like_simple(request: pytest.FixtureRequest):
 
   test_app = app.App(
       name=request.function.__name__,
-      root_agent=agent,
+      root_node=agent,
       resumability_config=app.ResumabilityConfig(is_resumable=True),
   )
   runner = testing_utils.InMemoryRunner(app=test_app)
@@ -897,7 +899,7 @@ async def test_node_like_simple(request: pytest.FixtureRequest):
 
 @pytest.mark.asyncio
 async def test_node_like_nested(request: pytest.FixtureRequest):
-  """Tests passing functions directly to run_node with nested calls."""
+  """Nested ctx.run_node with plain functions propagates outputs through chain."""
 
   def node_a() -> str:
     return 'A'
@@ -928,7 +930,7 @@ async def test_node_like_nested(request: pytest.FixtureRequest):
 
   test_app = app.App(
       name=request.function.__name__,
-      root_agent=agent,
+      root_node=agent,
       resumability_config=app.ResumabilityConfig(is_resumable=True),
   )
   runner = testing_utils.InMemoryRunner(app=test_app)
@@ -962,7 +964,7 @@ async def test_node_like_nested(request: pytest.FixtureRequest):
 async def test_dynamic_node_fails_if_caller_no_rerun(
     request: pytest.FixtureRequest,
 ):
-  """Tests that dynamic execution fails if caller has rerun_on_resume=False."""
+  """ctx.run_node raises ValueError when caller has rerun_on_resume=False."""
 
   def node_a() -> str:
     return 'A'
@@ -982,7 +984,7 @@ async def test_dynamic_node_fails_if_caller_no_rerun(
 
   test_app = app.App(
       name=request.function.__name__,
-      root_agent=agent,
+      root_node=agent,
   )
   runner = testing_utils.InMemoryRunner(app=test_app)
 

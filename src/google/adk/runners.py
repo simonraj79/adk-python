@@ -624,9 +624,10 @@ class Runner:
     try:
       await task
     except asyncio.CancelledError:
-      logger.warning('Root node %s was cancelled.', node_name)
+      logger.error('Root node %s was cancelled.', node_name)
     except Exception:
-      logger.warning('Root node %s failed.', node_name, exc_info=True)
+      logger.error('Root node %s failed.', node_name, exc_info=True)
+      raise
 
   async def _get_or_create_session(
       self,

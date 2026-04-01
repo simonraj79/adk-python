@@ -309,9 +309,6 @@ async def test_parallel_worker_with_function(request: pytest.FixtureRequest):
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(
-    reason='ctx.run_node needs barrier for parallel error propagation'
-)
 async def test_parallel_worker_with_failure(request: pytest.FixtureRequest):
   """One worker failure cancels remaining workers and propagates the exception.
 
