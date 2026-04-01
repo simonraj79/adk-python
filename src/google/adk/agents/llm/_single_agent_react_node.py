@@ -22,11 +22,12 @@ from pydantic import ConfigDict
 from pydantic import Field
 from typing_extensions import override
 
+from ...models.llm_request import LlmRequest
 from ...workflow._base_node import BaseNode
 from ..context import Context
 from ..llm_agent import LlmAgent
+from ._llm_call_node import _build_llm_request
 from ._llm_call_node import LlmCallNode
-from ._llm_call_node import LlmCallResult
 from ._parallel_tool_call_node import ParallelToolCallNode
 from ._parallel_tool_call_node import ParallelToolCallResult
 
@@ -113,25 +114,35 @@ class SingleAgentReactNode(BaseNode):
 
     # --- ReAct loop ---
     while True:
-      # 1. Call LLM
-      llm_node = LlmCallNode(agent=self.agent)
-      llm_ctx = await ctx._run_node_internal(llm_node)
+      # 1. Build request
 
-      if not isinstance(llm_ctx.output, LlmCallResult):
-        # Pure text response — done. The LlmCallNode content event
-        # (already enqueued) has message_as_output=True, which
-        # auto-sets _output_delegated via NodeRunner.
-        if llm_ctx.output is not None:
-          yield llm_ctx.output
+      llm_request = LlmRequest()
+      async for event in _build_llm_request(ctx, self.agent, llm_request):
+        yield event
+
+      if ctx.get_invocation_context().end_invocation:
         break
 
-      # 2. Execute tools
+      # 2. Call LLM
+      llm_node = LlmCallNode(agent=self.agent)
+      content = await ctx.run_node(llm_node, node_input=llm_request)
+
+      # 3. Check for text-only response to terminate ReAct loop
+      # llm_ctx.output is now types.Content (the model's response content)
+      has_function_calls = False
+      if content and getattr(content, 'parts', None):
+        has_function_calls = any(
+            part.function_call for part in content.parts if part.function_call
+        )
+
+      if not has_function_calls:
+        break
+
+      # 4. Execute tools
       tool_node = ParallelToolCallNode(
-          tools_dict=llm_ctx.output.tools_dict,
+          tools_dict=llm_request.tools_dict,
       )
-      tool_ctx = await ctx._run_node_internal(
-          tool_node, node_input=llm_ctx.output.function_calls
-      )
+      tool_ctx = await ctx._run_node_internal(tool_node, node_input=content)
 
       # 3. No tool result — tools were interrupted (long-running,
       # auth, etc.).  The interrupt event was already enqueued by

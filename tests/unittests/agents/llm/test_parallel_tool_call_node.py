@@ -25,15 +25,13 @@ import asyncio
 
 from google.adk.agents.llm._parallel_tool_call_node import ParallelToolCallNode
 from google.adk.agents.llm._parallel_tool_call_node import ParallelToolCallResult
+from google.adk.tools.function_tool import FunctionTool
 from google.adk.workflow._node_runner_class import NodeRunner
 from google.genai import types
-
-from google.adk.tools.function_tool import FunctionTool
 
 from tests.unittests.agents.llm.event_utils import function_responses_by_name
 from tests.unittests.agents.llm.event_utils import output_events
 from tests.unittests.workflow import testing_utils
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -59,8 +57,12 @@ def _wire_scheduler(ctx):
   ic.event_queue = asyncio.Queue()
 
   async def _schedule(
-      current_ctx, node, run_id, node_input,
-      *, node_name=None,  # noqa: ARG001
+      current_ctx,
+      node,
+      run_id,
+      node_input,
+      *,
+      node_name=None,  # noqa: ARG001
   ):
     runner = NodeRunner(
         node=node,
@@ -107,7 +109,9 @@ class TestParallelToolCallNode:
 
     fc = types.FunctionCall(name='add', args={'x': 1, 'y': 2}, id='fc-1')
     node = ParallelToolCallNode(tools_dict=tools_dict)
-    events = await _collect_events(node, ctx, [fc])
+
+    content = types.Content(role='model', parts=[types.Part(function_call=fc)])
+    events = await _collect_events(node, ctx, content)
 
     fr = function_responses_by_name(events)
     assert fr['add'] == {'result': 3}
@@ -134,14 +138,20 @@ class TestParallelToolCallNode:
     ctx = await testing_utils.create_workflow_context(agent)
     _wire_scheduler(ctx)
 
-    fc_add = types.FunctionCall(
-        name='add', args={'x': 1, 'y': 2}, id='fc-add'
-    )
+    fc_add = types.FunctionCall(name='add', args={'x': 1, 'y': 2}, id='fc-add')
     fc_mul = types.FunctionCall(
         name='multiply', args={'x': 3, 'y': 4}, id='fc-mul'
     )
     node = ParallelToolCallNode(tools_dict=tools_dict)
-    events = await _collect_events(node, ctx, [fc_add, fc_mul])
+
+    content = types.Content(
+        role='model',
+        parts=[
+            types.Part(function_call=fc_add),
+            types.Part(function_call=fc_mul),
+        ],
+    )
+    events = await _collect_events(node, ctx, content)
 
     fr = function_responses_by_name(events)
     assert fr['add'] == {'result': 3}
@@ -167,11 +177,11 @@ class TestParallelToolCallNode:
     ctx = await testing_utils.create_workflow_context(agent)
     _wire_scheduler(ctx)
 
-    fc = types.FunctionCall(
-        name='transfer_tool', args={}, id='fc-transfer'
-    )
+    fc = types.FunctionCall(name='transfer_tool', args={}, id='fc-transfer')
     node = ParallelToolCallNode(tools_dict=tools_dict)
-    events = await _collect_events(node, ctx, [fc])
+
+    content = types.Content(role='model', parts=[types.Part(function_call=fc)])
+    events = await _collect_events(node, ctx, content)
 
     outputs = output_events(events)
     assert len(outputs) == 1
@@ -196,7 +206,12 @@ class TestParallelToolCallNode:
     fc1 = types.FunctionCall(name='echo', args={'msg': 'a'}, id='fc-1')
     fc2 = types.FunctionCall(name='echo', args={'msg': 'b'}, id='fc-2')
     node = ParallelToolCallNode(tools_dict=tools_dict)
-    events = await _collect_events(node, ctx, [fc1, fc2])
+
+    content = types.Content(
+        role='model',
+        parts=[types.Part(function_call=fc1), types.Part(function_call=fc2)],
+    )
+    events = await _collect_events(node, ctx, content)
 
     assert sorted(call_log) == ['a', 'b']
 

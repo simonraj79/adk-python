@@ -24,16 +24,16 @@ from pydantic import ConfigDict
 from pydantic import Field
 from typing_extensions import override
 
+from . import _output_schema_processor
 from ...events.event import Event
 from ...events.event_actions import EventActions
 from ...tools.base_tool import BaseTool
 from ...workflow._base_node import BaseNode
 from ..context import Context
 from ..invocation_context import InvocationContext
-from . import _output_schema_processor
 from ._execute_tools_node import _long_running_interrupt_event
-from ._functions import deep_merge_dicts
 from ._functions import _get_tool
+from ._functions import deep_merge_dicts
 from ._functions import generate_auth_event
 from ._functions import generate_request_confirmation_event
 from ._functions import get_long_running_function_calls
@@ -111,9 +111,13 @@ class ParallelToolCallNode(BaseNode):
       self,
       *,
       ctx: Context,
-      node_input: Any,
+      node_input: types.Content,
   ) -> AsyncGenerator[Any, None]:
-    function_calls: list[types.FunctionCall] = list(node_input)
+    function_calls: list[types.FunctionCall] = []
+    if node_input and node_input.parts:
+      function_calls = [
+          part.function_call for part in node_input.parts if part.function_call
+      ]
     invocation_context = ctx.get_invocation_context()
 
     # Detect long-running tools before execution.
@@ -182,9 +186,7 @@ class ParallelToolCallNode(BaseNode):
           author=invocation_context.agent.name,
           content=types.Content(
               role='model',
-              parts=[
-                  types.Part(function_call=fc) for fc in function_calls
-              ],
+              parts=[types.Part(function_call=fc) for fc in function_calls],
           ),
       )
       yield function_call_event
@@ -194,9 +196,7 @@ class ParallelToolCallNode(BaseNode):
 
     # Check for pending long-running tools that returned None.
     if long_running_tool_ids:
-      responded_ids = {
-          child_ctx.function_call_id for _, child_ctx in completed
-      }
+      responded_ids = {child_ctx.function_call_id for _, child_ctx in completed}
       pending_ids = long_running_tool_ids - responded_ids
       if pending_ids:
         yield _long_running_interrupt_event(
@@ -209,10 +209,8 @@ class ParallelToolCallNode(BaseNode):
         merged_event
     )
     if json_response:
-      final_event = (
-          _output_schema_processor.create_final_model_response_event(
-              invocation_context, json_response
-          )
+      final_event = _output_schema_processor.create_final_model_response_event(
+          invocation_context, json_response
       )
       yield final_event.model_copy()
 

@@ -222,11 +222,49 @@ class _LlmAgentWrapper(BaseNode):
         )
       output = None
       async for event in self._react.run(ctx=agent_ctx, node_input=None):
-        if isinstance(event, Event) and event.output is not None:
-          output = event.output
+        if isinstance(event, Event):
+          if event.node_info and event.node_info.message_as_output:
+            output = event.message
+          elif event.output is not None:
+            output = event.output
+
+      if output is None:
+        # If output was not yielded, check if it was enqueued to the session
+        # via the internal NodeRunner logic.
+        for e in reversed(agent_ctx._invocation_context.session.events):
+          if getattr(e, 'node_info', None) and e.node_info.message_as_output:
+            # We only extract final text output in the wrapper. Function calls
+            # are intermediate or represent interrupts, so we ignore them here
+            # to let the interrupt correctly propagate (by outputting None).
+            has_fc = False
+            msg = getattr(e, 'message', None)
+            if msg and getattr(msg, 'parts', None):
+              has_fc = any(p.function_call for p in msg.parts)
+            if not has_fc:
+              output = msg
+            break
 
       if output is not None:
-        if isinstance(output, str) and self.agent.output_schema:
+        if isinstance(output, types.Content):
+          text = (
+              ''.join(
+                  p.text
+                  for p in output.parts
+                  if getattr(p, 'text', None)
+                  and not getattr(p, 'thought', False)
+              )
+              if output.parts
+              else ''
+          )
+          if self.agent.output_schema:
+            if not text.strip():
+              return
+            from ..utils._schema_utils import validate_schema
+
+            output = validate_schema(self.agent.output_schema, text)
+          else:
+            output = text
+        elif isinstance(output, str) and self.agent.output_schema:
           if not output.strip():
             return
           from ..utils._schema_utils import validate_schema

@@ -191,6 +191,8 @@ class NodeRunner:
     """Write yielded event results to ctx (source of truth)."""
     if event.output is not None:
       ctx.output = event.output
+    elif event.node_info and event.node_info.message_as_output:
+      ctx.output = event.content
     if event.long_running_tool_ids is not None:
       ctx._interrupt_ids.update(event.long_running_tool_ids)
     if event.actions.route is not None:
