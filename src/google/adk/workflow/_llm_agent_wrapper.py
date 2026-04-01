@@ -140,6 +140,22 @@ class _LlmAgentWrapper(BaseNode):
         )
     return copied
 
+  def __eq__(self, other: Any) -> bool:
+    """Checks equality based on public fields, ignoring runtime caches."""
+    if not isinstance(other, _LlmAgentWrapper):
+      return False
+    return (
+        self.name == other.name
+        and self.description == other.description
+        and self.rerun_on_resume == other.rerun_on_resume
+        and self.wait_for_output == other.wait_for_output
+        and self.retry_config == other.retry_config
+        and self.timeout == other.timeout
+        and self.input_schema == other.input_schema
+        and self.output_schema == other.output_schema
+        and self.agent == other.agent
+    )
+
   def _validate_input(self, node_input: Any) -> None:
     """Validates node_input against the agent's input_schema if set."""
     if not self.agent.input_schema or node_input is None:
