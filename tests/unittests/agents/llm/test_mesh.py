@@ -1108,7 +1108,6 @@ class TestCompletionGate:
         e.author
         for e in events
         if isinstance(e, Event)
-        and e.actions
         and (e.actions.request_task or e.actions.finish_task)
     ]
     assert 'parent' in authors  # request_task

@@ -76,8 +76,7 @@ async def test_join_node_waits_for_all_inputs(request: pytest.FixtureRequest):
 
   # assert that there is a state event to save the state with agent path as key
   assert any(
-      e.actions
-      and e.actions.state_delta
+      e.actions.state_delta
       and 'test_join_node/NodeJoin_join_state' in e.actions.state_delta
       for e in events
   )

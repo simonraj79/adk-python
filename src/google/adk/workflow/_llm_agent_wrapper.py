@@ -109,9 +109,7 @@ class _LlmAgentWrapper(BaseNode):
     # event_queue) uses SingleAgentReactNode. The choice is made at
     # runtime in _run_impl based on event_queue presence.
     if self.agent.mode == 'single_turn' and not self.agent.sub_agents:
-      from ..agents.llm._single_agent_react_node import (
-          SingleAgentReactNode,
-      )
+      from ..agents.llm._single_agent_react_node import SingleAgentReactNode
       from ..agents.llm._single_llm_agent import _SingleLlmAgent
 
       self._single = _SingleLlmAgent.from_base_llm_agent(self.agent)
@@ -271,7 +269,6 @@ class _LlmAgentWrapper(BaseNode):
           if (
               single_output is not None
               and isinstance(event, Event)
-              and event.actions
               and event.actions.end_of_agent
           ):
             yield Event(output=single_output)
@@ -301,11 +298,7 @@ class _LlmAgentWrapper(BaseNode):
       finish_task_output = None
       async for event in run_iter:
         yield event
-        if (
-            isinstance(event, Event)
-            and event.actions
-            and event.actions.finish_task
-        ):
+        if isinstance(event, Event) and event.actions.finish_task:
           finish_task_output = Event(
               output=event.actions.finish_task.get('output')
           )

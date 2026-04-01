@@ -193,7 +193,7 @@ class NodeRunner:
       ctx.output = event.output
     if event.long_running_tool_ids is not None:
       ctx._interrupt_ids.update(event.long_running_tool_ids)
-    if event.actions and event.actions.route is not None:
+    if event.actions.route is not None:
       ctx.route = event.actions.route
 
   async def _enqueue_event(self, event: Event, ctx: Context) -> None:

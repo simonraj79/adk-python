@@ -171,7 +171,7 @@ no accompanying text output."""
 
     events = tool_context.session.events
     for event in reversed(events):
-      if not event.actions or not event.actions.request_task:
+      if not event.actions.request_task:
         continue
       if fc_id in event.actions.request_task:
         req = _as_task_request(event.actions.request_task[fc_id])

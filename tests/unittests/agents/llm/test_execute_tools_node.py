@@ -197,9 +197,7 @@ class TestExecuteTools:
     events = await _collect_events(execute_tools, ctx, node_input)
 
     has_confirmation = any(
-        isinstance(e, AdkEvent)
-        and e.actions
-        and e.actions.requested_tool_confirmations
+        isinstance(e, AdkEvent) and e.actions.requested_tool_confirmations
         for e in events
     )
     assert has_confirmation, 'No tool confirmation request found'

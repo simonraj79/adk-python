@@ -143,7 +143,7 @@ async def test_intermediate_events_yielded():
 
   events, _, _ = await _run_node(_Node(name='steps'))
 
-  state_events = [e for e in events if e.actions and e.actions.state_delta]
+  state_events = [e for e in events if e.actions.state_delta]
   assert len(state_events) >= 1
   assert [e.output for e in events if e.output is not None] == ['final_result']
 
@@ -592,7 +592,9 @@ async def test_run_node_child_resume_via_default_scheduler():
   events1, events2, _, _, _ = await _run_two_turns(
       _ParentNode(name='parent'),
       'go',
-      _make_resume_message(fc_name='ask', fc_id='fc-1', response={'answer': 42}),
+      _make_resume_message(
+          fc_name='ask', fc_id='fc-1', response={'answer': 42}
+      ),
   )
 
   assert any(e.long_running_tool_ids for e in events1)
@@ -673,7 +675,9 @@ async def test_run_node_use_as_output_with_resume():
   events1, events2, _, _, _ = await _run_two_turns(
       _Parent(name='parent'),
       'go',
-      _make_resume_message(fc_name='approve', fc_id='fc-1', response={'ok': True}),
+      _make_resume_message(
+          fc_name='approve', fc_id='fc-1', response={'ok': True}
+      ),
   )
 
   assert any(e.long_running_tool_ids for e in events1)
@@ -734,5 +738,3 @@ async def test_run_node_nested_ctx_run_node_resume():
 
   # Outer and middle re-run on resume; inner runs twice (interrupt + resume).
   assert call_counts == {'outer': 2, 'middle': 2, 'inner': 2}
-
-

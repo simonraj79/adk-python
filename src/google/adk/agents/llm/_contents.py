@@ -273,7 +273,7 @@ def _contains_empty_content(event: Event) -> bool:
   Returns:
     True if the event should be skipped, False otherwise.
   """
-  if event.actions and event.actions.compaction:
+  if event.actions.compaction:
     return False
 
   return (
@@ -331,7 +331,7 @@ def _process_compaction_events(events: list[Event]) -> list[Event]:
   # events inside any kept compaction range are filtered out.
   compaction_infos: list[tuple[int, float, float]] = []
   for i, event in enumerate(events):
-    if not (event.actions and event.actions.compaction):
+    if not (event.actions.compaction):
       continue
     compaction = event.actions.compaction
     if (
@@ -362,7 +362,7 @@ def _process_compaction_events(events: list[Event]) -> list[Event]:
   processed_items: list[tuple[float, int, Event]] = []
 
   for i, event in enumerate(events):
-    if event.actions and event.actions.compaction:
+    if event.actions.compaction:
       if i in subsumed_compaction_event_indexes:
         continue
       compaction = event.actions.compaction
@@ -395,7 +395,7 @@ def _process_compaction_events(events: list[Event]) -> list[Event]:
     return False
 
   for i, event in enumerate(events):
-    if event.actions and event.actions.compaction:
+    if event.actions.compaction:
       continue
     if _is_timestamp_compacted(event.timestamp):
       continue
@@ -437,7 +437,7 @@ def _get_contents(
   i = len(events) - 1
   while i >= 0:
     event = events[i]
-    if event.actions and event.actions.rewind_before_invocation_id:
+    if event.actions.rewind_before_invocation_id:
       rewind_invocation_id = event.actions.rewind_before_invocation_id
       for j in range(0, i, 1):
         if events[j].invocation_id == rewind_invocation_id:
@@ -456,9 +456,7 @@ def _get_contents(
       if _should_include_event_in_context(current_branch, e)
   ]
 
-  has_compaction_events = any(
-      e.actions and e.actions.compaction for e in raw_filtered_events
-  )
+  has_compaction_events = any(e.actions.compaction for e in raw_filtered_events)
 
   if has_compaction_events:
     events_to_process = _process_compaction_events(raw_filtered_events)

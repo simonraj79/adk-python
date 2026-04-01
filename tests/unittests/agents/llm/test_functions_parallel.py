@@ -93,9 +93,7 @@ async def test_parallel_function_calls_with_state_change():
   # Find the event that carries the function responses (has
   # transfer_to_agent action set by the built-in tool).
   response_event = next(
-      e
-      for e in events
-      if e.actions and e.actions.transfer_to_agent == 'test_sub_agent'
+      e for e in events if e.actions.transfer_to_agent == 'test_sub_agent'
   )
 
   assert response_event.actions == EventActions(

@@ -239,7 +239,7 @@ def _find_task_input_text(
   """
   fc_id = branch.rsplit('.', 1)[-1]
   for event in reversed(events):
-    if not event.actions or not event.actions.request_task:
+    if not event.actions.request_task:
       continue
     if fc_id in event.actions.request_task:
       req = _as_task_request(event.actions.request_task[fc_id])
@@ -388,7 +388,7 @@ def _replace_task_result_responses(
   result_by_fc_id: dict[str, Any] = {}
 
   for event in events:
-    if event.actions and event.actions.request_task:
+    if event.actions.request_task:
       for fc_id, req_value in event.actions.request_task.items():
         req = _as_task_request(req_value)
         pending[fc_id] = req.agent_name
@@ -398,7 +398,7 @@ def _replace_task_result_responses(
     # yield multiple events with event.output (e.g. routing events
     # from call_llm). Keep overwriting so the last output wins.
     task_output = None
-    if event.actions and event.actions.finish_task and pending:
+    if event.actions.finish_task and pending:
       result = TaskResult.model_validate(event.actions.finish_task)
       task_output = result.output
     elif event.output is not None and pending:

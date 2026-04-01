@@ -889,7 +889,7 @@ class TestPipelineExecuteTools:
     has_confirmation = False
     has_interrupt = False
     for event in events:
-      if event.actions and event.actions.requested_tool_confirmations:
+      if event.actions.requested_tool_confirmations:
         has_confirmation = True
       if event.long_running_tool_ids:
         has_interrupt = True
@@ -920,8 +920,7 @@ class TestPipelineExecuteTools:
 
     events = runner.run('Do action with 50')
     has_confirmation = any(
-        event.actions and event.actions.requested_tool_confirmations
-        for event in events
+        event.actions.requested_tool_confirmations for event in events
     )
     assert not has_confirmation, 'Should NOT request confirmation for x=50'
 
@@ -933,8 +932,7 @@ class TestPipelineExecuteTools:
 
     events2 = runner2.run('Do action with 200')
     has_confirmation = any(
-        event.actions and event.actions.requested_tool_confirmations
-        for event in events2
+        event.actions.requested_tool_confirmations for event in events2
     )
     assert has_confirmation, 'Should request confirmation for x=200'
 
@@ -969,7 +967,7 @@ class TestPipelineExecuteTools:
     # Should have confirmation request
     has_confirmation = False
     for event in events:
-      if event.actions and event.actions.requested_tool_confirmations:
+      if event.actions.requested_tool_confirmations:
         has_confirmation = True
         # Verify the confirmation has the correct payload
         for _, conf in event.actions.requested_tool_confirmations.items():

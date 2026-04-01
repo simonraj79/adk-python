@@ -446,9 +446,7 @@ class Workflow(BaseAgent, Node):
         # otherwise it remains WAITING.
         if not node_state.interrupts:
           node_state.status = NodeStatus.COMPLETED
-          completed_node_run_ids[node_name] = (
-              event.node_info.run_id or ''
-          )
+          completed_node_run_ids[node_name] = event.node_info.run_id
         else:
           node_state.status = NodeStatus.WAITING
 
@@ -608,7 +606,7 @@ class Workflow(BaseAgent, Node):
     if is_event_from_direct_child:
       run_state.local_output_events.append(event)
 
-      if event.actions and event.actions.state_delta:
+      if event.actions.state_delta:
         for key, value in event.actions.state_delta.items():
           if value is None:
             run_state.ctx.session.state.pop(key, None)
@@ -667,8 +665,8 @@ class Workflow(BaseAgent, Node):
     local_output_events: list[Event] = []
 
     # Process interruptions and resumptions
-    resume_response_events, completed_node_run_ids = (
-        self._process_resumptions(ctx, agent_state, nodes_map)
+    resume_response_events, completed_node_run_ids = self._process_resumptions(
+        ctx, agent_state, nodes_map
     )
 
     running_tasks: dict[str, asyncio.Task] = {}

@@ -184,7 +184,7 @@ class Event(LlmResponse):
   @property
   def node_name(self) -> str:
     """The name of the node that generated the event."""
-    if self.actions and (self.actions.agent_state or self.actions.end_of_agent):
+    if self.actions.agent_state or self.actions.end_of_agent:
       return ''
     return self.node_info.name
 

@@ -297,7 +297,7 @@ class VertexAiSessionService(BaseSessionService):
     # does not yet support the compaction field.
     # TODO: Stop writing to custom_metadata once the Vertex AI service
     # supports the compaction field natively in EventActions.
-    if event.actions and event.actions.compaction:
+    if event.actions.compaction:
       compaction_dict = event.actions.compaction.model_dump(
           exclude_none=True, mode='json'
       )

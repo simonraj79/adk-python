@@ -120,9 +120,7 @@ def test_function_request_euc():
       and e.content.parts[0].function_call
       and e.content.parts[0].function_call.name == 'call_external_api1'
   )
-  auth_event = next(
-      e for e in events if e.actions and e.actions.requested_auth_configs
-  )
+  auth_event = next(e for e in events if e.actions.requested_auth_configs)
   euc_event = next(
       e
       for e in events

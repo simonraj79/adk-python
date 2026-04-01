@@ -176,7 +176,7 @@ async def test_timeout_with_retry(request: pytest.FixtureRequest):
   ]
 
   # Verify retry_count in agent state events to confirm retry occurred.
-  state_events = [e for e in events if e.actions and e.actions.agent_state]
+  state_events = [e for e in events if e.actions.agent_state]
   assert state_events, 'Expected at least one agent state checkpoint event'
   last_state = state_events[-1].actions.agent_state
   node_a_state = last_state['nodes']['NodeA']

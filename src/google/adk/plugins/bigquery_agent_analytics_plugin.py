@@ -2781,7 +2781,7 @@ class BigQueryAgentAnalyticsPlugin(BasePlugin):
     callback_ctx = CallbackContext(invocation_context)
 
     # --- State delta logging ---
-    if event.actions and event.actions.state_delta:
+    if event.actions.state_delta:
       await self._log_event(
           "STATE_DELTA",
           callback_ctx,

@@ -30,9 +30,9 @@ from . import testing_utils
 
 def _is_checkpoint(event: Event) -> bool:
   """Returns True if event is an agent state checkpoint or end_of_agent."""
-  if event.actions and event.actions.agent_state is not None:
+  if event.actions.agent_state is not None:
     return True
-  if event.actions and event.actions.end_of_agent:
+  if event.actions.end_of_agent:
     return True
   return False
 

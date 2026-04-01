@@ -173,7 +173,6 @@ class _Mesh(Node):
           if (
               not transfer_target_name
               and isinstance(event, Event)
-              and event.actions
               and event.actions.transfer_to_agent
           ):
             transfer_target_name = event.actions.transfer_to_agent
@@ -190,20 +189,12 @@ class _Mesh(Node):
 
           if is_task_scope:
             # Task delegation detection.
-            if (
-                not request_task_info
-                and event.actions
-                and event.actions.request_task
-            ):
+            if not request_task_info and event.actions.request_task:
               request_task_info = event.actions.request_task
 
             # Task completion detection: finish_task (task mode) or
             # event.output (single_turn controlled generation).
-            if (
-                not finish_task_info
-                and event.actions
-                and event.actions.finish_task
-            ):
+            if not finish_task_info and event.actions.finish_task:
               finish_task_info = event.actions.finish_task
             # Single_turn agents may yield multiple events with
             # event.output (e.g. routing events from call_llm).
@@ -372,9 +363,7 @@ class _Mesh(Node):
     all_fc_ids = set(request_task_event.actions.request_task.keys())
     fulfilled: set[str] = set()
     for event in session_events:
-      has_completion = (
-          event.actions and event.actions.finish_task
-      ) or event.output is not None
+      has_completion = (event.actions.finish_task) or event.output is not None
       if not has_completion:
         continue
       if event.branch:
@@ -404,7 +393,7 @@ class _Mesh(Node):
     """
     target_fc_ids = set(request_task_info.keys())
     for event in reversed(session_events):
-      if not event.actions or not event.actions.request_task:
+      if not event.actions.request_task:
         continue
       if target_fc_ids & set(event.actions.request_task.keys()):
         return event
@@ -432,7 +421,7 @@ class _Mesh(Node):
     if not task_branch:
       return None
     for event in reversed(session_events):
-      if not event.actions or not event.actions.request_task:
+      if not event.actions.request_task:
         continue
       for fc_id in event.actions.request_task:
         if task_branch.endswith(f'.{fc_id}'):
@@ -588,9 +577,7 @@ class _Mesh(Node):
     for event in reversed(ctx.session.events):
       if event.author == 'user':
         continue
-      if event.actions and (
-          event.actions.agent_state is not None or event.actions.end_of_agent
-      ):
+      if event.actions.agent_state is not None or event.actions.end_of_agent:
         continue
       if event.branch:
         continue  # Task/single_turn events — handled by Strategy 2.

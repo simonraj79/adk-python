@@ -64,13 +64,8 @@ class _DefaultRouteNode(BaseNode):
 
       # Only consider events strictly from the direct child agent
       # to avoid grandchild escalation breaking the loop.
-      if (
-          event.node_info.path == ctx.node_path
-          and event.actions
-          and event.actions.escalate
-      ):
-        if event.actions and event.actions.escalate:
-          escalated = True
+      if event.node_info.path == ctx.node_path and event.actions.escalate:
+        escalated = True
 
     if escalated:
       return

@@ -253,7 +253,7 @@ async def test_state_mutations_emitted_as_delta():
 
   all_deltas = {}
   for e in events:
-    if e.actions and e.actions.state_delta:
+    if e.actions.state_delta:
       all_deltas.update(e.actions.state_delta)
   assert all_deltas.get('key1') == 'value1'
   assert all_deltas.get('key2') == 42
@@ -268,7 +268,7 @@ async def test_artifact_delta_emitted():
 
   artifact_deltas = {}
   for e in events:
-    if e.actions and e.actions.artifact_delta:
+    if e.actions.artifact_delta:
       artifact_deltas.update(e.actions.artifact_delta)
   assert 'doc.txt' in artifact_deltas
 

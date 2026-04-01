@@ -576,18 +576,13 @@ class LlmAgent(_Mesh, BaseLlmAgent):
         if (
             not escalated
             and isinstance(event, Event)
-            and event.actions
             and event.actions.escalate
             and self._is_coordinator_event(event, node_path)
         ):
           escalated = True
         # Emit accumulated output before END_OF_AGENT so downstream
         # consumers see output in the correct order.
-        if (
-            isinstance(event, Event)
-            and event.actions
-            and event.actions.end_of_agent
-        ):
+        if isinstance(event, Event) and event.actions.end_of_agent:
           if single_turn_output is not None:
             yield Event(output=single_turn_output)
             single_turn_output = None
