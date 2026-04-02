@@ -130,7 +130,7 @@ async def test_rehydrate_finds_completed_node():
   ls = _LoopState()
   scheduler = DynamicNodeScheduler(ls)
 
-  scheduler._rehydrate_from_events(ctx, 'wf/parent/child')
+  scheduler._rehydrate_from_events(ctx, 'wf/parent/child', target_run_id='r-1')
 
   assert 'wf/parent/child' in ls.runs
   assert ls.runs['wf/parent/child']['r-1'].state.status == NodeStatus.COMPLETED
@@ -151,11 +151,67 @@ async def test_rehydrate_finds_interrupted_node():
   ls = _LoopState()
   scheduler = DynamicNodeScheduler(ls)
 
-  scheduler._rehydrate_from_events(ctx, 'wf/parent/child')
+  scheduler._rehydrate_from_events(ctx, 'wf/parent/child', target_run_id='r-1')
 
   state = ls.runs['wf/parent/child']['r-1'].state
   assert state.status == NodeStatus.WAITING
   assert 'fc-1' in state.interrupts
+
+
+@pytest.mark.asyncio
+async def test_rehydrate_with_target_run_id_skips_others():
+  """Scan with target_run_id only rehydrates that specific run."""
+  events = [
+      _make_event(
+          path='wf/parent/child',
+          output='result-1',
+          run_id='r-1',
+      ),
+      _make_event(
+          path='wf/parent/child',
+          output='result-2',
+          run_id='r-2',
+      ),
+  ]
+  ctx, _ = _make_parent_ctx(events=events)
+  ls = _LoopState()
+  scheduler = DynamicNodeScheduler(ls)
+
+  # When targeting r-2
+  scheduler._rehydrate_from_events(ctx, 'wf/parent/child', target_run_id='r-2')
+
+  # Then only r-2 is in state
+  assert 'wf/parent/child' in ls.runs
+  assert 'r-1' not in ls.runs['wf/parent/child']
+  assert 'r-2' in ls.runs['wf/parent/child']
+  assert ls.runs['wf/parent/child']['r-2'].state.status == NodeStatus.COMPLETED
+  assert ls.runs['wf/parent/child']['r-2'].output == 'result-2'
+
+
+@pytest.mark.asyncio
+async def test_rehydrate_with_target_run_id_includes_delegated():
+  """Scan with target_run_id includes events delegated to that run."""
+  events = [
+      _make_event(
+          path='wf/parent/child/inner',
+          output='delegated-val',
+          run_id='r-inner',
+          output_for=[('wf/parent/child', 'r-target')],
+      ),
+  ]
+  ctx, _ = _make_parent_ctx(events=events)
+  ls = _LoopState()
+  scheduler = DynamicNodeScheduler(ls)
+
+  # When targeting r-target
+  scheduler._rehydrate_from_events(
+      ctx, 'wf/parent/child', target_run_id='r-target'
+  )
+
+  # Then r-target is rehydrated via delegation
+  assert 'wf/parent/child' in ls.runs
+  assert 'r-target' in ls.runs['wf/parent/child']
+  assert ls.runs['wf/parent/child']['r-target'].output == 'delegated-val'
 
 
 @pytest.mark.asyncio
@@ -173,7 +229,7 @@ async def test_rehydrate_resolves_interrupt_with_fr():
   ls = _LoopState()
   scheduler = DynamicNodeScheduler(ls)
 
-  scheduler._rehydrate_from_events(ctx, 'wf/parent/child')
+  scheduler._rehydrate_from_events(ctx, 'wf/parent/child', target_run_id='r-1')
 
   state = ls.runs['wf/parent/child']['r-1'].state
   assert state.status == NodeStatus.WAITING
@@ -191,7 +247,7 @@ async def test_rehydrate_no_events_does_nothing():
   ls = _LoopState()
   scheduler = DynamicNodeScheduler(ls)
 
-  scheduler._rehydrate_from_events(ctx, 'wf/parent/child')
+  scheduler._rehydrate_from_events(ctx, 'wf/parent/child', target_run_id='r-1')
 
   assert 'wf/parent/child' not in ls.runs
 
@@ -210,10 +266,44 @@ async def test_rehydrate_subtree_interrupt():
   ls = _LoopState()
   scheduler = DynamicNodeScheduler(ls)
 
-  scheduler._rehydrate_from_events(ctx, 'wf/parent/child')
+  scheduler._rehydrate_from_events(ctx, 'wf/parent/child', target_run_id='r-1')
 
   state = ls.runs['wf/parent/child']['r-1'].state
   assert 'fc-deep' in state.interrupts
+
+
+@pytest.mark.asyncio
+@pytest.mark.xfail(
+    reason="TODO: Logic doesn't work for sub-nodes under parallel worker where they have identical node_path"
+)
+async def test_rehydrate_parallel_worker_interrupts_xfail():
+  """Interrupts from parallel child nodes sharing the parent's path."""
+  events = [
+      _make_event(
+          # Child has exact same path as parent
+          path='wf/parent/parallel',
+          interrupt_ids=['fc-1'],
+          run_id='r-child-1',
+      ),
+      _make_event(
+          path='wf/parent/parallel',
+          interrupt_ids=['fc-2'],
+          run_id='r-child-2',
+      ),
+  ]
+  ctx, _ = _make_parent_ctx(events=events)
+  ls = _LoopState()
+  scheduler = DynamicNodeScheduler(ls)
+
+  # Rehydrate the parent which has run_id 'r-parent'
+  scheduler._rehydrate_from_events(ctx, 'wf/parent', target_run_id='r-parent')
+
+  assert 'wf/parent/parallel' in ls.runs
+  assert 'r-parent' in ls.runs['wf/parent/parallel']
+  state = ls.runs['wf/parent/parallel']['r-parent'].state
+  assert state.status == NodeStatus.WAITING
+  assert 'fc-1' in state.interrupts
+  assert 'fc-2' in state.interrupts
 
 
 @pytest.mark.asyncio
@@ -224,16 +314,80 @@ async def test_rehydrate_output_for_delegation():
           path='wf/parent/child/inner',
           output='delegated',
           run_id='r-1',
-          output_for=['wf/parent/child/inner', 'wf/parent/child'],
+          output_for=[
+              ('wf/parent/child/inner', 'r-1'),
+              ('wf/parent/child', 'r-1'),
+          ],
       ),
   ]
   ctx, _ = _make_parent_ctx(events=events)
   ls = _LoopState()
   scheduler = DynamicNodeScheduler(ls)
 
-  scheduler._rehydrate_from_events(ctx, 'wf/parent/child')
+  scheduler._rehydrate_from_events(ctx, 'wf/parent/child', target_run_id='r-1')
 
   assert ls.runs['wf/parent/child']['r-1'].output == 'delegated'
+
+
+@pytest.mark.asyncio
+async def test_rehydrate_output_for_delegation_run_id_isolation():
+  """Delegation only applies if target run ID matches."""
+  events = [
+      _make_event(
+          path='wf/parent/child/inner',
+          output='delegated',
+          run_id='r-child',
+          output_for=[
+              ('wf/parent/child', 'r-different'),
+          ],
+      ),
+  ]
+  ctx, _ = _make_parent_ctx(events=events)
+  ls = _LoopState()
+  scheduler = DynamicNodeScheduler(ls)
+
+  scheduler._rehydrate_from_events(
+      ctx, 'wf/parent/child', target_run_id='r-different'
+  )
+
+  # It should find its way to r-different
+  assert ls.runs['wf/parent/child']['r-different'].output == 'delegated'
+
+
+@pytest.mark.asyncio
+async def test_rehydrate_groups_by_run_id():
+  """Scan groups events by run_id per path, preventing merging."""
+  events = [
+      _make_event(
+          path='wf/parent/child',
+          interrupt_ids=['fc-1'],
+          run_id='r-1',
+      ),
+      _make_event(
+          path='wf/parent/child',
+          output='result-2',
+          run_id='r-2',
+      ),
+  ]
+  ctx, _ = _make_parent_ctx(events=events)
+  ls = _LoopState()
+  scheduler = DynamicNodeScheduler(ls)
+
+  # Rehydrate r-1 first
+  scheduler._rehydrate_from_events(ctx, 'wf/parent/child', target_run_id='r-1')
+  # Then rehydrate r-2
+  scheduler._rehydrate_from_events(ctx, 'wf/parent/child', target_run_id='r-2')
+
+  assert 'wf/parent/child' in ls.runs
+  runs = ls.runs['wf/parent/child']
+  assert 'r-1' in runs
+  assert 'r-2' in runs
+
+  assert runs['r-1'].state.status == NodeStatus.WAITING
+  assert 'fc-1' in runs['r-1'].state.interrupts
+
+  assert runs['r-2'].state.status == NodeStatus.COMPLETED
+  assert runs['r-2'].output == 'result-2'
 
 
 # =========================================================================

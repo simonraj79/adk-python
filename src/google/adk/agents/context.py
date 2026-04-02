@@ -163,7 +163,7 @@ class Context(ReadonlyContext):
       node_rerun_on_resume: bool = True,
       transfer_targets: list[Any] | None = None,
       retry_count: int = 0,
-      output_for_ancestors: list[str] | None = None,
+      output_for_ancestors: list[tuple[str, str]] | None = None,
       event_author: str = '',
   ) -> None:
     """Initializes the Context.
@@ -222,7 +222,7 @@ class Context(ReadonlyContext):
     self._route_value: RouteValue | list[RouteValue] | None = None
     self._interrupt_ids: set[str] = set()
     self._event_author = event_author
-    self._output_for_ancestors: list[str] = output_for_ancestors or []
+    self._output_for_ancestors: list[tuple[str, str]] = output_for_ancestors or []
     """Ancestor node paths whose output this node's output also represents.
 
     E.g. ['wf/parent', 'wf/grandparent'] means this node's output event

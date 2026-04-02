@@ -741,3 +741,50 @@ async def test_run_node_nested_ctx_run_node_resume():
 
   # Outer and middle re-run on resume; inner runs twice (interrupt + resume).
   assert call_counts == {'outer': 2, 'middle': 2, 'inner': 2}
+
+
+@pytest.mark.asyncio
+async def test_run_node_use_as_output_nested_delegation():
+  """Nested use_as_output delegates all the way up with run_ids."""
+
+  class _Inner(BaseNode):
+
+    async def _run_impl(
+        self, *, ctx: Context, node_input: Any
+    ) -> AsyncGenerator[Any, None]:
+      yield 'inner_val'
+
+  class _Middle(BaseNode):
+    rerun_on_resume: bool = True
+
+    async def _run_impl(
+        self, *, ctx: Context, node_input: Any
+    ) -> AsyncGenerator[Any, None]:
+      await ctx.run_node(_Inner(name='inner'), 'go', use_as_output=True)
+      if False:
+        yield
+
+  class _Outer(BaseNode):
+    rerun_on_resume: bool = True
+
+    async def _run_impl(
+        self, *, ctx: Context, node_input: Any
+    ) -> AsyncGenerator[Any, None]:
+      await ctx.run_node(_Middle(name='middle'), 'start', use_as_output=True)
+      if False:
+        yield
+
+  # When
+  events, _, _ = await _run_node(_Outer(name='outer'), message='go')
+
+  # Then
+  inner_output = next(e for e in events if e.output == 'inner_val')
+  output_for = inner_output.node_info.output_for
+  paths = [t[0] for t in output_for]
+
+  assert len(output_for) == 3
+  assert any('middle' in p for p in paths)
+  assert any('outer' in p for p in paths)
+  assert any('inner' in p for p in paths)
+  for _, run_id in output_for:
+    assert run_id != ''

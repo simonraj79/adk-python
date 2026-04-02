@@ -131,9 +131,9 @@ class NodeRunner:
     from ..agents.context import Context
 
     if self._additional_output_for_ancestor:
-      ancestors = [self._additional_output_for_ancestor] + list(
-          self._parent_ctx._output_for_ancestors or []
-      )
+      ancestors = [
+          (self._additional_output_for_ancestor, self._parent_ctx.run_id)
+      ] + list(self._parent_ctx._output_for_ancestors or [])
     else:
       ancestors = []
 
@@ -282,4 +282,4 @@ class NodeRunner:
     event.node_info.path = ctx.node_path
     event.node_info.run_id = self._run_id
     if event.output is not None:
-      event.node_info.output_for = [ctx.node_path] + ctx._output_for_ancestors
+      event.node_info.output_for = [(ctx.node_path, ctx.run_id)] + ctx._output_for_ancestors

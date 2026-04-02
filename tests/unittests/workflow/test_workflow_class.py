@@ -1440,9 +1440,9 @@ async def test_use_as_output_function_to_function():
   # func_a is terminal, so its output also represents the workflow's.
   output_event = [e for e in events if e.node_info.name == 'func_b'][0]
   assert output_event.node_info.output_for == [
-      'wf/func_a/func_b',
-      'wf/func_a',
-      'wf',
+      ('wf/func_a/func_b', '1'),
+      ('wf/func_a', '1'),
+      ('wf', '1'),
   ]
 
 
@@ -1539,10 +1539,10 @@ async def test_use_as_output_nested_delegation():
   # func_a is terminal, so the chain extends to the workflow.
   output_event = [e for e in events if e.node_info.name == 'func_c'][0]
   assert output_event.node_info.output_for == [
-      'wf/func_a/func_b/func_c',
-      'wf/func_a/func_b',
-      'wf/func_a',
-      'wf',
+      ('wf/func_a/func_b/func_c', '1'),
+      ('wf/func_a/func_b', '1'),
+      ('wf/func_a', '1'),
+      ('wf', '1'),
   ]
 
 
@@ -1619,10 +1619,10 @@ async def test_without_use_as_output_parent_emits_duplicate():
 
   # func_b's output_for is just its own path (no delegation).
   b_event = [e for e in events if e.node_info.name == 'func_b'][0]
-  assert b_event.node_info.output_for == ['wf/func_a/func_b']
+  assert b_event.node_info.output_for == [('wf/func_a/func_b', '1')]
   # func_a is terminal, so its output_for includes the workflow path.
   a_event = [e for e in events if e.node_info.name == 'func_a'][0]
-  assert a_event.node_info.output_for == ['wf/func_a', 'wf']
+  assert a_event.node_info.output_for == [('wf/func_a', '1'), ('wf', '1')]
 
 
 @pytest.mark.asyncio
@@ -1647,12 +1647,12 @@ async def test_terminal_node_output_dedup():
   # step_a is not terminal — its output_for is just its own path.
   a_events = [e for e in output_events if e.node_info.name == 'step_a']
   assert len(a_events) == 1
-  assert a_events[0].node_info.output_for == ['wf/step_a']
+  assert a_events[0].node_info.output_for == [('wf/step_a', '1')]
 
   # step_b is terminal — its output_for includes the workflow path.
   b_events = [e for e in output_events if e.node_info.name == 'step_b']
   assert len(b_events) == 1
-  assert b_events[0].node_info.output_for == ['wf/step_b', 'wf']
+  assert b_events[0].node_info.output_for == [('wf/step_b', '1'), ('wf', '1')]
   assert b_events[0].output == 'final: HELLO'
 
   # No duplicate output event from the workflow itself.
@@ -1685,16 +1685,16 @@ async def test_terminal_node_output_dedup_nested():
   inner_events = [e for e in output_events if e.node_info.name == 'inner_node']
   assert len(inner_events) == 1
   assert inner_events[0].node_info.output_for == [
-      'outer/inner/inner_node',
-      'outer/inner',
+      ('outer/inner/inner_node', '1'),
+      ('outer/inner', '1'),
   ]
 
   # outer_node is terminal in outer_wf — includes outer_wf path.
   outer_events = [e for e in output_events if e.node_info.name == 'outer_node']
   assert len(outer_events) == 1
   assert outer_events[0].node_info.output_for == [
-      'outer/outer_node',
-      'outer',
+      ('outer/outer_node', '1'),
+      ('outer', '1'),
   ]
   assert outer_events[0].output == 'wrapped: TEST'
 

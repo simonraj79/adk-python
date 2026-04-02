@@ -30,6 +30,7 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass
 from dataclasses import field
+import logging
 from typing import Any
 from typing import TYPE_CHECKING
 
@@ -41,6 +42,9 @@ from .utils._workflow_hitl_utils import unwrap_response as _unwrap_fr_response
 if TYPE_CHECKING:
   from ..agents.context import Context
   from ._base_node import BaseNode
+
+
+logger = logging.getLogger('google_adk.' + __name__)
 
 
 @dataclass
@@ -84,6 +88,7 @@ class DynamicNodeState:
   which the parent orchestrator checks after this Workflow
   completes.
   """
+
   def get_dynamic_tasks(self) -> list[asyncio.Task]:
     """Get all active dynamic node tasks."""
     return [
@@ -92,6 +97,7 @@ class DynamicNodeState:
         for run in node_runs.values()
         if run.task
     ]
+
 
 class DynamicNodeScheduler:
   """Handles ctx.run_node() calls for a Workflow.
@@ -142,8 +148,11 @@ class DynamicNodeScheduler:
     node_path = join_paths(ctx.node_path, name)
 
     # Phase 1: Lazy rehydration from session events.
-    if node_path not in self._state.runs:
-      self._rehydrate_from_events(ctx, node_path)
+    if (
+        node_path not in self._state.runs
+        or run_id not in self._state.runs[node_path]
+    ):
+      self._rehydrate_from_events(ctx, node_path, target_run_id=run_id)
 
     # Phase 2: Dedup — return cached or handle waiting.
     active_run_id = run_id
@@ -204,102 +213,114 @@ class DynamicNodeScheduler:
 
   # --- Lazy scan ---
 
-  def _rehydrate_from_events(self, ctx: Context, node_path: str) -> None:
-    """Scan session events for a dynamic node's prior state."""
+  def _rehydrate_from_events(
+      self, ctx: Context, node_path: str, target_run_id: str
+  ) -> None:
+    """Scan session events for a dynamic node's prior state for a target run_id."""
     from ._workflow_class import _ChildScanState
 
     ic = ctx._invocation_context
     invocation_id = ic.invocation_id
-    dynamic_child = _ChildScanState()
-    has_prior_events = False
+
+    # The single state object for the target run_id.
+    target_state = _ChildScanState(run_id=target_run_id)
+    # Interrupt IDs belonging to target_run_id.
+    interrupt_ids_for_target: set[str] = set()
 
     for event in ic.session.events:
       if event.invocation_id != invocation_id:
         continue
 
-      # FR events resolve interrupts. FR events are user
-      # messages with no node_path — can't filter by path,
-      # so we match by interrupt ID instead.
+      # FR events resolve interrupts.
       if event.author == 'user' and event.content and event.content.parts:
         for part in event.content.parts:
           fr = part.function_response
-          if fr and fr.id and fr.id in dynamic_child.interrupt_ids:
-            # Safe: interrupt events always precede their FRs
-            # chronologically, so interrupt_ids is already
-            # populated.
-            dynamic_child.resolved_ids.add(fr.id)
-            dynamic_child.resolved_responses[fr.id] = _unwrap_fr_response(
+          if fr and fr.id and fr.id in interrupt_ids_for_target:
+            target_state.resolved_ids.add(fr.id)
+            target_state.resolved_responses[fr.id] = _unwrap_fr_response(
                 fr.response
             )
         continue
 
       # Match events under this dynamic node's path.
-      event_path = event.node_info.path or ''
-      if not event_path.startswith(node_path):
+      event_node_path = event.node_info.path or ''
+      if not event_node_path.startswith(node_path):
         continue
 
-      has_prior_events = True
-      dynamic_child.run_id = event.node_info.run_id or dynamic_child.run_id
+      event_run_id = event.node_info.run_id
+
+      # Direct match or delegated output for target_run_id.
+      is_run_id_match = event_run_id == target_run_id
+      delegated_to_target = False
+      if event.output is not None and event.node_info.output_for:
+        for (
+            output_for_node_path,
+            output_for_run_id,
+        ) in event.node_info.output_for:
+          if (
+              output_for_node_path == node_path
+              and output_for_run_id == target_run_id
+          ):
+            delegated_to_target = True
+            break
+
+      is_descendant = (
+          event_node_path != node_path and event_node_path.startswith(node_path)
+      )
+      has_interrupts = bool(event.long_running_tool_ids)
+
+      if (
+          not is_run_id_match
+          and not delegated_to_target
+          and not (is_descendant and has_interrupts)
+      ):
+        continue
 
       # Output: direct path or output_for delegation.
       if event.output is not None:
-        if event_path == node_path:
-          dynamic_child.output = event.output
-        elif (
-            event.node_info.output_for
-            and node_path in event.node_info.output_for
-        ):
-          dynamic_child.output = event.output
+        if (
+            event_node_path == node_path and is_run_id_match
+        ) or delegated_to_target:
+          target_state.output = event.output
 
       # Interrupts from any descendant.
+      # TODO: This logic doesn't work for sub-nodes under parallel worker,
+      # where they all have identical node_path.
       if event.long_running_tool_ids:
-        dynamic_child.interrupt_ids.update(event.long_running_tool_ids)
+        if (event_node_path == node_path and is_run_id_match) or is_descendant:
+          for interrupt_id in event.long_running_tool_ids:
+            target_state.interrupt_ids.add(interrupt_id)
+            interrupt_ids_for_target.add(interrupt_id)
 
-    if not has_prior_events:
-      # No prior events → fresh execution.
-      return
-
-    # Derive NodeState from scan — same logic as static nodes.
-    unresolved = dynamic_child.interrupt_ids - dynamic_child.resolved_ids
-    existing_run_id = dynamic_child.run_id
-
+    unresolved = target_state.interrupt_ids - target_state.resolved_ids
     state = None
     output = None
 
     if unresolved:
-      # Node still has unresolved interrupts.
       state = NodeState(
           status=NodeStatus.WAITING,
           interrupts=list(unresolved),
-          run_id=existing_run_id,
+          run_id=target_run_id,
       )
-    elif dynamic_child.interrupt_ids:
+    elif target_state.interrupt_ids:
       # Node had interrupts, all resolved → ready to re-run.
-      # TODO: If the node already re-ran and completed with
-      # None output, the scan can't tell — no events were
-      # emitted. This causes an unnecessary re-run. Fix by
-      # emitting a completion marker event from NodeRunner.
       state = NodeState(
           status=NodeStatus.WAITING,
           interrupts=[],
-          run_id=existing_run_id,
-          resume_inputs=dynamic_child.resolved_responses,
+          run_id=target_run_id,
+          resume_inputs=target_state.resolved_responses,
       )
-    elif dynamic_child.output is not None:
+    elif target_state.output is not None:
       # Node completed with output.
       state = NodeState(
           status=NodeStatus.COMPLETED,
-          run_id=existing_run_id,
+          run_id=target_run_id,
       )
-      output = dynamic_child.output
+      output = target_state.output
 
     if state:
-      if node_path not in self._state.runs:
-        self._state.runs[node_path] = {}
-      self._state.runs[node_path][existing_run_id] = DynamicNodeRun(
-          state=state, output=output
-      )
-
+      runs_for_path = self._state.runs.setdefault(node_path, {})
+      runs_for_path[target_run_id] = DynamicNodeRun(state=state, output=output)
 
   # --- Context construction ---
 
@@ -327,7 +348,6 @@ class DynamicNodeScheduler:
     if interrupt_ids:
       child_ctx._interrupt_ids = set(interrupt_ids)
     return child_ctx
-
 
   # --- Execution ---
 
@@ -420,7 +440,6 @@ class DynamicNodeScheduler:
     else:
       state.status = NodeStatus.COMPLETED
       run.output = child_ctx.output
-
 
 
 # ---------------------------------------------------------------------------

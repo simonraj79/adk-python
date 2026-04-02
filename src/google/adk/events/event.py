@@ -58,14 +58,13 @@ class NodeInfo(BaseModel):
   """The run ID of the parent node that dynamically scheduled
   this node. Used to reconstruct dynamic node state from session events."""
 
-  output_for: list[str] | None = None
-  """Node paths whose output this event represents.
+  output_for: list[tuple[str, str]] | None = None
+  """Node paths and run IDs whose output this event represents.
 
   Set on events that carry an output value. When set, the output field
-  of this event is also considered the output for each listed node path
-  in the same invocation. For example, ``["wf/A/B", "wf/A"]`` means
-  this event's output counts as the output for both ``wf/A/B`` and
-  ``wf/A``.
+  of this event is also considered the output for each listed (node_path, run_id)
+  pair in the same invocation. For example, ``[("wf/A/B", "run-1"), ("wf/A", "run-2")]`` mean
+  this event's output counts as the output for both.
   """
 
   message_as_output: bool | None = None
