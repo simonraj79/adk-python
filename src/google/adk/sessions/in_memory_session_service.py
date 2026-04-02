@@ -178,10 +178,13 @@ class InMemorySessionService(BaseSessionService):
     copied_session = copy.deepcopy(session)
 
     if config:
-      if config.num_recent_events:
-        copied_session.events = copied_session.events[
-            -config.num_recent_events :
-        ]
+      if config.num_recent_events is not None:
+        if config.num_recent_events == 0:
+          copied_session.events = []
+        else:
+          copied_session.events = copied_session.events[
+              -config.num_recent_events :
+          ]
       if config.after_timestamp:
         i = len(copied_session.events) - 1
         while i >= 0:
