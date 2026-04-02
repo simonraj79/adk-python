@@ -23,8 +23,8 @@ from __future__ import annotations
 
 import asyncio
 
-from google.adk.agents.llm.new._run_tools_node import RunToolsNode
-from google.adk.agents.llm.new._tool_node import ToolActions
+from google.adk.agents.llm_agent_node._run_tools_node import RunToolsNode
+from google.adk.agents.llm_agent_node._tool_node import ToolActions
 from google.adk.tools.function_tool import FunctionTool
 from google.adk.workflow._node_runner_class import NodeRunner
 from google.genai import types

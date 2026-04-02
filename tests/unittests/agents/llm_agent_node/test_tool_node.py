@@ -21,7 +21,7 @@ output.
 
 from __future__ import annotations
 
-from google.adk.agents.llm.new._tool_node import ToolNode
+from google.adk.agents.llm_agent_node._tool_node import ToolNode
 from google.adk.tools.function_tool import FunctionTool
 from google.genai import types
 

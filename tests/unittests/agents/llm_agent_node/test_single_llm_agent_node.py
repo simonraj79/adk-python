@@ -21,7 +21,7 @@ schedule_dynamic_node and sets ic.agent from its agent field.
 
 from __future__ import annotations
 
-from google.adk.agents.llm.new._single_llm_agent_node import SingleLlmAgentNode
+from google.adk.agents.llm_agent_node._single_llm_agent_node import SingleLlmAgentNode
 from google.adk.agents.llm_agent import LlmAgent
 from google.adk.runners import Runner
 from google.adk.sessions.in_memory_session_service import InMemorySessionService

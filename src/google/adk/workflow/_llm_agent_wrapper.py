@@ -110,7 +110,7 @@ class _LlmAgentWrapper(BaseNode):
     # runtime in _run_impl based on event_queue presence.
     if self.agent.mode == 'single_turn' and not self.agent.sub_agents:
       from ..agents.llm._single_llm_agent import _SingleLlmAgent
-      from ..agents.llm.new._single_llm_agent_node import SingleLlmAgentNode
+      from ..agents.llm_agent_node._single_llm_agent_node import SingleLlmAgentNode
 
       self._single = _SingleLlmAgent.from_base_llm_agent(self.agent)
       self._react = SingleLlmAgentNode(name=self.agent.name, agent=self.agent)

@@ -23,7 +23,7 @@ from google.genai import types
 from pydantic import BaseModel
 import pytest
 
-from .. import testing_utils
+from ... import testing_utils
 
 
 class MockBeforeModelCallback(BaseModel):

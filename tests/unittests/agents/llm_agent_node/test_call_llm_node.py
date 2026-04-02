@@ -21,7 +21,7 @@ function call responses yield the model response content event.
 
 from __future__ import annotations
 
-from google.adk.agents.llm.new._call_llm_node import CallLlmNode
+from google.adk.agents.llm_agent_node._call_llm_node import CallLlmNode
 from google.adk.agents.llm_agent import LlmAgent
 from google.adk.models.llm_request import LlmRequest
 from google.genai import types

@@ -41,8 +41,8 @@ from google.genai import types
 from pydantic import BaseModel
 import pytest
 
-from .. import testing_utils
-from ..workflow import workflow_testing_utils
+from ... import testing_utils
+from ...workflow import workflow_testing_utils
 
 
 def _make_mock_model(responses: list[str]) -> testing_utils.MockModel:

@@ -37,7 +37,7 @@ from pydantic import BaseModel
 import pytest
 from typing_extensions import override
 
-from .. import testing_utils
+from ... import testing_utils
 
 # ---------------------------------------------------------------------------
 # Helpers

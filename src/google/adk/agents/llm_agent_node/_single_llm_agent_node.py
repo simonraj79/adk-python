@@ -22,11 +22,11 @@ from pydantic import ConfigDict
 from pydantic import Field
 from typing_extensions import override
 
-from .. import _output_schema_processor
-from ....models.llm_request import LlmRequest
-from ....workflow._base_node import BaseNode
-from ...context import Context
-from ...llm_agent import LlmAgent
+from ..llm import _output_schema_processor
+from ...models.llm_request import LlmRequest
+from ...workflow._base_node import BaseNode
+from ..context import Context
+from ..llm_agent_workflow.llm_agent import LlmAgent
 from ._call_llm_node import _build_llm_request
 from ._call_llm_node import CallLlmNode
 from ._run_tools_node import RunToolsNode
@@ -68,7 +68,7 @@ class SingleLlmAgentNode(BaseNode):
     Matches the ``ScheduleDynamicNode`` protocol so that child nodes
     can use ``ctx._run_node_internal()``.
     """
-    from ....workflow._node_runner_class import NodeRunner
+    from ...workflow._node_runner_class import NodeRunner
 
     runner = NodeRunner(
         node=node,
