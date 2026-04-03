@@ -557,7 +557,7 @@ class Workflow(BaseNode):
         continue
 
       child_name = direct_child_name(workflow_path, event.node_info.path)
-      child_name = child_name.partition('@')[0]
+      child_name = child_name.rsplit('@', 1)[0]
       if not child_name:
         continue
 

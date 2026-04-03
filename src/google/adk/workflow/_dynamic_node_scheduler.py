@@ -203,17 +203,14 @@ class DynamicNodeScheduler:
     from ._workflow_class import _ChildScanState
 
     ic = ctx._invocation_context
-    invocation_id = ic.invocation_id
 
-    extracted_run_id = node_path.split('@')[-1]
+    extracted_run_id = node_path.rsplit('@', 1)[-1]
     target_state = _ChildScanState(run_id=extracted_run_id)
     # Interrupt IDs belonging to target_run_id.
     interrupt_ids_for_target: set[str] = set()
 
     for event in ic.session.events:
       # Read all events in session to find interrupts from past turns
-      # if event.invocation_id != invocation_id:
-      #   continue
 
       # FR events resolve interrupts.
       if event.author == 'user' and event.content and event.content.parts:

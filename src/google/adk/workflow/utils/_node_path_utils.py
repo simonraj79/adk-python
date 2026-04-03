@@ -52,7 +52,7 @@ def get_node_name_from_path(path: str) -> str:
   Returns:
     The node name.
   """
-  return path.split('/')[-1].partition('@')[0]
+  return path.split('/')[-1].rsplit('@', 1)[0]
 
 
 def get_parent_path(path: str) -> str:
