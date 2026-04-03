@@ -115,16 +115,11 @@ class VertexAiSessionService(BaseSessionService):
     Returns:
       The created session.
     """
-
-    if session_id:
-      raise ValueError(
-          'User-provided Session id is not supported for'
-          ' VertexAISessionService.'
-      )
-
     reasoning_engine_id = self._get_reasoning_engine_id(app_name)
 
     config = {'session_state': state} if state else {}
+    if session_id:
+      config['session_id'] = session_id
     config.update(kwargs)
     async with self._get_api_client() as api_client:
       api_response = await api_client.agent_engines.sessions.create(
