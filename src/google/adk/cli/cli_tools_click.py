@@ -672,7 +672,12 @@ def cli_run(
     ),
     default=".",
 )
-def cli_test(folder: str):
+@click.option(
+    "--rebuild",
+    is_flag=True,
+    help="Rebuild test files by running the real agent with user messages.",
+)
+def cli_test(folder: str, rebuild: bool):
   """Runs pytest on agent test JSON files under the specified folder.
 
   FOLDER: The path to the folder containing agents and tests.
@@ -682,6 +687,13 @@ def cli_test(folder: str):
       adk test path/to/agents
   """
   import sys
+
+  if rebuild:
+    from .agent_test_runner import rebuild_tests
+
+    click.echo(f"Rebuilding tests in {folder}...")
+    rebuild_tests(folder)
+    sys.exit(0)
 
   import pytest
 

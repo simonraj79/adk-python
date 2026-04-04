@@ -17,7 +17,7 @@
         ],
         "role": "user"
       },
-      "invocationId": "e-3b381be7-9622-47b2-b840-93133bc409b0",
+      "invocationId": "i-1",
       "author": "user",
       "actions": {
         "stateDelta": {},
@@ -29,8 +29,7 @@
         "path": "",
         "runId": ""
       },
-      "id": "50f67411-1c28-4b2a-8d14-cc755baddc24",
-      "timestamp": 1775279265.5358038
+      "id": "e-1"
     },
     {
       "content": {
@@ -59,7 +58,7 @@
           }
         ]
       },
-      "invocationId": "e-3b381be7-9622-47b2-b840-93133bc409b0",
+      "invocationId": "i-1",
       "author": "auth_config",
       "actions": {
         "stateDelta": {},
@@ -75,8 +74,7 @@
       "longRunningToolIds": [
         "wf_auth:auth_config@1/fetch_weather@1"
       ],
-      "id": "38f9a0bd-21f2-4d8c-8b78-432ed7de5134",
-      "timestamp": 1775279265.537627
+      "id": "e-3"
     },
     {
       "content": {
@@ -93,7 +91,7 @@
         ],
         "role": "user"
       },
-      "invocationId": "e-3b381be7-9622-47b2-b840-93133bc409b0",
+      "invocationId": "i-1",
       "author": "user",
       "actions": {
         "stateDelta": {},
@@ -105,11 +103,10 @@
         "path": "",
         "runId": ""
       },
-      "id": "71cdef96-87f0-438b-a680-62bcc298d79e",
-      "timestamp": 1775279270.903401
+      "id": "e-4"
     },
     {
-      "invocationId": "e-3b381be7-9622-47b2-b840-93133bc409b0",
+      "invocationId": "i-1",
       "author": "auth_config",
       "actions": {
         "stateDelta": {},
@@ -131,8 +128,7 @@
           "auth_config@1/fetch_weather@1"
         ]
       },
-      "id": "ef6a3d63-9c18-4f3a-a25d-7e4d439f8cf9",
-      "timestamp": 1775279270.911322
+      "id": "e-6"
     },
     {
       "content": {
@@ -143,7 +139,7 @@
         ],
         "role": "user"
       },
-      "invocationId": "e-3b381be7-9622-47b2-b840-93133bc409b0",
+      "invocationId": "i-1",
       "author": "auth_config",
       "actions": {
         "stateDelta": {},
@@ -156,9 +152,7 @@
         "runId": "1",
         "parentRunId": "1"
       },
-      "id": "072d6a90-b109-4a5b-b7d3-8d718d243357",
-      "timestamp": 1775279270.918543
+      "id": "e-7"
     }
-  ],
-  "lastUpdateTime": 1775279270.918543
+  ]
 }

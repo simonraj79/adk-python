@@ -22,7 +22,7 @@
         ],
         "role": "user"
       },
-      "invocationId": "e-e0087001-f10d-40f0-aca0-8922c8ab8ec0",
+      "invocationId": "i-1",
       "author": "user",
       "actions": {
         "stateDelta": {},
@@ -34,11 +34,10 @@
         "path": "",
         "runId": ""
       },
-      "id": "e0327e58-8d6b-4d79-a263-867490cbb71f",
-      "timestamp": 1775280498.1218948
+      "id": "e-1"
     },
     {
-      "invocationId": "e-e0087001-f10d-40f0-aca0-8922c8ab8ec0",
+      "invocationId": "i-1",
       "author": "root_agent",
       "actions": {
         "stateDelta": {
@@ -53,33 +52,20 @@
         "runId": "1",
         "parentRunId": "1"
       },
-      "id": "729ce110-9cc8-4b5c-aa56-7c9a9d469c84",
-      "timestamp": 1775280498.1248598
+      "id": "e-3"
     },
     {
       "modelVersion": "gemini-2.5-flash",
       "content": {
         "parts": [
           {
-            "text": "**The Bloom Beautiful: Unveiling the World of Flowers**"
+            "text": "\"Unveiling the Beauty of Blooms\""
           }
         ],
         "role": "model"
       },
       "finishReason": "STOP",
-      "usageMetadata": {
-        "candidatesTokenCount": 13,
-        "promptTokenCount": 58,
-        "promptTokensDetails": [
-          {
-            "modality": "TEXT",
-            "tokenCount": 58
-          }
-        ],
-        "thoughtsTokenCount": 34,
-        "totalTokenCount": 105
-      },
-      "invocationId": "e-e0087001-f10d-40f0-aca0-8922c8ab8ec0",
+      "invocationId": "i-1",
       "author": "generate_headline",
       "actions": {
         "stateDelta": {},
@@ -94,11 +80,10 @@
         "messageAsOutput": true
       },
       "branch": "node:root_agent@1/generate_headline@1.generate_headline",
-      "id": "ef90eb35-2f62-49b7-8777-0bab24350eb6",
-      "timestamp": 1775280498.975346
+      "id": "e-5"
     },
     {
-      "invocationId": "e-e0087001-f10d-40f0-aca0-8922c8ab8ec0",
+      "invocationId": "i-1",
       "author": "root_agent",
       "actions": {
         "stateDelta": {},
@@ -106,7 +91,7 @@
         "requestedAuthConfigs": {},
         "requestedToolConfirmations": {}
       },
-      "output": "**The Bloom Beautiful: Unveiling the World of Flowers**",
+      "output": "\"Unveiling the Beauty of Blooms\"",
       "nodeInfo": {
         "path": "root_agent@1/generate_headline@1",
         "runId": "1",
@@ -115,33 +100,20 @@
           "root_agent@1/generate_headline@1"
         ]
       },
-      "id": "ec01cf49-81b2-4b01-99fb-00fdced09d54",
-      "timestamp": 1775280498.980733
+      "id": "e-6"
     },
     {
       "modelVersion": "gemini-2.5-flash",
       "content": {
         "parts": [
           {
-            "text": "{\"grade\": \"unrelated\", \"feedback\": \"To make this headline more tech-focused, consider incorporating elements such as AI for flower identification, biotechnology in floriculture, or virtual reality botanical gardens. For example: 'AI's Eye on Petals: Unveiling the World of Digital Flowers'.\"}"
+            "text": "{\"grade\": \"unrelated\", \"feedback\": \"To make this headline tech-focused, consider integrating technology terms such as AI, computer vision, data analytics, or robotics. For example, 'AI Unveils the Beauty of Digital Blooms' or 'Software Engineering for Sustainable Bloom Monitoring'.\"}"
           }
         ],
         "role": "model"
       },
       "finishReason": "STOP",
-      "usageMetadata": {
-        "candidatesTokenCount": 63,
-        "promptTokenCount": 46,
-        "promptTokensDetails": [
-          {
-            "modality": "TEXT",
-            "tokenCount": 46
-          }
-        ],
-        "thoughtsTokenCount": 328,
-        "totalTokenCount": 437
-      },
-      "invocationId": "e-e0087001-f10d-40f0-aca0-8922c8ab8ec0",
+      "invocationId": "i-1",
       "author": "evaluate_headline",
       "actions": {
         "stateDelta": {},
@@ -156,17 +128,16 @@
         "messageAsOutput": true
       },
       "branch": "node:root_agent@1/evaluate_headline@1.evaluate_headline",
-      "id": "f1670d03-634a-4caf-acdd-b94b5d4325c9",
-      "timestamp": 1775280501.436718
+      "id": "e-9"
     },
     {
-      "invocationId": "e-e0087001-f10d-40f0-aca0-8922c8ab8ec0",
+      "invocationId": "i-1",
       "author": "root_agent",
       "actions": {
         "stateDelta": {
           "feedback": {
             "grade": "unrelated",
-            "feedback": "To make this headline more tech-focused, consider incorporating elements such as AI for flower identification, biotechnology in floriculture, or virtual reality botanical gardens. For example: 'AI's Eye on Petals: Unveiling the World of Digital Flowers'."
+            "feedback": "To make this headline tech-focused, consider integrating technology terms such as AI, computer vision, data analytics, or robotics. For example, 'AI Unveils the Beauty of Digital Blooms' or 'Software Engineering for Sustainable Bloom Monitoring'."
           }
         },
         "artifactDelta": {},
@@ -175,7 +146,7 @@
       },
       "output": {
         "grade": "unrelated",
-        "feedback": "To make this headline more tech-focused, consider incorporating elements such as AI for flower identification, biotechnology in floriculture, or virtual reality botanical gardens. For example: 'AI's Eye on Petals: Unveiling the World of Digital Flowers'."
+        "feedback": "To make this headline tech-focused, consider integrating technology terms such as AI, computer vision, data analytics, or robotics. For example, 'AI Unveils the Beauty of Digital Blooms' or 'Software Engineering for Sustainable Bloom Monitoring'."
       },
       "nodeInfo": {
         "path": "root_agent@1/evaluate_headline@1",
@@ -185,11 +156,10 @@
           "root_agent@1/evaluate_headline@1"
         ]
       },
-      "id": "f139cf23-2a76-4f9c-8adf-7b65615348fc",
-      "timestamp": 1775280501.4419599
+      "id": "e-10"
     },
     {
-      "invocationId": "e-e0087001-f10d-40f0-aca0-8922c8ab8ec0",
+      "invocationId": "i-1",
       "author": "root_agent",
       "actions": {
         "stateDelta": {},
@@ -203,33 +173,20 @@
         "runId": "1",
         "parentRunId": "1"
       },
-      "id": "bc072142-4ad9-47ab-867c-98d949cf597c",
-      "timestamp": 1775280501.451287
+      "id": "e-11"
     },
     {
       "modelVersion": "gemini-2.5-flash",
       "content": {
         "parts": [
           {
-            "text": "AI Nurtures Digital Blooms: The Tech Revolution in Floriculture"
+            "text": "**AI-Driven Computer Vision Revolutionizes Sustainable Flower Farming**"
           }
         ],
         "role": "model"
       },
       "finishReason": "STOP",
-      "usageMetadata": {
-        "candidatesTokenCount": 13,
-        "promptTokenCount": 120,
-        "promptTokensDetails": [
-          {
-            "modality": "TEXT",
-            "tokenCount": 120
-          }
-        ],
-        "thoughtsTokenCount": 781,
-        "totalTokenCount": 914
-      },
-      "invocationId": "e-e0087001-f10d-40f0-aca0-8922c8ab8ec0",
+      "invocationId": "i-1",
       "author": "generate_headline",
       "actions": {
         "stateDelta": {},
@@ -244,11 +201,10 @@
         "messageAsOutput": true
       },
       "branch": "node:root_agent@1/generate_headline@2.generate_headline",
-      "id": "7d1f3f68-ecb8-4e4c-8ff6-909f6febddc8",
-      "timestamp": 1775280505.933463
+      "id": "e-13"
     },
     {
-      "invocationId": "e-e0087001-f10d-40f0-aca0-8922c8ab8ec0",
+      "invocationId": "i-1",
       "author": "root_agent",
       "actions": {
         "stateDelta": {},
@@ -256,7 +212,7 @@
         "requestedAuthConfigs": {},
         "requestedToolConfirmations": {}
       },
-      "output": "AI Nurtures Digital Blooms: The Tech Revolution in Floriculture",
+      "output": "**AI-Driven Computer Vision Revolutionizes Sustainable Flower Farming**",
       "nodeInfo": {
         "path": "root_agent@1/generate_headline@2",
         "runId": "2",
@@ -265,33 +221,20 @@
           "root_agent@1/generate_headline@2"
         ]
       },
-      "id": "bbb59edc-c937-466d-b13b-84aab57543a4",
-      "timestamp": 1775280505.938449
+      "id": "e-14"
     },
     {
       "modelVersion": "gemini-2.5-flash",
       "content": {
         "parts": [
           {
-            "text": "{\"grade\": \"tech-related\", \"feedback\": \"This headline is already strongly tech-focused due to the explicit mention of AI and 'Tech Revolution'.\"}"
+            "text": "{\"grade\": \"tech-related\", \"feedback\": \"\"}"
           }
         ],
         "role": "model"
       },
       "finishReason": "STOP",
-      "usageMetadata": {
-        "candidatesTokenCount": 33,
-        "promptTokenCount": 46,
-        "promptTokensDetails": [
-          {
-            "modality": "TEXT",
-            "tokenCount": 46
-          }
-        ],
-        "thoughtsTokenCount": 245,
-        "totalTokenCount": 324
-      },
-      "invocationId": "e-e0087001-f10d-40f0-aca0-8922c8ab8ec0",
+      "invocationId": "i-1",
       "author": "evaluate_headline",
       "actions": {
         "stateDelta": {},
@@ -306,17 +249,16 @@
         "messageAsOutput": true
       },
       "branch": "node:root_agent@1/evaluate_headline@2.evaluate_headline",
-      "id": "19805d52-d525-44c8-b47a-a9b12e37b88f",
-      "timestamp": 1775280508.391435
+      "id": "e-17"
     },
     {
-      "invocationId": "e-e0087001-f10d-40f0-aca0-8922c8ab8ec0",
+      "invocationId": "i-1",
       "author": "root_agent",
       "actions": {
         "stateDelta": {
           "feedback": {
             "grade": "tech-related",
-            "feedback": "This headline is already strongly tech-focused due to the explicit mention of AI and 'Tech Revolution'."
+            "feedback": ""
           }
         },
         "artifactDelta": {},
@@ -325,7 +267,7 @@
       },
       "output": {
         "grade": "tech-related",
-        "feedback": "This headline is already strongly tech-focused due to the explicit mention of AI and 'Tech Revolution'."
+        "feedback": ""
       },
       "nodeInfo": {
         "path": "root_agent@1/evaluate_headline@2",
@@ -335,11 +277,10 @@
           "root_agent@1/evaluate_headline@2"
         ]
       },
-      "id": "949ee899-b332-4ba4-bf1f-24e9fb7d27c7",
-      "timestamp": 1775280508.436903
+      "id": "e-18"
     },
     {
-      "invocationId": "e-e0087001-f10d-40f0-aca0-8922c8ab8ec0",
+      "invocationId": "i-1",
       "author": "root_agent",
       "actions": {
         "stateDelta": {},
@@ -353,9 +294,7 @@
         "runId": "2",
         "parentRunId": "1"
       },
-      "id": "e8a07398-9e46-4616-b8f1-294f3c0866e2",
-      "timestamp": 1775280508.439897
+      "id": "e-19"
     }
-  ],
-  "lastUpdateTime": 1775280508.439897
+  ]
 }

@@ -17,7 +17,7 @@
         ],
         "role": "user"
       },
-      "invocationId": "e-5b7c6ebf-7dba-479e-ad5d-26046d58d8f1",
+      "invocationId": "i-1",
       "author": "user",
       "actions": {
         "stateDelta": {},
@@ -29,11 +29,10 @@
         "path": "",
         "runId": ""
       },
-      "id": "56964d74-d035-4f11-a713-faa4796bbec3",
-      "timestamp": 1775277157.239037
+      "id": "e-1"
     },
     {
-      "invocationId": "e-5b7c6ebf-7dba-479e-ad5d-26046d58d8f1",
+      "invocationId": "i-1",
       "author": "root_agent",
       "actions": {
         "stateDelta": {},
@@ -50,11 +49,10 @@
           "root_agent@1/make_uppercase@1"
         ]
       },
-      "id": "d6c6d648-a862-47d6-8c04-02bb855067a4",
-      "timestamp": 1775277157.240582
+      "id": "e-3"
     },
     {
-      "invocationId": "e-5b7c6ebf-7dba-479e-ad5d-26046d58d8f1",
+      "invocationId": "i-1",
       "author": "root_agent",
       "actions": {
         "stateDelta": {},
@@ -71,11 +69,10 @@
           "root_agent@1/count_characters@1"
         ]
       },
-      "id": "fbf40591-a336-4b7b-ae16-15e4a75ae2ef",
-      "timestamp": 1775277157.2406662
+      "id": "e-4"
     },
     {
-      "invocationId": "e-5b7c6ebf-7dba-479e-ad5d-26046d58d8f1",
+      "invocationId": "i-1",
       "author": "root_agent",
       "actions": {
         "stateDelta": {},
@@ -92,37 +89,14 @@
           "root_agent@1/reverse_string@1"
         ]
       },
-      "id": "0585a7dc-2c4b-4f5e-af9a-07e05661b870",
-      "timestamp": 1775277157.240715
+      "id": "e-5"
     },
     {
-      "invocationId": "e-5b7c6ebf-7dba-479e-ad5d-26046d58d8f1",
+      "invocationId": "i-1",
       "author": "root_agent",
       "actions": {
         "stateDelta": {
           "root_agent@1/join_for_results@1_join_state": {
-            "make_uppercase": "GO"
-          }
-        },
-        "artifactDelta": {},
-        "requestedAuthConfigs": {},
-        "requestedToolConfirmations": {}
-      },
-      "nodeInfo": {
-        "path": "root_agent@1/join_for_results@1",
-        "runId": "1",
-        "parentRunId": "1"
-      },
-      "id": "9c0f0c10-9587-41e4-92d8-bf0b0b338236",
-      "timestamp": 1775277157.242249
-    },
-    {
-      "invocationId": "e-5b7c6ebf-7dba-479e-ad5d-26046d58d8f1",
-      "author": "root_agent",
-      "actions": {
-        "stateDelta": {
-          "root_agent@1/join_for_results@1_join_state": {
-            "make_uppercase": "GO",
             "count_characters": 2
           }
         },
@@ -135,11 +109,31 @@
         "runId": "1",
         "parentRunId": "1"
       },
-      "id": "8ad74201-634b-4911-ba78-6831c4a0a598",
-      "timestamp": 1775277157.246057
+      "id": "e-6"
     },
     {
-      "invocationId": "e-5b7c6ebf-7dba-479e-ad5d-26046d58d8f1",
+      "invocationId": "i-1",
+      "author": "root_agent",
+      "actions": {
+        "stateDelta": {
+          "root_agent@1/join_for_results@1_join_state": {
+            "count_characters": 2,
+            "reverse_string": "og"
+          }
+        },
+        "artifactDelta": {},
+        "requestedAuthConfigs": {},
+        "requestedToolConfirmations": {}
+      },
+      "nodeInfo": {
+        "path": "root_agent@1/join_for_results@1",
+        "runId": "1",
+        "parentRunId": "1"
+      },
+      "id": "e-7"
+    },
+    {
+      "invocationId": "i-1",
       "author": "root_agent",
       "actions": {
         "stateDelta": {
@@ -150,9 +144,9 @@
         "requestedToolConfirmations": {}
       },
       "output": {
-        "make_uppercase": "GO",
         "count_characters": 2,
-        "reverse_string": "og"
+        "reverse_string": "og",
+        "make_uppercase": "GO"
       },
       "nodeInfo": {
         "path": "root_agent@1/join_for_results@1",
@@ -162,8 +156,7 @@
           "root_agent@1/join_for_results@1"
         ]
       },
-      "id": "20691eac-6d24-4190-943b-8fcfb16e837a",
-      "timestamp": 1775277157.248563
+      "id": "e-8"
     },
     {
       "content": {
@@ -174,7 +167,7 @@
         ],
         "role": "user"
       },
-      "invocationId": "e-5b7c6ebf-7dba-479e-ad5d-26046d58d8f1",
+      "invocationId": "i-1",
       "author": "root_agent",
       "actions": {
         "stateDelta": {},
@@ -187,9 +180,7 @@
         "runId": "1",
         "parentRunId": "1"
       },
-      "id": "de4af3c2-5488-4d07-b573-8ba1da23deca",
-      "timestamp": 1775277157.25015
+      "id": "e-9"
     }
-  ],
-  "lastUpdateTime": 1775277157.25015
+  ]
 }

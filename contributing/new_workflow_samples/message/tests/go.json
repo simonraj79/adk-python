@@ -17,7 +17,7 @@
         ],
         "role": "user"
       },
-      "invocationId": "e-75046075-4eb6-474c-b903-070659d0e27c",
+      "invocationId": "i-1",
       "author": "user",
       "actions": {
         "stateDelta": {},
@@ -29,8 +29,7 @@
         "path": "",
         "runId": ""
       },
-      "id": "e0627e78-a5c7-4216-abd1-e6b5497bcb53",
-      "timestamp": 1775276550.610419
+      "id": "e-1"
     },
     {
       "content": {
@@ -41,7 +40,7 @@
         ],
         "role": "user"
       },
-      "invocationId": "e-75046075-4eb6-474c-b903-070659d0e27c",
+      "invocationId": "i-1",
       "author": "message",
       "actions": {
         "stateDelta": {},
@@ -54,8 +53,7 @@
         "runId": "1",
         "parentRunId": "1"
       },
-      "id": "0e35fa22-d600-4fab-b3ce-b6ccd543259c",
-      "timestamp": 1775276550.6127648
+      "id": "e-3"
     },
     {
       "content": {
@@ -72,7 +70,7 @@
         ],
         "role": "user"
       },
-      "invocationId": "e-75046075-4eb6-474c-b903-070659d0e27c",
+      "invocationId": "i-1",
       "author": "message",
       "actions": {
         "stateDelta": {},
@@ -85,8 +83,7 @@
         "runId": "1",
         "parentRunId": "1"
       },
-      "id": "4648fbc1-ad45-4c31-88da-c709758acb60",
-      "timestamp": 1775276550.6148381
+      "id": "e-4"
     },
     {
       "content": {
@@ -97,7 +94,7 @@
         ],
         "role": "user"
       },
-      "invocationId": "e-75046075-4eb6-474c-b903-070659d0e27c",
+      "invocationId": "i-1",
       "author": "message",
       "actions": {
         "stateDelta": {},
@@ -110,8 +107,7 @@
         "runId": "1",
         "parentRunId": "1"
       },
-      "id": "72fdb244-dcc9-4cce-95df-bf8bdfd92667",
-      "timestamp": 1775276550.6175191
+      "id": "e-5"
     },
     {
       "content": {
@@ -122,7 +118,7 @@
         ],
         "role": "user"
       },
-      "invocationId": "e-75046075-4eb6-474c-b903-070659d0e27c",
+      "invocationId": "i-1",
       "author": "message",
       "actions": {
         "stateDelta": {},
@@ -135,8 +131,7 @@
         "runId": "1",
         "parentRunId": "1"
       },
-      "id": "ab4c1910-4214-432f-b90d-8d412a1ad85d",
-      "timestamp": 1775276551.621021
+      "id": "e-6"
     },
     {
       "content": {
@@ -147,7 +142,7 @@
         ],
         "role": "user"
       },
-      "invocationId": "e-75046075-4eb6-474c-b903-070659d0e27c",
+      "invocationId": "i-1",
       "author": "message",
       "actions": {
         "stateDelta": {},
@@ -160,8 +155,7 @@
         "runId": "1",
         "parentRunId": "1"
       },
-      "id": "37f27963-5c75-4356-8dbf-8ed147a78346",
-      "timestamp": 1775276552.6279411
+      "id": "e-7"
     },
     {
       "content": {
@@ -172,7 +166,7 @@
         ],
         "role": "user"
       },
-      "invocationId": "e-75046075-4eb6-474c-b903-070659d0e27c",
+      "invocationId": "i-1",
       "author": "message",
       "actions": {
         "stateDelta": {},
@@ -185,8 +179,7 @@
         "runId": "1",
         "parentRunId": "1"
       },
-      "id": "2bb5c21e-0ffa-49b8-b6dc-6af4df2f1867",
-      "timestamp": 1775276553.634864
+      "id": "e-8"
     },
     {
       "content": {
@@ -197,7 +190,7 @@
         ],
         "role": "user"
       },
-      "invocationId": "e-75046075-4eb6-474c-b903-070659d0e27c",
+      "invocationId": "i-1",
       "author": "message",
       "actions": {
         "stateDelta": {},
@@ -210,9 +203,7 @@
         "runId": "1",
         "parentRunId": "1"
       },
-      "id": "686fff9c-059e-489b-9c71-95e73609cd57",
-      "timestamp": 1775276553.64043
+      "id": "e-9"
     }
-  ],
-  "lastUpdateTime": 1775276553.64043
+  ]
 }

@@ -17,7 +17,7 @@
         ],
         "role": "user"
       },
-      "invocationId": "e-750cc5b4-ba56-4cd9-aa4c-d254f93afc28",
+      "invocationId": "i-1",
       "author": "user",
       "actions": {
         "stateDelta": {},
@@ -29,8 +29,7 @@
         "path": "",
         "runId": ""
       },
-      "id": "7ff0ef98-5233-4cbd-ae11-f94951fcf6d2",
-      "timestamp": 1775279877.853446
+      "id": "e-1"
     },
     {
       "modelVersion": "gemini-2.5-flash",
@@ -43,19 +42,7 @@
         "role": "model"
       },
       "finishReason": "STOP",
-      "usageMetadata": {
-        "candidatesTokenCount": 1,
-        "promptTokenCount": 38,
-        "promptTokensDetails": [
-          {
-            "modality": "TEXT",
-            "tokenCount": 38
-          }
-        ],
-        "thoughtsTokenCount": 27,
-        "totalTokenCount": 66
-      },
-      "invocationId": "e-750cc5b4-ba56-4cd9-aa4c-d254f93afc28",
+      "invocationId": "i-1",
       "author": "generate_fruit_agent",
       "actions": {
         "stateDelta": {},
@@ -70,11 +57,10 @@
         "messageAsOutput": true
       },
       "branch": "node:root_agent@1/generate_fruit_agent@1.generate_fruit_agent",
-      "id": "1cc7aa18-6384-49dc-ba33-b44a8a84107b",
-      "timestamp": 1775279878.729745
+      "id": "e-5"
     },
     {
-      "invocationId": "e-750cc5b4-ba56-4cd9-aa4c-d254f93afc28",
+      "invocationId": "i-1",
       "author": "root_agent",
       "actions": {
         "stateDelta": {},
@@ -91,33 +77,20 @@
           "root_agent@1/generate_fruit_agent@1"
         ]
       },
-      "id": "6a5e8cfd-79b0-44bc-93c3-f68dac46433a",
-      "timestamp": 1775279878.7361522
+      "id": "e-6"
     },
     {
       "modelVersion": "gemini-2.5-flash",
       "content": {
         "parts": [
           {
-            "text": "Apples are a good source of dietary fiber, which aids digestion and can help maintain healthy cholesterol levels."
+            "text": "Apples are a good source of dietary fiber, which can help support digestive health and promote a feeling of fullness."
           }
         ],
         "role": "model"
       },
       "finishReason": "STOP",
-      "usageMetadata": {
-        "candidatesTokenCount": 21,
-        "promptTokenCount": 30,
-        "promptTokensDetails": [
-          {
-            "modality": "TEXT",
-            "tokenCount": 30
-          }
-        ],
-        "thoughtsTokenCount": 18,
-        "totalTokenCount": 69
-      },
-      "invocationId": "e-750cc5b4-ba56-4cd9-aa4c-d254f93afc28",
+      "invocationId": "i-1",
       "author": "generate_benefit_agent",
       "actions": {
         "stateDelta": {},
@@ -132,11 +105,10 @@
         "messageAsOutput": true
       },
       "branch": "node:root_agent@1/generate_benefit_agent@1.generate_benefit_agent",
-      "id": "6e1f71db-6710-406c-ba0f-60e4ce2cde0e",
-      "timestamp": 1775279879.651727
+      "id": "e-9"
     },
     {
-      "invocationId": "e-750cc5b4-ba56-4cd9-aa4c-d254f93afc28",
+      "invocationId": "i-1",
       "author": "root_agent",
       "actions": {
         "stateDelta": {},
@@ -144,7 +116,7 @@
         "requestedAuthConfigs": {},
         "requestedToolConfirmations": {}
       },
-      "output": "Apples are a good source of dietary fiber, which aids digestion and can help maintain healthy cholesterol levels.",
+      "output": "Apples are a good source of dietary fiber, which can help support digestive health and promote a feeling of fullness.",
       "nodeInfo": {
         "path": "root_agent@1/generate_benefit_agent@1",
         "runId": "1",
@@ -154,9 +126,7 @@
           "root_agent@1"
         ]
       },
-      "id": "97de30cf-761c-44d6-911f-38e2ae0da82f",
-      "timestamp": 1775279879.6574268
+      "id": "e-10"
     }
-  ],
-  "lastUpdateTime": 1775279879.6574268
+  ]
 }

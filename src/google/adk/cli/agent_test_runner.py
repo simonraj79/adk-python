@@ -19,6 +19,7 @@ import os
 from pathlib import Path
 from typing import AsyncGenerator
 from typing import Optional
+from unittest import mock
 
 from google.adk.apps.app import App
 from google.adk.artifacts.in_memory_artifact_service import InMemoryArtifactService
@@ -33,15 +34,14 @@ from google.adk.sessions.in_memory_session_service import InMemorySessionService
 from google.genai import types
 import pytest
 
+
 # Read target folder from environment
-TARGET_FOLDER = os.environ.get("ADK_TEST_FOLDER")
-
-
-def get_test_files():
+def get_test_files(target_folder: str | None = None):
   """Yields (agent_dir, test_file_path) recursively."""
-  if not TARGET_FOLDER:
+  folder = target_folder or os.environ.get("ADK_TEST_FOLDER")
+  if not folder:
     return
-  target_dir = Path(TARGET_FOLDER)
+  target_dir = Path(folder)
   if not target_dir.exists():
     return
 
@@ -209,6 +209,48 @@ def make_sort_key(d):
   return (author, node_path, json.dumps(d, sort_keys=True))
 
 
+def _extract_user_content(event: dict) -> Optional[types.Content]:
+  """Extracts user content from an event dict and returns a types.Content object."""
+  if event.get("author") != "user":
+    return None
+
+  content_dict = event.get("content", {})
+  if not content_dict:
+    return None
+
+  parts = content_dict.get("parts", [])
+  real_parts = []
+  for p in parts:
+    if "functionResponse" in p:
+      fr = p["functionResponse"]
+      real_parts.append(
+          types.Part(
+              function_response=types.FunctionResponse(
+                  id=fr.get("id"),
+                  name=fr.get("name"),
+                  response=fr.get("response"),
+              )
+          )
+      )
+    elif "text" in p:
+      real_parts.append(types.Part(text=p["text"]))
+    elif "functionCall" in p:
+      fc = p["functionCall"]
+      real_parts.append(
+          types.Part(
+              function_call=types.FunctionCall(
+                  id=fc.get("id"),
+                  name=fc.get("name"),
+                  args=fc.get("args"),
+              )
+          )
+      )
+
+  if real_parts:
+    return types.Content(role="user", parts=real_parts)
+  return None
+
+
 @pytest.mark.parametrize(
     "agent_dir, test_file",
     list(get_test_files()),
@@ -280,47 +322,16 @@ def test_agent_replay(agent_dir, test_file, monkeypatch):
 
     for event in events_data[1:]:
       if event.get("author") == "user":
-        content_dict = event.get("content", {})
-        if content_dict:
-          parts = content_dict.get("parts", [])
-          real_parts = []
-          for p in parts:
-            if "functionResponse" in p:
-              fr = p["functionResponse"]
-              real_parts.append(
-                  types.Part(
-                      function_response=types.FunctionResponse(
-                          id=fr.get("id"),
-                          name=fr.get("name"),
-                          response=fr.get("response"),
-                      )
-                  )
+        content = _extract_user_content(event)
+        if content:
+          actual_events.append(
+              AdkEvent(
+                  author="user",
+                  content=content,
               )
-            elif "text" in p:
-              real_parts.append(types.Part(text=p["text"]))
-            elif "functionCall" in p:
-              fc = p["functionCall"]
-              real_parts.append(
-                  types.Part(
-                      function_call=types.FunctionCall(
-                          id=fc.get("id"),
-                          name=fc.get("name"),
-                          args=fc.get("args"),
-                      )
-                  )
-              )
-
-          if real_parts:
-            actual_events.append(
-                AdkEvent(
-                    author="user",
-                    content=types.Content(role="user", parts=real_parts),
-                )
-            )
-            next_run_events = runner.run(
-                types.Content(role="user", parts=real_parts)
-            )
-            actual_events.extend(next_run_events)
+          )
+          next_run_events = runner.run(content)
+          actual_events.extend(next_run_events)
 
     actual_events = [
         e for e in actual_events if not getattr(e, "partial", False)
@@ -335,3 +346,127 @@ def test_agent_replay(agent_dir, test_file, monkeypatch):
     assert actual_dicts == expected_dicts
   finally:
     sys.path = sys_path_saved
+
+
+def rebuild_tests(folder: str):
+  """Discovers test files and rebuilds them by running the agent live."""
+  import json
+  import sys
+  import time
+
+  from google.adk.apps.app import App
+  from google.adk.events.event import Event as AdkEvent
+  from google.genai import types
+
+  test_files = list(get_test_files(folder))
+  if not test_files:
+    print(f"No test files found in {folder}")
+    return
+
+  for agent_dir, test_file in test_files:
+    print(f"Rebuilding {test_file}...")
+
+    # Add agent_dir.parent to sys.path so relative imports work
+    sys_path_saved = list(sys.path)
+    sys.path.insert(0, str(agent_dir.parent))
+
+    try:
+      loader = AgentLoader(str(agent_dir.parent))
+      agent_or_app = loader.load_agent(agent_dir.name)
+
+      with open(test_file, "r") as f:
+        session_data = json.load(f)
+
+      events_data = session_data.get("events", [])
+      if not events_data:
+        print(f"No events in {test_file}, skipping.")
+        continue
+
+      # Extract user messages
+      user_messages = []
+      for event in events_data:
+        content = _extract_user_content(event)
+        if content:
+          user_messages.append(content)
+
+      if not user_messages:
+        print(f"No user messages found in {test_file}, skipping.")
+        continue
+
+      runner = (
+          InMemoryRunner(app=agent_or_app)
+          if isinstance(agent_or_app, App)
+          else InMemoryRunner(root_agent=agent_or_app)
+      )
+
+      new_events = []
+      inv_counter = 1
+
+      def mock_inv_id():
+        nonlocal inv_counter
+        res = f"i-{inv_counter}"
+        inv_counter += 1
+        return res
+
+      ev_counter = 1
+
+      def mock_ev_id():
+        nonlocal ev_counter
+        res = f"e-{ev_counter}"
+        ev_counter += 1
+        return res
+
+      with (
+          mock.patch(
+              "google.adk.runners.new_invocation_context_id",
+              side_effect=mock_inv_id,
+          ),
+          mock.patch(
+              "google.adk.events.event.Event.new_id", side_effect=mock_ev_id
+          ),
+      ):
+        for msg in user_messages:
+          # Create user event
+          user_ev = AdkEvent(
+              author="user",
+              content=msg,
+          )
+
+          run_events = runner.run(msg)
+
+          # Set invocation_id from runner's output if available
+          if run_events:
+            user_ev.invocation_id = run_events[0].invocation_id
+
+          new_events.append(user_ev)
+          new_events.extend(run_events)
+
+      # Filter out partial events if any
+      new_events = [e for e in new_events if not getattr(e, "partial", False)]
+
+      # Convert to dicts, forcing validation to derive run_id and parent_run_id
+      # Also exclude timestamp to make it deterministic
+      new_events_dicts = [
+          AdkEvent.model_validate(e.model_dump()).model_dump(
+              mode="json",
+              by_alias=True,
+              exclude_none=True,
+              exclude={"timestamp", "usage_metadata"},
+          )
+          for e in new_events
+      ]
+
+      # Update session data
+      session_data["events"] = new_events_dicts
+      session_data.pop("lastUpdateTime", None)
+
+      # Write back to file
+      with open(test_file, "w") as f:
+        json.dump(session_data, f, indent=2)
+
+      print(f"Successfully rebuilt {test_file}")
+
+    except Exception as e:
+      print(f"Error rebuilding {test_file}: {e}")
+    finally:
+      sys.path = sys_path_saved
