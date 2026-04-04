@@ -23,6 +23,7 @@ User-facing ctx.run_node() wraps this and returns just ctx.output.
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 from typing import TYPE_CHECKING
 
@@ -30,6 +31,9 @@ if TYPE_CHECKING:
   from ..agents.context import Context
   from ..events.event import Event
   from ._base_node import BaseNode
+
+
+logger = logging.getLogger("google_adk." + __name__)
 
 
 class NodeRunner:
@@ -47,7 +51,7 @@ class NodeRunner:
       parent_ctx: Context,
       run_id: str | None = None,
       # Graph context
-      triggered_by: str = '',
+      triggered_by: str = "",
       in_nodes: set[str] | None = None,
       # Output delegation (use_as_output)
       additional_output_for_ancestor: str | None = None,
@@ -76,7 +80,7 @@ class NodeRunner:
     # Core
     self._node = node
     self._parent_ctx = parent_ctx
-    self._run_id = str(run_id) if run_id else '1'
+    self._run_id = str(run_id) if run_id else "1"
 
     # Graph context
     self._triggered_by = triggered_by
@@ -105,23 +109,67 @@ class NodeRunner:
     The caller reads ctx.output, ctx.route, and ctx.interrupt_ids
     for the node's results.
     """
-    ctx = self._create_child_context(resume_inputs)
+    retry_count = 0
+    while True:
+      ctx = self._create_child_context(resume_inputs, retry_count=retry_count)
+      try:
+        await self._execute_node(ctx, node_input)
+        await self._flush_output_and_deltas(ctx)
+        return ctx
+      except Exception as e:
+        if type(e).__name__ == "NodeInterruptedError":
+          raise
 
-    await self._execute_node(ctx, node_input)
-    await self._flush_output_and_deltas(ctx)
+        if not await self._attempt_retry(e, ctx, retry_count):
+          raise
+        logger.warning(
+            "Node %s failed and is being retried locally. Note: retry count is"
+            " not persisted across resuming.",
+            self._node.name,
+        )
+        retry_count += 1
 
-    return ctx
+  async def _attempt_retry(
+      self, e: Exception, ctx: Context, retry_count: int
+  ) -> bool:
+    """Checks if node should retry and sleeps if so."""
+    import asyncio
+    from types import SimpleNamespace
+
+    from .utils._retry_utils import _get_retry_delay
+    from .utils._retry_utils import _should_retry_node
+
+    node_state = SimpleNamespace(retry_count=retry_count)
+    if not _should_retry_node(e, self._node.retry_config, node_state):
+      return False
+
+    delay = _get_retry_delay(self._node.retry_config, node_state)
+
+    # Yield a retry event
+    from ..events.event import Event
+
+    event = Event(
+        message=(
+            f"Node {self._node.name} failed with {type(e).__name__}."
+            f" Retrying in {delay:.2f}s (attempt {retry_count + 1})"
+        )
+    )
+    await self._enqueue_event(event, ctx)
+
+    await asyncio.sleep(delay)
+    return True
 
   def _build_node_path(self) -> str:
     """Construct this node's path from parent context."""
     from .utils._node_path_utils import join_paths
 
-    path_with_run = f'{self._node.name}@{self.run_id}'
+    path_with_run = f"{self._node.name}@{self.run_id}"
     return join_paths(self._parent_ctx.node_path or None, path_with_run)
 
   def _create_child_context(
       self,
       resume_inputs: dict[str, Any] | None,
+      retry_count: int = 0,
   ) -> Context:
     """Create a child Context for the node, inheriting from parent.
 
@@ -132,9 +180,9 @@ class NodeRunner:
     from ..agents.context import Context
 
     if self._additional_output_for_ancestor:
-      ancestors = [
-          self._additional_output_for_ancestor
-      ] + list(self._parent_ctx._output_for_ancestors or [])
+      ancestors = [self._additional_output_for_ancestor] + list(
+          self._parent_ctx._output_for_ancestors or []
+      )
     else:
       ancestors = []
 
@@ -160,6 +208,7 @@ class NodeRunner:
         output_for_ancestors=ancestors,
         event_author=self._parent_ctx.event_author,
         state_schema=self._node.state_schema,
+        retry_count=retry_count,
     )
 
     # Carry forward state from a previous run (resume scenario).
@@ -284,6 +333,4 @@ class NodeRunner:
     event.invocation_id = ctx._invocation_context.invocation_id
     event.node_info.path = ctx.node_path
     if event.output is not None:
-      event.node_info.output_for = [
-          ctx.node_path
-      ] + ctx._output_for_ancestors
+      event.node_info.output_for = [ctx.node_path] + ctx._output_for_ancestors

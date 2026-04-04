@@ -253,6 +253,8 @@ class Workflow(BaseNode):
         child_ctx: Context = task.result()
         self._handle_completion(loop_state, name, node, child_ctx)
 
+    # TODO: Handle node failure and cascading cancellation for static nodes.
+
     # Await fire-and-forget dynamic tasks.
     # TODO: Handle dynamic task failures and interrupts here.
     # Currently, dynamic node completion is handled inline in the
