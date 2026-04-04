@@ -14,6 +14,8 @@
 
 from __future__ import annotations
 
+from ..features import FeatureName
+from ..features import is_feature_enabled
 from ._base_node import BaseNode
 from ._base_node import START
 from ._errors import NodeTimeoutError
@@ -22,9 +24,13 @@ from ._join_node import JoinNode
 from ._node import Node
 from ._node import node
 from ._retry_config import RetryConfig
-from ._workflow import Workflow
 from ._workflow_graph import DEFAULT_ROUTE
 from ._workflow_graph import Edge
+
+if is_feature_enabled(FeatureName.NEW_WORKFLOW):
+  from ._workflow_class import Workflow
+else:
+  from ._workflow import Workflow
 
 __all__ = [
     'BaseNode',
