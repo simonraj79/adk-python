@@ -1,3 +1,9 @@
+      # Sanitize test_name to prevent directory traversal
+      test_name = os.path.basename(test_name)
+
+      # Sanitize test_name to prevent directory traversal
+      test_name = os.path.basename(test_name)
+
 # Copyright 2026 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -232,6 +238,10 @@ class CreateSessionRequest(common.BaseModel):
       default=None,
       description="A list of events to initialize the session with.",
   )
+
+
+class CreateTestRequest(common.BaseModel):
+  session_data: dict
 
 
 class SaveArtifactRequest(common.BaseModel):
@@ -955,6 +965,141 @@ class AdkWebServer:
           results[path] = GetEventGraphResult(dot_src=dot_string)
 
       return results
+
+    @app.get("/dev/{app_name}/tests")
+    async def list_tests(app_name: str) -> list[str]:
+      """Lists all test JSON files for the given app."""
+      agent_dir = os.path.join(self.agents_dir, app_name)
+      tests_dir = os.path.join(agent_dir, "tests")
+      if not os.path.exists(tests_dir):
+        return []
+
+      import glob
+
+      pattern = os.path.join(tests_dir, "*.json")
+      test_files = glob.glob(pattern)
+      return sorted([os.path.basename(f) for f in test_files])
+
+    @app.post("/dev/{app_name}/tests/rebuild")
+    async def rebuild_app_tests(
+        app_name: str, test_name: Optional[str] = None
+    ) -> dict[str, str]:
+      """Rebuilds tests for the app."""
+      agent_dir = os.path.join(self.agents_dir, app_name)
+
+      if test_name:
+        if not test_name.endswith(".json"):
+          test_name += ".json"
+        path = os.path.join(agent_dir, "tests", test_name)
+      else:
+        path = agent_dir
+
+      from .agent_test_runner import rebuild_tests
+
+      await asyncio.to_thread(rebuild_tests, path)
+      return {"status": "success"}
+
+    @app.post("/dev/{app_name}/tests/run")
+    async def run_app_tests(
+        app_name: str, test_name: Optional[str] = None
+    ) -> StreamingResponse:
+      """Runs tests and streams pytest output."""
+      agent_dir = os.path.join(self.agents_dir, app_name)
+
+      import subprocess
+      import sys
+
+      cmd = [
+          sys.executable,
+          "-m",
+          "pytest",
+          os.path.join(os.path.dirname(__file__), "agent_test_runner.py"),
+          "-s",
+      ]
+      if test_name:
+        if test_name.endswith(".json"):
+          test_name = test_name[:-5]
+        cmd.extend(["-k", test_name])
+
+      env = os.environ.copy()
+      env["ADK_TEST_FOLDER"] = agent_dir
+
+      async def generate():
+        process = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            env=env,
+        )
+
+        while True:
+          line = await process.stdout.readline()
+          if not line:
+            break
+          yield line
+
+        await process.wait()
+
+      return StreamingResponse(generate(), media_type="text/plain")
+
+    @app.put("/dev/{app_name}/tests/{test_name}")
+    async def create_test(
+        app_name: str, test_name: str, req: CreateTestRequest
+    ) -> dict[str, str]:
+      """Creates or updates a test file from session data."""
+      # Sanitize test_name to prevent directory traversal
+      test_name = os.path.basename(test_name)
+      agent_dir = os.path.join(self.agents_dir, app_name)
+      tests_dir = os.path.join(agent_dir, "tests")
+      os.makedirs(tests_dir, exist_ok=True)
+
+      if not test_name.endswith(".json"):
+        test_name += ".json"
+
+      test_file_path = os.path.join(tests_dir, test_name)
+
+      with open(test_file_path, "w") as f:
+        json.dump(req.session_data, f, indent=2)
+
+      from .agent_test_runner import rebuild_tests
+
+      await asyncio.to_thread(rebuild_tests, test_file_path)
+
+      return {"status": "success", "file": test_name}
+
+    @app.delete("/dev/{app_name}/tests/{test_name}")
+    async def delete_test(app_name: str, test_name: str) -> dict[str, str]:
+      """Deletes a specific test file."""
+      agent_dir = os.path.join(self.agents_dir, app_name)
+      tests_dir = os.path.join(agent_dir, "tests")
+
+      if not test_name.endswith(".json"):
+        test_name += ".json"
+
+      test_file_path = os.path.join(tests_dir, test_name)
+
+      if not os.path.exists(test_file_path):
+        raise HTTPException(status_code=404, detail="Test file not found")
+
+      os.remove(test_file_path)
+      return {"status": "success"}
+
+    @app.get("/dev/{app_name}/tests/{test_name}")
+    async def get_test_content(app_name: str, test_name: str) -> dict[str, Any]:
+      """Fetches the content of a specific test file."""
+      agent_dir = os.path.join(self.agents_dir, app_name)
+      tests_dir = os.path.join(agent_dir, "tests")
+
+      if not test_name.endswith(".json"):
+        test_name += ".json"
+
+      test_file_path = os.path.join(tests_dir, test_name)
+
+      if not os.path.exists(test_file_path):
+        raise HTTPException(status_code=404, detail="Test file not found")
+
+      with open(test_file_path, "r") as f:
+        return json.load(f)
 
     @app.get("/debug/trace/session/{session_id}", tags=[TAG_DEBUG])
     async def get_session_trace(session_id: str) -> Any:

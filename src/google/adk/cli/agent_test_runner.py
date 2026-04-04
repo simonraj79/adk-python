@@ -1,3 +1,4 @@
+  from pathlib import Path
 # Copyright 2026 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -512,7 +513,7 @@ def test_agent_replay(agent_dir, test_file, monkeypatch):
     sys.path = sys_path_saved
 
 
-def rebuild_tests(folder: str):
+def rebuild_tests(path: str):
   """Discovers test files and rebuilds them by running the agent live."""
   import json
   import sys
@@ -522,12 +523,22 @@ def rebuild_tests(folder: str):
   from google.adk.events.event import Event as AdkEvent
   from google.genai import types
 
+  path_obj = Path(path)
+  if path_obj.is_dir():
+    folder = path
+    expected_name = None
+  else:
+    folder = str(path_obj.parent.parent)
+    expected_name = path_obj.name
+
   test_files = list(get_test_files(folder))
   if not test_files:
     print(f"No test files found in {folder}")
     return
 
   for agent_dir, test_file in test_files:
+    if expected_name and test_file.name != expected_name:
+      continue
     print(f"Rebuilding {test_file}...")
 
     # Add agent_dir.parent to sys.path so relative imports work
