@@ -24,7 +24,7 @@ from google.adk.workflow.utils._agent_state_utils import reconstruct_state_from_
 from google.genai import types
 import pytest
 
-from .workflow_testing_utils import TestingNode
+from ..workflow_testing_utils import TestingNode
 
 
 def _make_graph(*node_names):

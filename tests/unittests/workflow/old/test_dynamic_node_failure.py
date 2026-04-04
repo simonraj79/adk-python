@@ -26,7 +26,7 @@ from google.adk.workflow._node import node
 from google.adk.workflow._node_status import NodeStatus
 import pytest
 
-from .workflow_testing_utils import create_parent_invocation_context
+from ..workflow_testing_utils import create_parent_invocation_context
 
 
 @node

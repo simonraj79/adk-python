@@ -24,8 +24,8 @@ from google.adk.workflow import Workflow
 from pydantic import BaseModel
 import pytest
 
-from . import testing_utils
-from . import workflow_testing_utils
+from .. import testing_utils
+from .. import workflow_testing_utils
 
 
 def _build_join_node_workflow(

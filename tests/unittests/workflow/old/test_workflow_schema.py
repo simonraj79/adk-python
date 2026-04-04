@@ -23,7 +23,7 @@ from google.adk.workflow import Workflow
 from pydantic import BaseModel
 import pytest
 
-from .workflow_testing_utils import create_parent_invocation_context
+from ..workflow_testing_utils import create_parent_invocation_context
 
 
 class _OutputModel(BaseModel):

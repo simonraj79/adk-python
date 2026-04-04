@@ -26,8 +26,8 @@ from pydantic import Field
 import pytest
 from typing_extensions import override
 
-from . import testing_utils
-from .workflow_testing_utils import create_parent_invocation_context
+from .. import testing_utils
+from ..workflow_testing_utils import create_parent_invocation_context
 
 
 class ConcurrencyWorkerNode(BaseNode):

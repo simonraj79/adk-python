@@ -21,7 +21,7 @@ from google.adk.workflow._workflow_graph import DEFAULT_ROUTE
 from google.adk.workflow._workflow_graph import WorkflowGraph
 import pytest
 
-from .workflow_testing_utils import TestingNode
+from ..workflow_testing_utils import TestingNode
 
 
 def test_valid_graph() -> None:

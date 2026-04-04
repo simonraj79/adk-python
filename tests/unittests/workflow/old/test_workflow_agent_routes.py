@@ -25,9 +25,9 @@ from google.adk.workflow._workflow_graph import DEFAULT_ROUTE
 from google.adk.workflow._workflow_graph import WorkflowGraph
 import pytest
 
-from .workflow_testing_utils import create_parent_invocation_context
-from .workflow_testing_utils import simplify_events_with_node
-from .workflow_testing_utils import TestingNode
+from ..workflow_testing_utils import create_parent_invocation_context
+from ..workflow_testing_utils import simplify_events_with_node
+from ..workflow_testing_utils import TestingNode
 
 
 @pytest.mark.asyncio

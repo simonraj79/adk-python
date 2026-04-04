@@ -33,7 +33,7 @@ from pydantic import ConfigDict
 import pytest
 from typing_extensions import override
 
-from . import testing_utils
+from .. import testing_utils
 
 
 def _make_app(name: str, agent: Workflow, resumable: bool) -> App:

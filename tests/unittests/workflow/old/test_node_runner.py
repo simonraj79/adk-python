@@ -41,7 +41,7 @@ import pytest
 import pytest_asyncio
 from typing_extensions import override
 
-from . import testing_utils
+from .. import testing_utils
 
 
 class SimpleNode(BaseNode):

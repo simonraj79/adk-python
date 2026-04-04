@@ -28,7 +28,7 @@ from google.adk.workflow._llm_agent_wrapper import _LlmAgentWrapper
 from google.adk.workflow._tool_node import _ToolNode
 import pytest
 
-from . import testing_utils
+from .. import testing_utils
 
 
 @pytest.fixture(autouse=True)
