@@ -19,12 +19,6 @@
       },
       "invocationId": "i-1",
       "author": "user",
-      "actions": {
-        "stateDelta": {},
-        "artifactDelta": {},
-        "requestedAuthConfigs": {},
-        "requestedToolConfirmations": {}
-      },
       "nodeInfo": {
         "path": "",
         "runId": ""
@@ -36,9 +30,9 @@
         "parts": [
           {
             "functionCall": {
-              "id": "wf_auth:auth_config@1/fetch_weather@1",
+              "id": "fc-1",
               "args": {
-                "functionCallId": "wf_auth:auth_config@1/fetch_weather@1",
+                "functionCallId": "fc-1",
                 "authConfig": {
                   "authScheme": {
                     "type": "apiKey",
@@ -60,19 +54,13 @@
       },
       "invocationId": "i-1",
       "author": "auth_config",
-      "actions": {
-        "stateDelta": {},
-        "artifactDelta": {},
-        "requestedAuthConfigs": {},
-        "requestedToolConfirmations": {}
-      },
       "nodeInfo": {
         "path": "auth_config@1/fetch_weather@1",
         "runId": "1",
         "parentRunId": "1"
       },
       "longRunningToolIds": [
-        "wf_auth:auth_config@1/fetch_weather@1"
+        "fc-1"
       ],
       "id": "e-3"
     },
@@ -81,7 +69,7 @@
         "parts": [
           {
             "functionResponse": {
-              "id": "wf_auth:auth_config@1/fetch_weather@1",
+              "id": "fc-1",
               "name": "adk_request_credential",
               "response": {
                 "result": "12345678"
@@ -93,12 +81,6 @@
       },
       "invocationId": "i-1",
       "author": "user",
-      "actions": {
-        "stateDelta": {},
-        "artifactDelta": {},
-        "requestedAuthConfigs": {},
-        "requestedToolConfirmations": {}
-      },
       "nodeInfo": {
         "path": "",
         "runId": ""
@@ -108,12 +90,6 @@
     {
       "invocationId": "i-1",
       "author": "auth_config",
-      "actions": {
-        "stateDelta": {},
-        "artifactDelta": {},
-        "requestedAuthConfigs": {},
-        "requestedToolConfirmations": {}
-      },
       "output": {
         "city": "San Francisco",
         "temperature": "18C",
@@ -141,12 +117,6 @@
       },
       "invocationId": "i-1",
       "author": "auth_config",
-      "actions": {
-        "stateDelta": {},
-        "artifactDelta": {},
-        "requestedAuthConfigs": {},
-        "requestedToolConfirmations": {}
-      },
       "nodeInfo": {
         "path": "auth_config@1/summarize@1",
         "runId": "1",

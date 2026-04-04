@@ -405,24 +405,31 @@ def test_agent_replay(agent_dir, test_file, monkeypatch):
         else InMemoryRunner(root_agent=agent_or_app)
     )
 
+    # Extract all function call IDs from old events
+    old_fc_ids = []
+    for ev in events_data:
+      try:
+        e_obj = AdkEvent.model_validate(ev)
+        for fc in e_obj.get_function_calls():
+          old_fc_ids.append(fc.id)
+      except Exception:
+        pass
+
+    orig_to_new_id = {}
+    fc_counter = 0
+    mapping_counter = 0
+
     actual_events = []
     first_run_events = runner.run(user_message)
 
     # Post-process events to inject deterministic function IDs
     for e in first_run_events:
       for fc in e.get_function_calls():
-        orig_id = fc.id
-        new_id = get_next_fc_id()
-        fc.id = new_id
-        if e.long_running_tool_ids:
-          e.long_running_tool_ids = {
-              new_id if tid == orig_id else tid
-              for tid in e.long_running_tool_ids
-          }
-        if fc.args:
-          for k, v in fc.args.items():
-            if v == orig_id:
-              fc.args[k] = new_id
+        # Build mapping from old IDs to new agent IDs
+        if mapping_counter < len(old_fc_ids):
+          old_id = old_fc_ids[mapping_counter]
+          orig_to_new_id[old_id] = fc.id
+          mapping_counter += 1
 
     actual_events.extend(first_run_events)
 
@@ -430,6 +437,17 @@ def test_agent_replay(agent_dir, test_file, monkeypatch):
       if event.get("author") == "user":
         content = _extract_user_content(event)
         if content:
+          # Update function response IDs if mapped
+          if content.parts:
+            for part in content.parts:
+              if (
+                  part.function_response
+                  and part.function_response.id in orig_to_new_id
+              ):
+                part.function_response.id = orig_to_new_id[
+                    part.function_response.id
+                ]
+
           actual_events.append(
               AdkEvent(
                   author="user",
@@ -441,24 +459,47 @@ def test_agent_replay(agent_dir, test_file, monkeypatch):
           # Post-process events to inject deterministic function IDs
           for e in next_run_events:
             for fc in e.get_function_calls():
-              orig_id = fc.id
-              new_id = get_next_fc_id()
-              fc.id = new_id
-              if e.long_running_tool_ids:
-                e.long_running_tool_ids = {
-                    new_id if tid == orig_id else tid
-                    for tid in e.long_running_tool_ids
-                }
-              if fc.args:
-                for k, v in fc.args.items():
-                  if v == orig_id:
-                    fc.args[k] = new_id
+              # Build mapping from old IDs to new agent IDs
+              if mapping_counter < len(old_fc_ids):
+                old_id = old_fc_ids[mapping_counter]
+                orig_to_new_id[old_id] = fc.id
+                mapping_counter += 1
 
           actual_events.extend(next_run_events)
 
     actual_events = [
         e for e in actual_events if not getattr(e, "partial", False)
     ]
+
+    # Post-process all events to inject deterministic function IDs
+    final_fc_counter = 0
+    final_orig_to_new_id = {}
+    for e in actual_events:
+      for fc in e.get_function_calls():
+        orig_id = fc.id
+        final_fc_counter += 1
+        new_id = f"fc-{final_fc_counter}"
+        final_orig_to_new_id[orig_id] = new_id
+        fc.id = new_id
+        if e.long_running_tool_ids:
+          e.long_running_tool_ids = {
+              new_id if tid == orig_id else tid
+              for tid in e.long_running_tool_ids
+          }
+        if fc.args:
+          for k, v in fc.args.items():
+            if v == orig_id:
+              fc.args[k] = new_id
+
+      if e.author == "user" and e.content and e.content.parts:
+        for part in e.content.parts:
+          if (
+              part.function_response
+              and part.function_response.id in final_orig_to_new_id
+          ):
+            part.function_response.id = final_orig_to_new_id[
+                part.function_response.id
+            ]
 
     actual_dicts = normalize_events(actual_events, is_json=False)
     expected_dicts = normalize_events(expected_events, is_json=True)
@@ -593,6 +634,7 @@ def rebuild_tests(folder: str):
           ),
       ):
         for msg in user_messages:
+
           # Update function response IDs if mapped
           if msg.parts:
             for part in msg.parts:
@@ -612,29 +654,13 @@ def rebuild_tests(folder: str):
 
           run_events = runner.run(msg)
 
-          # Post-process events to inject deterministic function IDs
+          # Build mapping from old IDs to new agent IDs
           for e in run_events:
             for fc in e.get_function_calls():
-              orig_id = fc.id
-              new_id = get_next_fc_id()
-              fc.id = new_id
-              if e.long_running_tool_ids:
-                e.long_running_tool_ids = {
-                    new_id if tid == orig_id else tid
-                    for tid in e.long_running_tool_ids
-                }
-              if fc.args:
-                for k, v in fc.args.items():
-                  if v == orig_id:
-                    fc.args[k] = new_id
-
-          # Manually persist events to session service to ensure history is available in next turn
-          import asyncio
-
-          for e in run_events:
-            asyncio.run(
-                runner.runner.session_service.append_event(runner.session, e)
-            )
+              if fc_counter < len(old_fc_ids):
+                old_id = old_fc_ids[fc_counter]
+                orig_to_new_id[old_id] = fc.id
+                fc_counter += 1
 
           # Set invocation_id from runner's output if available
           if run_events:
@@ -645,6 +671,36 @@ def rebuild_tests(folder: str):
 
       # Filter out partial events if any
       new_events = [e for e in new_events if not getattr(e, "partial", False)]
+
+      # Post-process all events to inject deterministic function IDs
+      orig_to_new_id = {}
+      final_fc_counter = 0
+      for e in new_events:
+        for fc in e.get_function_calls():
+          orig_id = fc.id
+          final_fc_counter += 1
+          new_id = f"fc-{final_fc_counter}"
+          orig_to_new_id[orig_id] = new_id
+          fc.id = new_id
+          if e.long_running_tool_ids:
+            e.long_running_tool_ids = {
+                new_id if tid == orig_id else tid
+                for tid in e.long_running_tool_ids
+            }
+          if fc.args:
+            for k, v in fc.args.items():
+              if v == orig_id:
+                fc.args[k] = new_id
+
+        if e.author == "user" and e.content and e.content.parts:
+          for part in e.content.parts:
+            if (
+                part.function_response
+                and part.function_response.id in orig_to_new_id
+            ):
+              part.function_response.id = orig_to_new_id[
+                  part.function_response.id
+              ]
 
       # Convert to dicts, forcing validation to derive run_id and parent_run_id
       # Also exclude timestamp to make it deterministic

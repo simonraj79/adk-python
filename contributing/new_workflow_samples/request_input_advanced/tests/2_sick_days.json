@@ -1,0 +1,180 @@
+{
+  "id": "131bfe8b-de90-47bd-b442-957f27dc58a6",
+  "appName": "request_input_advanced",
+  "userId": "user",
+  "state": {
+    "__session_metadata__": {
+      "displayName": "2 sick days"
+    },
+    "request": {
+      "days": 2,
+      "reason": "sick days"
+    }
+  },
+  "events": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "2 sick days"
+          }
+        ],
+        "role": "user"
+      },
+      "invocationId": "i-1",
+      "author": "user",
+      "nodeInfo": {
+        "path": "",
+        "runId": ""
+      },
+      "id": "e-1"
+    },
+    {
+      "modelVersion": "gemini-2.5-flash",
+      "content": {
+        "parts": [
+          {
+            "text": "{\"days\": 2, \"reason\": \"sick leave\"}"
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "invocationId": "i-1",
+      "author": "process_request",
+      "nodeInfo": {
+        "path": "request_input_advanced@1/process_request@1/call_llm@1",
+        "runId": "1",
+        "parentRunId": "1",
+        "messageAsOutput": true
+      },
+      "branch": "node:request_input_advanced@1/process_request@1.process_request",
+      "id": "e-5"
+    },
+    {
+      "invocationId": "i-1",
+      "author": "request_input_advanced",
+      "actions": {
+        "stateDelta": {
+          "request": {
+            "days": 2,
+            "reason": "sick leave"
+          }
+        }
+      },
+      "output": {
+        "days": 2,
+        "reason": "sick leave"
+      },
+      "nodeInfo": {
+        "path": "request_input_advanced@1/process_request@1",
+        "runId": "1",
+        "parentRunId": "1",
+        "outputFor": [
+          "request_input_advanced@1/process_request@1"
+        ]
+      },
+      "id": "e-6"
+    },
+    {
+      "content": {
+        "parts": [
+          {
+            "functionCall": {
+              "id": "fc-1",
+              "args": {
+                "interrupt_id": "fc-1",
+                "payload": {
+                  "days": 2,
+                  "reason": "sick leave"
+                },
+                "message": "Please review this time off request.",
+                "response_schema": {
+                  "description": "The structured response we expect back from the human manager.",
+                  "properties": {
+                    "approved": {
+                      "description": "Whether the time off is approved.",
+                      "title": "Approved",
+                      "type": "boolean"
+                    },
+                    "approved_days": {
+                      "anyOf": [
+                        {
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null,
+                      "description": "Number of days approved.",
+                      "title": "Approved Days"
+                    }
+                  },
+                  "required": [
+                    "approved"
+                  ],
+                  "title": "TimeOffDecision",
+                  "type": "object"
+                }
+              },
+              "name": "adk_request_input"
+            }
+          }
+        ]
+      },
+      "invocationId": "i-1",
+      "author": "request_input_advanced",
+      "nodeInfo": {
+        "path": "request_input_advanced@1/evaluate_request@1",
+        "runId": "1",
+        "parentRunId": "1"
+      },
+      "longRunningToolIds": [
+        "fc-1"
+      ],
+      "id": "e-7"
+    },
+    {
+      "content": {
+        "parts": [
+          {
+            "functionResponse": {
+              "id": "fc-1",
+              "name": "adk_request_input",
+              "response": {
+                "result": "{\"approved\": true}"
+              }
+            }
+          }
+        ],
+        "role": "user"
+      },
+      "invocationId": "i-1",
+      "author": "user",
+      "nodeInfo": {
+        "path": "",
+        "runId": ""
+      },
+      "id": "e-8"
+    },
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "Time Off Approved! 2 out of 2 days granted."
+          }
+        ],
+        "role": "user"
+      },
+      "invocationId": "i-1",
+      "author": "request_input_advanced",
+      "nodeInfo": {
+        "path": "request_input_advanced@1/process_decision@1",
+        "runId": "1",
+        "parentRunId": "1"
+      },
+      "id": "e-10"
+    }
+  ]
+}
