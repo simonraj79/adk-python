@@ -109,6 +109,8 @@ def direct_child_name(parent_path: str, descendant_path: str) -> str:
 
   Example: direct_child_name('wf@1', 'wf@1/inner@1/nodeA@1') → 'inner@1'
   """
+  if not parent_path:
+    return descendant_path.split('/')[0]
   return descendant_path[len(parent_path) + 1 :].split('/')[0]
 
 
@@ -124,4 +126,6 @@ def is_descendant(ancestor_path: str, descendant_path: str | None) -> bool:
   """
   if not descendant_path:
     return False
+  if not ancestor_path:
+    return True
   return descendant_path.startswith(f'{ancestor_path}/')
