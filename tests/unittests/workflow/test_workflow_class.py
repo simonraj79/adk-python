@@ -878,8 +878,11 @@ async def test_fan_out():
       ],
   )
 
-  with pytest.raises(ValueError, match='multiple terminal nodes'):
-    await _run_workflow(wf)
+  events, _, _ = await _run_workflow(wf)
+  error_events = [e for e in events if e.error_code]
+  assert len(error_events) == 1
+  assert error_events[0].error_code == 'ValueError'
+  assert 'multiple terminal nodes' in error_events[0].error_message
 
 
 # 27. test_run_async_with_implicit_graph_fan_in
@@ -950,8 +953,11 @@ async def test_parallel_events_interleaved():
       ],
   )
 
-  with pytest.raises(ValueError, match='multiple terminal nodes'):
-    await _run_workflow(wf)
+  events, _, _ = await _run_workflow(wf)
+  error_events = [e for e in events if e.error_code]
+  assert len(error_events) == 1
+  assert error_events[0].error_code == 'ValueError'
+  assert 'multiple terminal nodes' in error_events[0].error_message
 
 
 # 30. test_buffers_events_from_parallel_nodes
@@ -1163,8 +1169,11 @@ async def test_multiple_outputs_rejected():
 
   wf = Workflow(name='wf', edges=[(START, _Node(name='a'))])
 
-  with pytest.raises(ValueError, match='at most one output'):
-    await _run_workflow(wf)
+  events, _, _ = await _run_workflow(wf)
+  error_events = [e for e in events if e.error_code]
+  assert len(error_events) == 1
+  assert error_events[0].error_code == 'ValueError'
+  assert 'at most one output' in error_events[0].error_message
 
 
 # 35. test_run_async_with_implicit_graph_fan_in_with_route
@@ -1211,8 +1220,11 @@ async def test_fan_out_with_route():
       ],
   )
 
-  with pytest.raises(ValueError, match='multiple terminal nodes'):
-    await _run_workflow(wf)
+  events, _, _ = await _run_workflow(wf)
+  error_events = [e for e in events if e.error_code]
+  assert len(error_events) == 1
+  assert error_events[0].error_code == 'ValueError'
+  assert 'multiple terminal nodes' in error_events[0].error_message
 
 
 # 37. test_run_async_with_implicit_graph_fan_in_out_with_route
@@ -1236,8 +1248,11 @@ async def test_fan_in_out_with_route():
       ],
   )
 
-  with pytest.raises(ValueError, match='multiple terminal nodes'):
-    await _run_workflow(wf)
+  events, _, _ = await _run_workflow(wf)
+  error_events = [e for e in events if e.error_code]
+  assert len(error_events) == 1
+  assert error_events[0].error_code == 'ValueError'
+  assert 'multiple terminal nodes' in error_events[0].error_message
 
 
 # 38. test_run_async_streaming_behavior
@@ -1592,8 +1607,11 @@ async def test_use_as_output_duplicate_raises():
 
   wf = Workflow(name='wf', edges=[(START, node_a)])
 
-  with pytest.raises(ValueError, match='use_as_output'):
-    await _run_workflow(wf)
+  events, _, _ = await _run_workflow(wf)
+  error_events = [e for e in events if e.error_code]
+  assert len(error_events) == 1
+  assert error_events[0].error_code == 'ValueError'
+  assert 'use_as_output' in error_events[0].error_message
 
 
 @pytest.mark.asyncio
