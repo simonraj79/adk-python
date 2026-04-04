@@ -16,14 +16,14 @@ from typing import Any
 from typing import Optional
 
 from google.adk.agents.callback_context import CallbackContext
-from google.adk.agents.llm_agent_workflow.llm_agent import Agent
+from google.adk.agents.llm_agent_1x import Agent
 from google.adk.models.llm_request import LlmRequest
 from google.adk.models.llm_response import LlmResponse
 from google.genai import types
 from pydantic import BaseModel
 import pytest
 
-from ... import testing_utils
+from .. import testing_utils
 
 
 class MockBeforeModelCallback(BaseModel):

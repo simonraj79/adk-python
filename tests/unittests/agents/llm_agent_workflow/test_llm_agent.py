@@ -24,8 +24,8 @@ from google.adk.agents.context import Context
 from google.adk.agents.invocation_context import InvocationContext
 from google.adk.agents.llm._base_llm_agent import BaseLlmAgent
 from google.adk.agents.llm._single_llm_agent import _SingleLlmAgent
-from google.adk.agents.llm_agent import Agent
-from google.adk.agents.llm_agent import LlmAgent
+from google.adk.agents.llm_agent_workflow.llm_agent import Agent
+from google.adk.agents.llm_agent_workflow.llm_agent import LlmAgent
 from google.adk.agents.readonly_context import ReadonlyContext
 from google.adk.events.event import Event
 from google.adk.models.registry import LLMRegistry
@@ -803,14 +803,14 @@ class TestAliasAndReExports:
     assert Agent is LlmAgent
 
   def test_callback_type_re_exports(self):
-    from google.adk.agents.llm_agent import AfterModelCallback
-    from google.adk.agents.llm_agent import AfterToolCallback
-    from google.adk.agents.llm_agent import BeforeModelCallback
-    from google.adk.agents.llm_agent import BeforeToolCallback
-    from google.adk.agents.llm_agent import InstructionProvider
-    from google.adk.agents.llm_agent import OnModelErrorCallback
-    from google.adk.agents.llm_agent import OnToolErrorCallback
-    from google.adk.agents.llm_agent import ToolUnion
+    from google.adk.agents.llm_agent_workflow.llm_agent import AfterModelCallback
+    from google.adk.agents.llm_agent_workflow.llm_agent import AfterToolCallback
+    from google.adk.agents.llm_agent_workflow.llm_agent import BeforeModelCallback
+    from google.adk.agents.llm_agent_workflow.llm_agent import BeforeToolCallback
+    from google.adk.agents.llm_agent_workflow.llm_agent import InstructionProvider
+    from google.adk.agents.llm_agent_workflow.llm_agent import OnModelErrorCallback
+    from google.adk.agents.llm_agent_workflow.llm_agent import OnToolErrorCallback
+    from google.adk.agents.llm_agent_workflow.llm_agent import ToolUnion
 
     # Just verify they are importable and not None.
     assert BeforeModelCallback is not None
@@ -823,7 +823,7 @@ class TestAliasAndReExports:
     assert ToolUnion is not None
 
   def test_convert_tool_union_re_export(self):
-    from google.adk.agents.llm_agent import _convert_tool_union_to_tools
+    from google.adk.agents.llm_agent_workflow.llm_agent import _convert_tool_union_to_tools
 
     assert callable(_convert_tool_union_to_tools)
 

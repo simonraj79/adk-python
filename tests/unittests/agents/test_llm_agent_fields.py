@@ -21,9 +21,8 @@ from unittest import mock
 
 from google.adk.agents.callback_context import CallbackContext
 from google.adk.agents.invocation_context import InvocationContext
-from google.adk.agents.llm_agent_workflow.llm_agent import LlmAgent
+from google.adk.agents.llm_agent_1x import LlmAgent
 from google.adk.agents.readonly_context import ReadonlyContext
-from google.adk.apps.app import App
 from google.adk.models.anthropic_llm import Claude
 from google.adk.models.google_llm import Gemini
 from google.adk.models.lite_llm import LiteLlm
@@ -34,21 +33,9 @@ from google.adk.sessions.in_memory_session_service import InMemorySessionService
 from google.adk.tools.google_search_tool import google_search
 from google.adk.tools.google_search_tool import GoogleSearchTool
 from google.adk.tools.vertex_ai_search_tool import VertexAiSearchTool
-from google.adk.workflow import Workflow
-from google.adk.workflow._workflow_class import Workflow as WorkflowV2
-from google.adk.workflow._dynamic_node_registry import dynamic_node_registry
-from google.adk.workflow._node import node
 from google.genai import types
 from pydantic import BaseModel
 import pytest
-
-from ... import testing_utils
-from ...workflow import workflow_testing_utils
-
-
-def _make_mock_model(responses: list[str]) -> testing_utils.MockModel:
-  """Create a MockModel with text responses."""
-  return testing_utils.MockModel.create(responses)
 
 
 async def _create_readonly_context(
@@ -485,6 +472,40 @@ class TestCanonicalTools:
     assert tools[0].name == '_tool_1'
     assert tools[1].name == '_tool_2'
 
+  async def test_canonical_tools_graceful_degradation_on_toolset_error(self):
+    """Test that canonical_tools returns tools from working toolsets when one fails."""
+    from google.adk.tools.base_tool import BaseTool
+    from google.adk.tools.base_toolset import BaseToolset
+
+    class FailingToolset(BaseToolset):
+
+      async def get_tools(self, readonly_context=None):
+        raise ConnectionError('MCP server unavailable')
+
+    class WorkingToolset(BaseToolset):
+
+      async def get_tools(self, readonly_context=None):
+        tool = mock.MagicMock(spec=BaseTool)
+        tool.name = 'working_tool'
+        tool._get_declaration = mock.MagicMock(return_value=None)
+        return [tool]
+
+    def _regular_tool():
+      pass
+
+    agent = LlmAgent(
+        name='test_agent',
+        model='gemini-pro',
+        tools=[_regular_tool, FailingToolset(), WorkingToolset()],
+    )
+    ctx = await _create_readonly_context(agent)
+    tools = await agent.canonical_tools(ctx)
+
+    # Should have the regular tool + working toolset tool, but not crash
+    assert len(tools) == 2
+    assert tools[0].name == '_regular_tool'
+    assert tools[1].name == 'working_tool'
+
 
 # Tests for multi-provider model support via string model names
 @pytest.mark.parametrize(
@@ -553,180 +574,3 @@ def test_builtin_planner_overwrite_logging(caplog):
       'Overwriting `thinking_config` from `generate_content_config`'
       in caplog.text
   )
-
-
-class TestParallelWorker:
-
-  @pytest.mark.asyncio
-  async def test_llm_agent_with_parallel_worker(
-      self,
-      request: pytest.FixtureRequest,
-  ):
-    """Tests that a LlmAgent can be configured with parallel_worker=True."""
-
-    dynamic_node_registry.clear()
-
-    async def producer_func():
-      # Produces a list of items to be processed in parallel
-      return ['item1', 'item2']
-
-    mock_model = _make_mock_model([
-        'processed',
-        'processed',
-    ])
-
-    llm_agent = node(
-        LlmAgent(
-            name='llm_agent',
-            model=mock_model,
-        ),
-        parallel_worker=True,
-    )
-
-    outer_agent = WorkflowV2(
-        name='outer_agent',
-        edges=[
-            ('START', producer_func),
-            (producer_func, llm_agent),
-        ],
-    )
-
-    app = App(
-        name=request.function.__name__,
-        root_agent=outer_agent,
-    )
-    runner = testing_utils.InMemoryRunner(app=app)
-    events = await runner.run_async(testing_utils.get_user_content('start'))
-
-    simplified_events = workflow_testing_utils.simplify_events_with_node(
-        events, use_node_path=True, include_run_id=True
-    )
-
-    assert simplified_events == [
-        (
-            'outer_agent@1/producer_func@1',
-            {
-                'node_name': 'producer_func',
-                'output': ['item1', 'item2'],
-                'run_id': None,
-            },
-        ),
-        (
-            'outer_agent@1/llm_agent@1/llm_agent@1/call_llm@1',
-            'processed',
-        ),
-        (
-            'outer_agent@1/llm_agent@1/llm_agent@2/call_llm@1',
-            'processed',
-        ),
-        (
-            'outer_agent@1/llm_agent@1/llm_agent@1',
-            {
-                'node_name': 'llm_agent',
-                'output': 'processed',
-                'run_id': None,
-            },
-        ),
-        (
-            'outer_agent@1/llm_agent@1/llm_agent@2',
-            {
-                'node_name': 'llm_agent',
-                'output': 'processed',
-                'run_id': None,
-            },
-        ),
-        (
-            'outer_agent@1/llm_agent@1',
-            {
-                'node_name': 'llm_agent',
-                'output': ['processed', 'processed'],
-                'run_id': None,
-            },
-        ),
-    ]
-
-  @pytest.mark.asyncio
-  async def test_llm_agent_with_parallel_worker_with_flag(
-      self,
-      request: pytest.FixtureRequest,
-  ):
-    """Tests that a LlmAgent can be configured with flag parallel_worker=True."""
-
-    dynamic_node_registry.clear()
-
-    async def producer_func():
-      # Produces a list of items to be processed in parallel
-      return ['item1', 'item2']
-
-    mock_model = _make_mock_model([
-        'processed',
-        'processed',
-    ])
-
-    llm_agent = LlmAgent(
-        name='llm_agent',
-        model=mock_model,
-        parallel_worker=True,
-    )
-
-    outer_agent = WorkflowV2(
-        name='outer_agent',
-        edges=[
-            ('START', producer_func),
-            (producer_func, llm_agent),
-        ],
-    )
-
-    app = App(
-        name=request.function.__name__,
-        root_agent=outer_agent,
-    )
-    runner = testing_utils.InMemoryRunner(app=app)
-    events = await runner.run_async(testing_utils.get_user_content('start'))
-
-    simplified_events = workflow_testing_utils.simplify_events_with_node(
-        events, use_node_path=True, include_run_id=True
-    )
-
-    assert simplified_events == [
-        (
-            'outer_agent@1/producer_func@1',
-            {
-                'node_name': 'producer_func',
-                'output': ['item1', 'item2'],
-                'run_id': None,
-            },
-        ),
-        (
-            'outer_agent@1/llm_agent@1/llm_agent@1/call_llm@1',
-            'processed',
-        ),
-        (
-            'outer_agent@1/llm_agent@1/llm_agent@2/call_llm@1',
-            'processed',
-        ),
-        (
-            'outer_agent@1/llm_agent@1/llm_agent@1',
-            {
-                'node_name': 'llm_agent',
-                'output': 'processed',
-                'run_id': None,
-            },
-        ),
-        (
-            'outer_agent@1/llm_agent@1/llm_agent@2',
-            {
-                'node_name': 'llm_agent',
-                'output': 'processed',
-                'run_id': None,
-            },
-        ),
-        (
-            'outer_agent@1/llm_agent@1',
-            {
-                'node_name': 'llm_agent',
-                'output': ['processed', 'processed'],
-                'run_id': None,
-            },
-        ),
-    ]

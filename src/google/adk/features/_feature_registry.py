@@ -49,6 +49,7 @@ class FeatureName(str, Enum):
   SPANNER_VECTOR_STORE = "SPANNER_VECTOR_STORE"
   TOOL_CONFIG = "TOOL_CONFIG"
   TOOL_CONFIRMATION = "TOOL_CONFIRMATION"
+  V1_LLM_AGENT = "V1_LLM_AGENT"
 
 
 class FeatureStage(Enum):
@@ -81,6 +82,9 @@ class FeatureConfig:
 
 # Central registry: FeatureName -> FeatureConfig
 _FEATURE_REGISTRY: dict[FeatureName, FeatureConfig] = {
+    FeatureName.V1_LLM_AGENT: FeatureConfig(
+        FeatureStage.EXPERIMENTAL, default_on=False
+    ),
     FeatureName.AGENT_CONFIG: FeatureConfig(
         FeatureStage.EXPERIMENTAL, default_on=True
     ),

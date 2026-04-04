@@ -14,12 +14,12 @@
 
 """Unit tests for LlmAgent include_contents field behavior."""
 
-from google.adk.agents.llm_agent_workflow.llm_agent import LlmAgent
+from google.adk.agents.llm_agent_1x import LlmAgent
 from google.adk.agents.sequential_agent import SequentialAgent
 from google.genai import types
 import pytest
 
-from ... import testing_utils
+from .. import testing_utils
 
 
 @pytest.mark.asyncio
@@ -189,7 +189,6 @@ async def test_include_contents_none_behavior():
   assert len(mock_model.requests[0].config.tools) > 0
 
 
-@pytest.mark.skip(reason="Workflow agents cannot be sub-agents of LlmAgent")
 @pytest.mark.asyncio
 async def test_include_contents_none_sequential_agents():
   """Test include_contents='none' with sequential agents."""
@@ -222,8 +221,8 @@ async def test_include_contents_none_sequential_agents():
 
   simplified_events = [event for event in events if event.content]
   assert len(simplified_events) == 2
-  assert simplified_events[0].author == "agent1"
-  assert simplified_events[1].author == "agent2"
+  assert "Agent1 response" in str(simplified_events[0].content)
+  assert "Agent2 final response" in str(simplified_events[1].content)
 
   # Agent1 sees original user request
   agent1_contents = testing_utils.simplify_contents(
