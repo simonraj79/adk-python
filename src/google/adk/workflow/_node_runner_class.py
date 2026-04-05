@@ -232,12 +232,20 @@ class NodeRunner:
       node_input: Any,
   ) -> None:
     """Iterate node.run(), enqueue events, write results to ctx."""
+    import asyncio
+
     from ._errors import NodeInterruptedError
+    from ._errors import NodeTimeoutError
+
+    timeout = getattr(self._node, 'timeout', None)
 
     try:
-      async for event in self._node.run(ctx=ctx, node_input=node_input):
-        self._track_event_in_context(event, ctx)
-        await self._enqueue_event(event, ctx)
+      async with asyncio.timeout(timeout):
+        async for event in self._node.run(ctx=ctx, node_input=node_input):
+          self._track_event_in_context(event, ctx)
+          await self._enqueue_event(event, ctx)
+    except TimeoutError as e:
+      raise NodeTimeoutError(self._node.name, timeout) from e
     except NodeInterruptedError:
       # A dynamic child interrupted via ctx.run_node().
       # The child's interrupt_ids are already on ctx
