@@ -137,12 +137,15 @@ class DynamicNodeScheduler:
     name = node_name or node.name
     node_path = join_paths(ctx.node_path, f'{name}@{run_id}')
 
+    logger.info('node %s schedule start.', node_path)
+
     # Phase 1: Lazy rehydration from session events.
     if node_path not in self._state.runs:
       self._rehydrate_from_events(ctx, node_path)
 
     if node_path not in self._state.runs:
       # Phase 3: Fresh execution.
+      logger.info('node %s schedule end: Fresh execution.', node_path)
       return await self._run_node_internal(
           ctx,
           node,
@@ -159,12 +162,14 @@ class DynamicNodeScheduler:
     state = run.state
     if state.status == NodeStatus.COMPLETED:
       # Already completed → return cached output.
+      logger.info('node %s schedule end: Already completed.', node_path)
       return self._make_cached_ctx(ctx, node_path, run_id)
 
     if state.status == NodeStatus.WAITING:
       # Unresolved interrupts remain → propagate to parent.
       if state.interrupts:
         self._state.interrupt_ids.update(state.interrupts)
+        logger.info('node %s schedule end: Unresolved interrupts remain.', node_path)
         return self._make_cached_ctx(
             ctx,
             node_path,
@@ -178,9 +183,11 @@ class DynamicNodeScheduler:
         output = dict(state.resume_inputs)
         state.status = NodeStatus.COMPLETED
         run.output = output
+        logger.info('node %s schedule end: Auto-complete with resume_inputs.', node_path)
         return self._make_cached_ctx(ctx, node_path, run_id)
 
       # All resolved, rerun → re-execute with resume_inputs.
+      logger.info('node %s schedule end: Re-execute with resume_inputs.', node_path)
       return await self._run_node_internal(
           ctx,
           node,
@@ -194,12 +201,14 @@ class DynamicNodeScheduler:
 
     # Running in this invocation — await existing task.
     if run.task:
+      logger.info('node %s schedule end: Awaiting existing task.', node_path)
       return await run.task
 
   # --- Lazy scan ---
 
   def _rehydrate_from_events(self, ctx: Context, node_path: str) -> None:
     """Scan session events for a dynamic node's prior state."""
+    logger.info('node %s rehydrate start.', node_path)
     from ._workflow_class import _ChildScanState
 
     ic = ctx._invocation_context
@@ -287,6 +296,7 @@ class DynamicNodeScheduler:
 
     if state:
       self._state.runs[node_path] = DynamicNodeRun(state=state, output=output)
+    logger.info('node %s rehydrate end.', node_path)
 
   # --- Context construction ---
 

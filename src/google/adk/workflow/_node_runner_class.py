@@ -115,9 +115,11 @@ class NodeRunner:
     retry_count = 0
     while True:
       ctx = self._create_child_context(resume_inputs, retry_count=retry_count)
+      logger.info('node %s started.', ctx.node_path)
       try:
         await self._execute_node(ctx, node_input)
         await self._flush_output_and_deltas(ctx)
+        logger.info('node %s end.', ctx.node_path)
         return ctx
       except Exception as e:
         from ._errors import DynamicNodeFailError
@@ -128,6 +130,7 @@ class NodeRunner:
           # normal node.
           ctx.error = e.error
           ctx.error_node_path = e.error_node_path
+          logger.info('node %s end.', ctx.node_path)
           return ctx
 
         from ..events.event import Event
@@ -141,6 +144,7 @@ class NodeRunner:
         if not await self._attempt_retry(e, ctx, retry_count):
           ctx.error = e
           ctx.error_node_path = ctx.node_path
+          logger.info('node %s end.', ctx.node_path)
           return ctx
         logger.warning(
             "Node %s failed and is being retried locally. Note: retry count is"
@@ -252,9 +256,11 @@ class NodeRunner:
 
   async def _run_node_loop(self, ctx: Context, node_input: Any) -> None:
     """Iterate node.run(), track events in context, and enqueue them."""
+    logger.info('node %s execute loop start.', ctx.node_path)
     async for event in self._node.run(ctx=ctx, node_input=node_input):
       self._track_event_in_context(event, ctx)
       await self._enqueue_event(event, ctx)
+    logger.info('node %s execute loop end.', ctx.node_path)
 
   async def _run_node_loop_with_timeout(
       self, ctx: Context, node_input: Any, timeout: float

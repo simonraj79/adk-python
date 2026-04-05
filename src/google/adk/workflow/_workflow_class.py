@@ -242,6 +242,7 @@ class Workflow(BaseNode):
 
   async def _run_loop(self, loop_state: _LoopState, ctx: Context) -> None:
     """Schedule and execute nodes until no more work."""
+    logger.info('node %s execute loop start.', ctx.node_path)
     while True:
       self._schedule_ready_nodes(loop_state, ctx)
 
@@ -265,6 +266,7 @@ class Workflow(BaseNode):
           ctx.error_node_path = child_ctx.error_node_path
 
           loop_state.error_shut_down = True
+          logger.info('node %s execute loop end.', ctx.node_path)
           return
 
         self._handle_completion(loop_state, name, node, child_ctx)
@@ -278,6 +280,7 @@ class Workflow(BaseNode):
     dynamic_tasks = loop_state.get_dynamic_tasks()
     if dynamic_tasks:
       await asyncio.wait(dynamic_tasks)
+    logger.info('node %s execute loop end.', ctx.node_path)
 
   # --- Scheduling ---
 
@@ -489,8 +492,10 @@ class Workflow(BaseNode):
 
     TODO (next CL): Restore node_input via edge walking.
     """
+    logger.info('node %s rehydrate start.', ctx.node_path)
     children = self._scan_child_events(ctx)
     if not children:
+      logger.info('node %s rehydrate end.', ctx.node_path)
       return
 
     nodes: dict[str, NodeState] = {}
@@ -570,6 +575,8 @@ class Workflow(BaseNode):
     for state in nodes.values():
       if state.run_id and state.run_id.isdigit():
         state.run_counter = int(state.run_id)
+
+    logger.info('node %s rehydrate end.', ctx.node_path)
 
   def _extract_resume_output(self, child: _ChildScanState, ctx: Context) -> Any:
     """Extracts output from resume_inputs for a node that is not re-run."""
