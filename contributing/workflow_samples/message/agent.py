@@ -14,11 +14,17 @@
 
 import asyncio
 import base64
+import os
 from typing import Any
 
 from google.adk import Event
 from google.adk import Workflow
 from google.genai import types
+
+
+async def sleep_if_not_pytest(seconds: float):
+  if "PYTEST_CURRENT_TEST" not in os.environ:
+    await asyncio.sleep(seconds)
 
 
 def send_string(node_input: Any = None):
@@ -48,13 +54,13 @@ def send_multimodal(node_input: Any = None):
 async def multiple_messages(node_input: Any = None):
   """Sends multiple complete messages from the same node with an interval."""
   yield Event(message="#3 Multiple messages")
-  await asyncio.sleep(1.0)
+  await sleep_if_not_pytest(1.0)
 
   yield Event(message="Processing step 1...")
-  await asyncio.sleep(1.0)
+  await sleep_if_not_pytest(1.0)
 
   yield Event(message="Processing step 2...")
-  await asyncio.sleep(1.0)
+  await sleep_if_not_pytest(1.0)
 
   yield Event(message="Done processing.")
 
@@ -79,7 +85,7 @@ You can stream in markdown as well. For example, the table below:
   for i in range(0, len(sentence), 5):
     chunk = sentence[i : i + 5]
     yield Event(message=chunk, partial=True)
-    await asyncio.sleep(0.2)
+    await sleep_if_not_pytest(0.2)
 
 
 root_agent = Workflow(
