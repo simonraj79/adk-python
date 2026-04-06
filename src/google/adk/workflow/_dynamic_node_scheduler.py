@@ -382,13 +382,14 @@ class DynamicNodeScheduler:
         runner.run(node_input=node_input, resume_inputs=resume_inputs)
     )
     child_ctx = await run.task
-    self._record_result(run, child_ctx)
+    self._record_result(run, child_ctx, node)
     return child_ctx
 
   def _record_result(
       self,
       run: DynamicNodeRun,
       child_ctx: Context,
+      node: BaseNode,
   ) -> None:
     """Update dynamic node state after execution."""
     state = run.state
@@ -398,6 +399,8 @@ class DynamicNodeScheduler:
       state.status = NodeStatus.WAITING
       state.interrupts = list(child_ctx.interrupt_ids)
       self._state.interrupt_ids.update(child_ctx.interrupt_ids)
+    elif node.wait_for_output and child_ctx.output is None:
+      state.status = NodeStatus.WAITING
     else:
       state.status = NodeStatus.COMPLETED
       run.output = child_ctx.output

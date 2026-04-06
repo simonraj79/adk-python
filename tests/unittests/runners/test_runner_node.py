@@ -557,6 +557,56 @@ async def test_run_node_use_as_output_attributes_child_output_to_parent():
       for p in child_output.node_info.output_for
   )
 
+@pytest.mark.asyncio
+async def test_run_node_wait_for_output():
+  """Dynamic node with wait_for_output=True re-runs on resume if no output.
+
+  Setup: ParentNode calls MockNode (wait_for_output=True).
+    MockNode yields no output on first call, output on second call.
+  Act:
+    - Turn 1: Run parent. Child yields no output and waits. Parent interrupts.
+    - Turn 2: Resume parent. Child runs again and produces output.
+  Assert:
+    - Parent receives child's output in Turn 2.
+  """
+
+  # Arrange
+  calls = [0]
+
+  class _MockNode(BaseNode):
+    wait_for_output: bool = True
+    rerun_on_resume: bool = True
+
+    async def _run_impl(
+        self, *, ctx: Context, node_input: Any
+    ) -> AsyncGenerator[Any, None]:
+      calls[0] += 1
+      if calls[0] == 2:
+        yield 'success'
+
+  class _ParentNode(BaseNode):
+    rerun_on_resume: bool = True
+
+    async def _run_impl(
+        self, *, ctx: Context, node_input: Any
+    ) -> AsyncGenerator[Any, None]:
+      res = await ctx.run_node(_MockNode(name='child'))
+      if res == 'success':
+        yield 'completed'
+        return
+      yield _make_interrupt_event(fc_name='ask', fc_id='fc-1')
+
+  # Act
+  events1, events2, _, _, _ = await _run_two_turns(
+      _ParentNode(name='parent'),
+      'go',
+      _make_resume_message(fc_name='ask', fc_id='fc-1', response={}),
+  )
+
+  # Assert
+  outputs = [e.output for e in events2 if e.output is not None]
+  assert 'completed' in outputs
+
 
 # ---------------------------------------------------------------------------
 # DefaultNodeScheduler — dynamic child resume via ctx.run_node()
