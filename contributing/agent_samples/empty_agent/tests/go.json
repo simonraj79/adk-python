@@ -21,7 +21,7 @@
       "content": {
         "parts": [
           {
-            "text": "Hello! I'm ready. How can I assist you today?"
+            "text": "Okay, I'm ready!\n\nWhat would you like to do or talk about? How can I help you today?"
           }
         ],
         "role": "model"
@@ -30,8 +30,8 @@
       "invocationId": "i-1",
       "author": "empty_agent",
       "nodeInfo": {
-        "path": "",
-        "runId": ""
+        "path": "empty_agent@1",
+        "runId": "1"
       },
       "id": "e-3"
     }

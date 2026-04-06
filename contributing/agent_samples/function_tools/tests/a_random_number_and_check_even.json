@@ -34,8 +34,8 @@
       "invocationId": "i-1",
       "author": "function_tools",
       "nodeInfo": {
-        "path": "",
-        "runId": ""
+        "path": "function_tools@1",
+        "runId": "1"
       },
       "longRunningToolIds": [],
       "id": "e-3"
@@ -58,8 +58,8 @@
       "invocationId": "i-1",
       "author": "function_tools",
       "nodeInfo": {
-        "path": "",
-        "runId": ""
+        "path": "function_tools@1",
+        "runId": "1"
       },
       "id": "e-5"
     },
@@ -82,8 +82,8 @@
       "invocationId": "i-1",
       "author": "function_tools",
       "nodeInfo": {
-        "path": "",
-        "runId": ""
+        "path": "function_tools@1",
+        "runId": "1"
       },
       "longRunningToolIds": [],
       "id": "e-7"
@@ -106,8 +106,8 @@
       "invocationId": "i-1",
       "author": "function_tools",
       "nodeInfo": {
-        "path": "",
-        "runId": ""
+        "path": "function_tools@1",
+        "runId": "1"
       },
       "id": "e-9"
     },
@@ -115,7 +115,7 @@
       "content": {
         "parts": [
           {
-            "text": "The random number is 1.\nIs it even? False."
+            "text": "The random number is 1. It is not an even number."
           }
         ],
         "role": "model"
@@ -124,8 +124,8 @@
       "invocationId": "i-1",
       "author": "function_tools",
       "nodeInfo": {
-        "path": "",
-        "runId": ""
+        "path": "function_tools@1",
+        "runId": "1"
       },
       "id": "e-11"
     }

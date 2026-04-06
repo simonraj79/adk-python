@@ -34,8 +34,8 @@
       "invocationId": "i-1",
       "author": "function_tools",
       "nodeInfo": {
-        "path": "",
-        "runId": ""
+        "path": "function_tools@1",
+        "runId": "1"
       },
       "longRunningToolIds": [],
       "id": "e-3"
@@ -58,8 +58,8 @@
       "invocationId": "i-1",
       "author": "function_tools",
       "nodeInfo": {
-        "path": "",
-        "runId": ""
+        "path": "function_tools@1",
+        "runId": "1"
       },
       "id": "e-5"
     },
@@ -67,7 +67,7 @@
       "content": {
         "parts": [
           {
-            "text": "Here is a random number: 1. \n"
+            "text": "Here is a random number: 1\n"
           }
         ],
         "role": "model"
@@ -76,8 +76,8 @@
       "invocationId": "i-1",
       "author": "function_tools",
       "nodeInfo": {
-        "path": "",
-        "runId": ""
+        "path": "function_tools@1",
+        "runId": "1"
       },
       "id": "e-7"
     }

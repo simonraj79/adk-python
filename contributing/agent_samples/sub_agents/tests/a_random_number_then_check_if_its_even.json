@@ -4,7 +4,7 @@
       "content": {
         "parts": [
           {
-            "text": "give me a random number and check if it is even"
+            "text": "a random number then check if it's even"
           }
         ],
         "role": "user"
@@ -36,8 +36,8 @@
       "invocationId": "i-1",
       "author": "sub_agents",
       "nodeInfo": {
-        "path": "",
-        "runId": ""
+        "path": "sub_agents@1",
+        "runId": "1"
       },
       "longRunningToolIds": [],
       "id": "e-3"
@@ -63,8 +63,8 @@
         "transferToAgent": "random_number_agent"
       },
       "nodeInfo": {
-        "path": "",
-        "runId": ""
+        "path": "sub_agents@1",
+        "runId": "1"
       },
       "id": "e-5"
     },
@@ -85,8 +85,9 @@
       "invocationId": "i-1",
       "author": "random_number_agent",
       "nodeInfo": {
-        "path": "",
-        "runId": ""
+        "path": "sub_agents@1/random_number_agent@1",
+        "runId": "1",
+        "parentRunId": "1"
       },
       "longRunningToolIds": [],
       "id": "e-9"
@@ -109,10 +110,11 @@
       "invocationId": "i-1",
       "author": "random_number_agent",
       "nodeInfo": {
-        "path": "",
-        "runId": ""
+        "path": "sub_agents@1/random_number_agent@1",
+        "runId": "1",
+        "parentRunId": "1"
       },
-      "id": "e-12"
+      "id": "e-11"
     },
     {
       "content": {
@@ -133,11 +135,12 @@
       "invocationId": "i-1",
       "author": "random_number_agent",
       "nodeInfo": {
-        "path": "",
-        "runId": ""
+        "path": "sub_agents@1/random_number_agent@1",
+        "runId": "1",
+        "parentRunId": "1"
       },
       "longRunningToolIds": [],
-      "id": "e-17"
+      "id": "e-15"
     },
     {
       "content": {
@@ -160,10 +163,11 @@
         "transferToAgent": "is_even_agent"
       },
       "nodeInfo": {
-        "path": "",
-        "runId": ""
+        "path": "sub_agents@1/random_number_agent@1",
+        "runId": "1",
+        "parentRunId": "1"
       },
-      "id": "e-20"
+      "id": "e-17"
     },
     {
       "content": {
@@ -184,11 +188,12 @@
       "invocationId": "i-1",
       "author": "is_even_agent",
       "nodeInfo": {
-        "path": "",
-        "runId": ""
+        "path": "sub_agents@1/random_number_agent@1/is_even_agent@1",
+        "runId": "1",
+        "parentRunId": "1"
       },
       "longRunningToolIds": [],
-      "id": "e-29"
+      "id": "e-25"
     },
     {
       "content": {
@@ -208,10 +213,11 @@
       "invocationId": "i-1",
       "author": "is_even_agent",
       "nodeInfo": {
-        "path": "",
-        "runId": ""
+        "path": "sub_agents@1/random_number_agent@1/is_even_agent@1",
+        "runId": "1",
+        "parentRunId": "1"
       },
-      "id": "e-33"
+      "id": "e-27"
     },
     {
       "content": {
@@ -226,10 +232,11 @@
       "invocationId": "i-1",
       "author": "is_even_agent",
       "nodeInfo": {
-        "path": "",
-        "runId": ""
+        "path": "sub_agents@1/random_number_agent@1/is_even_agent@1",
+        "runId": "1",
+        "parentRunId": "1"
       },
-      "id": "e-43"
+      "id": "e-35"
     }
   ]
 }

@@ -36,8 +36,8 @@
       "invocationId": "i-1",
       "author": "sub_agents",
       "nodeInfo": {
-        "path": "",
-        "runId": ""
+        "path": "sub_agents@1",
+        "runId": "1"
       },
       "longRunningToolIds": [],
       "id": "e-3"
@@ -63,8 +63,8 @@
         "transferToAgent": "random_number_agent"
       },
       "nodeInfo": {
-        "path": "",
-        "runId": ""
+        "path": "sub_agents@1",
+        "runId": "1"
       },
       "id": "e-5"
     },
@@ -85,8 +85,9 @@
       "invocationId": "i-1",
       "author": "random_number_agent",
       "nodeInfo": {
-        "path": "",
-        "runId": ""
+        "path": "sub_agents@1/random_number_agent@1",
+        "runId": "1",
+        "parentRunId": "1"
       },
       "longRunningToolIds": [],
       "id": "e-9"
@@ -109,16 +110,17 @@
       "invocationId": "i-1",
       "author": "random_number_agent",
       "nodeInfo": {
-        "path": "",
-        "runId": ""
+        "path": "sub_agents@1/random_number_agent@1",
+        "runId": "1",
+        "parentRunId": "1"
       },
-      "id": "e-12"
+      "id": "e-11"
     },
     {
       "content": {
         "parts": [
           {
-            "text": "Here is a random number: 1."
+            "text": "Here is a random number: 1\n"
           }
         ],
         "role": "model"
@@ -127,10 +129,11 @@
       "invocationId": "i-1",
       "author": "random_number_agent",
       "nodeInfo": {
-        "path": "",
-        "runId": ""
+        "path": "sub_agents@1/random_number_agent@1",
+        "runId": "1",
+        "parentRunId": "1"
       },
-      "id": "e-17"
+      "id": "e-15"
     }
   ]
 }
