@@ -84,7 +84,7 @@ class FeatureConfig:
 # Central registry: FeatureName -> FeatureConfig
 _FEATURE_REGISTRY: dict[FeatureName, FeatureConfig] = {
     FeatureName.V1_LLM_AGENT: FeatureConfig(
-        FeatureStage.EXPERIMENTAL, default_on=False
+        FeatureStage.EXPERIMENTAL, default_on=True
     ),
     FeatureName.AGENT_CONFIG: FeatureConfig(
         FeatureStage.EXPERIMENTAL, default_on=True
@@ -123,7 +123,7 @@ _FEATURE_REGISTRY: dict[FeatureName, FeatureConfig] = {
         FeatureStage.EXPERIMENTAL, default_on=True
     ),
     FeatureName.NEW_WORKFLOW: FeatureConfig(
-        FeatureStage.EXPERIMENTAL, default_on=False
+        FeatureStage.EXPERIMENTAL, default_on=True
     ),
     FeatureName.GOOGLE_TOOL: FeatureConfig(
         FeatureStage.EXPERIMENTAL, default_on=True
