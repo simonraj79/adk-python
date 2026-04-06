@@ -163,6 +163,14 @@ class _V1LlmAgentWrapper(BaseNode):
     elif self.agent.mode == 'chat':
       async for event in run_iter:
         yield event
+        if event.actions.transfer_to_agent:
+          target_name = event.actions.transfer_to_agent
+          if target_name != self.agent.name:
+            target_agent = self.agent.root_agent.find_agent(target_name)
+            if target_agent:
+              wrapped_target = _V1LlmAgentWrapper(agent=target_agent)
+              await ctx.run_node(wrapped_target, node_input=None)
+              break
     else:
       # Task mode: finish_task output is inside event.actions, not
       # event.output. Intercept it and set as a proper output event.

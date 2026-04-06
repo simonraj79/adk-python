@@ -1,0 +1,294 @@
+{
+  "events": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "go"
+          }
+        ],
+        "role": "user"
+      },
+      "invocationId": "i-1",
+      "author": "user",
+      "nodeInfo": {
+        "path": "",
+        "runId": ""
+      },
+      "id": "e-1"
+    },
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "Hello! I can help you find a great phone. To get started, could you tell me a bit about what you're looking for?\n\nWhat's your budget?\nWhat will be the phone's primary use (e.g., photography, gaming, general use)?\nWhat's your preferred size (e.g., small, medium, large)?"
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "invocationId": "i-1",
+      "author": "root_agent",
+      "nodeInfo": {
+        "path": "root_agent@1",
+        "runId": "1"
+      },
+      "id": "e-3"
+    },
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "$1000, gaming"
+          }
+        ],
+        "role": "user"
+      },
+      "invocationId": "i-2",
+      "author": "user",
+      "nodeInfo": {
+        "path": "",
+        "runId": ""
+      },
+      "id": "e-5"
+    },
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "Great! And what about your preferred size? Do you like small, medium, or large phones?"
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "invocationId": "i-2",
+      "author": "root_agent",
+      "nodeInfo": {
+        "path": "root_agent@1",
+        "runId": "1"
+      },
+      "id": "e-7"
+    },
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "large"
+          }
+        ],
+        "role": "user"
+      },
+      "invocationId": "i-3",
+      "author": "user",
+      "nodeInfo": {
+        "path": "",
+        "runId": ""
+      },
+      "id": "e-9"
+    },
+    {
+      "content": {
+        "parts": [
+          {
+            "functionCall": {
+              "id": "fc-1",
+              "args": {
+                "preferred_size": "large",
+                "primary_use": "gaming",
+                "budget": 1000
+              },
+              "name": "phone_recommender"
+            }
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "invocationId": "i-3",
+      "author": "root_agent",
+      "nodeInfo": {
+        "path": "root_agent@1",
+        "runId": "1"
+      },
+      "longRunningToolIds": [],
+      "id": "e-11"
+    },
+    {
+      "content": {
+        "parts": [
+          {
+            "functionCall": {
+              "id": "fc-2",
+              "args": {
+                "model_name": "Pixel 10 Pro XL"
+              },
+              "name": "check_phone_price"
+            }
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "invocationId": "i-3",
+      "author": "phone_recommender",
+      "nodeInfo": {
+        "path": "phone_recommender@1",
+        "runId": "1"
+      },
+      "longRunningToolIds": [],
+      "branch": "node:phone_recommender@1.phone_recommender",
+      "id": "e-14"
+    },
+    {
+      "content": {
+        "parts": [
+          {
+            "functionResponse": {
+              "id": "fc-2",
+              "name": "check_phone_price",
+              "response": {
+                "result": 799.0
+              }
+            }
+          }
+        ],
+        "role": "user"
+      },
+      "invocationId": "i-3",
+      "author": "phone_recommender",
+      "nodeInfo": {
+        "path": "phone_recommender@1",
+        "runId": "1"
+      },
+      "branch": "node:phone_recommender@1.phone_recommender",
+      "id": "e-16"
+    },
+    {
+      "content": {
+        "parts": [
+          {
+            "functionCall": {
+              "id": "fc-3",
+              "args": {
+                "model_name": "Pixel 10 Pro XL",
+                "reason": "The Pixel 10 Pro XL is an excellent choice for gaming due to its powerful performance and large display, which aligns with your preference for a large phone and primary use for gaming. It also comfortably fits within your budget.",
+                "price": 799
+              },
+              "name": "set_model_response"
+            }
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "invocationId": "i-3",
+      "author": "phone_recommender",
+      "nodeInfo": {
+        "path": "phone_recommender@1",
+        "runId": "1"
+      },
+      "longRunningToolIds": [],
+      "branch": "node:phone_recommender@1.phone_recommender",
+      "id": "e-18"
+    },
+    {
+      "content": {
+        "parts": [
+          {
+            "functionResponse": {
+              "id": "fc-3",
+              "name": "set_model_response",
+              "response": {
+                "model_name": "Pixel 10 Pro XL",
+                "price": 799.0,
+                "reason": "The Pixel 10 Pro XL is an excellent choice for gaming due to its powerful performance and large display, which aligns with your preference for a large phone and primary use for gaming. It also comfortably fits within your budget."
+              }
+            }
+          }
+        ],
+        "role": "user"
+      },
+      "invocationId": "i-3",
+      "author": "phone_recommender",
+      "actions": {
+        "setModelResponse": {
+          "model_name": "Pixel 10 Pro XL",
+          "price": 799.0,
+          "reason": "The Pixel 10 Pro XL is an excellent choice for gaming due to its powerful performance and large display, which aligns with your preference for a large phone and primary use for gaming. It also comfortably fits within your budget."
+        }
+      },
+      "nodeInfo": {
+        "path": "phone_recommender@1",
+        "runId": "1"
+      },
+      "branch": "node:phone_recommender@1.phone_recommender",
+      "id": "e-20"
+    },
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "{\"model_name\": \"Pixel 10 Pro XL\", \"price\": 799.0, \"reason\": \"The Pixel 10 Pro XL is an excellent choice for gaming due to its powerful performance and large display, which aligns with your preference for a large phone and primary use for gaming. It also comfortably fits within your budget.\"}"
+          }
+        ],
+        "role": "model"
+      },
+      "invocationId": "i-3",
+      "author": "phone_recommender",
+      "nodeInfo": {
+        "path": "phone_recommender@1",
+        "runId": "1",
+        "outputFor": [
+          "phone_recommender@1"
+        ],
+        "messageAsOutput": true
+      },
+      "branch": "node:phone_recommender@1.phone_recommender",
+      "id": "e-22"
+    },
+    {
+      "content": {
+        "parts": [
+          {
+            "functionResponse": {
+              "id": "fc-1",
+              "name": "phone_recommender",
+              "response": {
+                "model_name": "Pixel 10 Pro XL",
+                "price": 799.0,
+                "reason": "The Pixel 10 Pro XL is an excellent choice for gaming due to its powerful performance and large display, which aligns with your preference for a large phone and primary use for gaming. It also comfortably fits within your budget."
+              }
+            }
+          }
+        ],
+        "role": "user"
+      },
+      "invocationId": "i-3",
+      "author": "root_agent",
+      "nodeInfo": {
+        "path": "root_agent@1",
+        "runId": "1"
+      },
+      "id": "e-24"
+    },
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "Wonderful! Based on your preferences for a large phone primarily for gaming with a budget of $1000, I recommend the **Pixel 10 Pro XL**. It's priced at $799 and is an excellent choice for gaming due to its powerful performance and large display."
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "invocationId": "i-3",
+      "author": "root_agent",
+      "nodeInfo": {
+        "path": "root_agent@1",
+        "runId": "1"
+      },
+      "id": "e-31"
+    }
+  ]
+}

@@ -346,10 +346,25 @@ def test_agent_replay(agent_dir, test_file, monkeypatch):
     parallel_pattern = re.compile(r"^(.+)__(\d+)$")
 
     all_responses = []
+    last_was_set_model_response = False
     for ev in expected_events:
       if "content" in ev:
         content_dict = ev["content"]
-        if content_dict.get("role") == "model":
+        role = content_dict.get("role")
+
+        if role == "user":
+          parts = content_dict.get("parts", [])
+          for part in parts:
+            if "functionResponse" in part:
+              func_resp = part["functionResponse"]
+              if func_resp.get("name") == "set_model_response":
+                last_was_set_model_response = True
+
+        elif role == "model":
+          if last_was_set_model_response:
+            last_was_set_model_response = False
+            continue
+
           try:
             content_obj = types.Content.model_validate(content_dict)
             all_responses.append(
@@ -566,6 +581,7 @@ def rebuild_tests(path: str):
       import random
 
       loader = AgentLoader(str(agent_dir.parent))
+      loader.remove_agent_from_cache(agent_dir.name)
       agent_or_app = loader.load_agent(agent_dir.name)
 
       root_agent = (

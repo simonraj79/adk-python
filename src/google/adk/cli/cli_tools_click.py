@@ -670,6 +670,7 @@ def cli_run(
     context_settings={
         "allow_extra_args": True,
         "allow_interspersed_args": True,
+        "ignore_unknown_options": True,
     },
 )
 @click.argument(
@@ -720,14 +721,8 @@ def cli_test(ctx, folder: str, rebuild: bool):
       )
       ctx.exit(2)
   else:
-    if ctx.args:
-      click.secho(
-          f"Error: Unexpected arguments: {' '.join(ctx.args)}. \nUse '--' to"
-          " separate pytest arguments, e.g.: adk test [folder] -- -vv",
-          fg="red",
-          err=True,
-      )
-      ctx.exit(2)
+    # If no '--', all remaining arguments are passed to pytest
+    pytest_args = ctx.args
 
   import subprocess
 

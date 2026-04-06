@@ -1,0 +1,224 @@
+{
+  "events": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "gaming, $1000, large"
+          }
+        ],
+        "role": "user"
+      },
+      "invocationId": "i-1",
+      "author": "user",
+      "nodeInfo": {
+        "path": "",
+        "runId": ""
+      },
+      "id": "e-1"
+    },
+    {
+      "content": {
+        "parts": [
+          {
+            "functionCall": {
+              "id": "fc-1",
+              "args": {
+                "primary_use": "gaming",
+                "preferred_size": "large",
+                "budget": 1000
+              },
+              "name": "phone_recommender"
+            }
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "invocationId": "i-1",
+      "author": "root_agent",
+      "nodeInfo": {
+        "path": "root_agent@1",
+        "runId": "1"
+      },
+      "longRunningToolIds": [],
+      "id": "e-3"
+    },
+    {
+      "content": {
+        "parts": [
+          {
+            "functionCall": {
+              "id": "fc-2",
+              "args": {
+                "model_name": "Pixel 10 Pro XL"
+              },
+              "name": "check_phone_price"
+            }
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "invocationId": "i-1",
+      "author": "phone_recommender",
+      "nodeInfo": {
+        "path": "phone_recommender@1",
+        "runId": "1"
+      },
+      "longRunningToolIds": [],
+      "branch": "node:phone_recommender@1.phone_recommender",
+      "id": "e-6"
+    },
+    {
+      "content": {
+        "parts": [
+          {
+            "functionResponse": {
+              "id": "fc-2",
+              "name": "check_phone_price",
+              "response": {
+                "result": 799.0
+              }
+            }
+          }
+        ],
+        "role": "user"
+      },
+      "invocationId": "i-1",
+      "author": "phone_recommender",
+      "nodeInfo": {
+        "path": "phone_recommender@1",
+        "runId": "1"
+      },
+      "branch": "node:phone_recommender@1.phone_recommender",
+      "id": "e-8"
+    },
+    {
+      "content": {
+        "parts": [
+          {
+            "functionCall": {
+              "id": "fc-3",
+              "args": {
+                "price": 799,
+                "reason": "The Pixel 10 Pro XL is an excellent choice for gaming due to its powerful performance and large display, all within your budget.",
+                "model_name": "Pixel 10 Pro XL"
+              },
+              "name": "set_model_response"
+            }
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "invocationId": "i-1",
+      "author": "phone_recommender",
+      "nodeInfo": {
+        "path": "phone_recommender@1",
+        "runId": "1"
+      },
+      "longRunningToolIds": [],
+      "branch": "node:phone_recommender@1.phone_recommender",
+      "id": "e-10"
+    },
+    {
+      "content": {
+        "parts": [
+          {
+            "functionResponse": {
+              "id": "fc-3",
+              "name": "set_model_response",
+              "response": {
+                "model_name": "Pixel 10 Pro XL",
+                "price": 799.0,
+                "reason": "The Pixel 10 Pro XL is an excellent choice for gaming due to its powerful performance and large display, all within your budget."
+              }
+            }
+          }
+        ],
+        "role": "user"
+      },
+      "invocationId": "i-1",
+      "author": "phone_recommender",
+      "actions": {
+        "setModelResponse": {
+          "model_name": "Pixel 10 Pro XL",
+          "price": 799.0,
+          "reason": "The Pixel 10 Pro XL is an excellent choice for gaming due to its powerful performance and large display, all within your budget."
+        }
+      },
+      "nodeInfo": {
+        "path": "phone_recommender@1",
+        "runId": "1"
+      },
+      "branch": "node:phone_recommender@1.phone_recommender",
+      "id": "e-12"
+    },
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "{\"model_name\": \"Pixel 10 Pro XL\", \"price\": 799.0, \"reason\": \"The Pixel 10 Pro XL is an excellent choice for gaming due to its powerful performance and large display, all within your budget.\"}"
+          }
+        ],
+        "role": "model"
+      },
+      "invocationId": "i-1",
+      "author": "phone_recommender",
+      "nodeInfo": {
+        "path": "phone_recommender@1",
+        "runId": "1",
+        "outputFor": [
+          "phone_recommender@1"
+        ],
+        "messageAsOutput": true
+      },
+      "branch": "node:phone_recommender@1.phone_recommender",
+      "id": "e-14"
+    },
+    {
+      "content": {
+        "parts": [
+          {
+            "functionResponse": {
+              "id": "fc-1",
+              "name": "phone_recommender",
+              "response": {
+                "model_name": "Pixel 10 Pro XL",
+                "price": 799.0,
+                "reason": "The Pixel 10 Pro XL is an excellent choice for gaming due to its powerful performance and large display, all within your budget."
+              }
+            }
+          }
+        ],
+        "role": "user"
+      },
+      "invocationId": "i-1",
+      "author": "root_agent",
+      "nodeInfo": {
+        "path": "root_agent@1",
+        "runId": "1"
+      },
+      "id": "e-16"
+    },
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "Absolutely! Based on your preferences for gaming, a large phone, and a budget of $1000, I recommend the **Pixel 10 Pro XL**. It's priced at **$799** and is an excellent choice for gaming due to its powerful performance and large display, all well within your budget."
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "invocationId": "i-1",
+      "author": "root_agent",
+      "nodeInfo": {
+        "path": "root_agent@1",
+        "runId": "1"
+      },
+      "id": "e-23"
+    }
+  ]
+}
