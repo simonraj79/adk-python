@@ -7,8 +7,14 @@ This sample demonstrates how to use the Tool Confirmation feature in ADK to impl
 ## Sample Inputs
 
 - `Transfer $50 to Alice`
+
 - `Transfer $200 to Bob`
+
 - `Close account ACC123`
+
+- `Transfer $500 to Charlie and close account ACC123`
+
+  *This will cause parallel tools being called in a single step*
 
 ## How To
 

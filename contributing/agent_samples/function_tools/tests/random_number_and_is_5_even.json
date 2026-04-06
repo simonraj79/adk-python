@@ -1,0 +1,103 @@
+{
+  "events": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "random number and is 5 even?"
+          }
+        ],
+        "role": "user"
+      },
+      "invocationId": "i-1",
+      "author": "user",
+      "nodeInfo": {
+        "path": "",
+        "runId": ""
+      },
+      "id": "e-1"
+    },
+    {
+      "content": {
+        "parts": [
+          {
+            "functionCall": {
+              "id": "fc-1",
+              "args": {},
+              "name": "generate_random_number"
+            }
+          },
+          {
+            "functionCall": {
+              "id": "fc-2",
+              "args": {
+                "number": 5
+              },
+              "name": "is_even"
+            }
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "invocationId": "i-1",
+      "author": "function_tools",
+      "nodeInfo": {
+        "path": "function_tools@1",
+        "runId": "1"
+      },
+      "longRunningToolIds": [],
+      "id": "e-3"
+    },
+    {
+      "content": {
+        "parts": [
+          {
+            "functionResponse": {
+              "id": "fc-1",
+              "name": "generate_random_number",
+              "response": {
+                "result": 1
+              }
+            }
+          },
+          {
+            "functionResponse": {
+              "id": "fc-2",
+              "name": "is_even",
+              "response": {
+                "result": false
+              }
+            }
+          }
+        ],
+        "role": "user"
+      },
+      "invocationId": "i-1",
+      "author": "function_tools",
+      "nodeInfo": {
+        "path": "function_tools@1",
+        "runId": "1"
+      },
+      "id": "e-7"
+    },
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "A random number is 1, and no, 5 is not an even number."
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "invocationId": "i-1",
+      "author": "function_tools",
+      "nodeInfo": {
+        "path": "function_tools@1",
+        "runId": "1"
+      },
+      "id": "e-9"
+    }
+  ]
+}

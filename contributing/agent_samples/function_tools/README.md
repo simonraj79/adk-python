@@ -9,8 +9,12 @@ It defines an `Agent` wrapped around two utility functions: `generate_random_num
 ## Sample Prompts
 
 - `Give me a random number.`
+
 - `Give me a random number up to 50, and tell me if it's even.`
-- `Is 44 even?`
+
+- `Give me a random number and is 44 even?`
+
+  *This will cause parallel tools being called in a single step*
 
 ## Graph
 
