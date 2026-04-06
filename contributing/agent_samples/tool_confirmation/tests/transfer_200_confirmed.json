@@ -1,0 +1,197 @@
+{
+  "events": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "Transfer $200 to Bob"
+          }
+        ],
+        "role": "user"
+      },
+      "invocationId": "i-1",
+      "author": "user",
+      "nodeInfo": {
+        "path": "",
+        "runId": ""
+      },
+      "id": "e-1"
+    },
+    {
+      "content": {
+        "parts": [
+          {
+            "functionCall": {
+              "id": "fc-1",
+              "args": {
+                "amount": 200,
+                "recipient": "Bob"
+              },
+              "name": "transfer_funds"
+            }
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "invocationId": "i-1",
+      "author": "money_transfer_assistant",
+      "nodeInfo": {
+        "path": "money_transfer_assistant@1",
+        "runId": "1"
+      },
+      "longRunningToolIds": [],
+      "id": "e-3"
+    },
+    {
+      "content": {
+        "parts": [
+          {
+            "functionCall": {
+              "id": "fc-2",
+              "args": {
+                "originalFunctionCall": {
+                  "id": "fc-1",
+                  "args": {
+                    "amount": 200,
+                    "recipient": "Bob"
+                  },
+                  "name": "transfer_funds"
+                },
+                "toolConfirmation": {
+                  "hint": "Confirm transfer of $200 to Bob.",
+                  "confirmed": false
+                }
+              },
+              "name": "adk_request_confirmation"
+            }
+          }
+        ],
+        "role": "user"
+      },
+      "invocationId": "i-1",
+      "author": "money_transfer_assistant",
+      "nodeInfo": {
+        "path": "money_transfer_assistant@1",
+        "runId": "1"
+      },
+      "longRunningToolIds": [
+        "fc-2"
+      ],
+      "id": "e-6"
+    },
+    {
+      "content": {
+        "parts": [
+          {
+            "functionResponse": {
+              "id": "fc-1",
+              "name": "transfer_funds",
+              "response": {
+                "error": "This tool call requires confirmation, please approve or reject."
+              }
+            }
+          }
+        ],
+        "role": "user"
+      },
+      "invocationId": "i-1",
+      "author": "money_transfer_assistant",
+      "actions": {
+        "requestedToolConfirmations": {
+          "fc-1": {
+            "hint": "Confirm transfer of $200 to Bob.",
+            "confirmed": false
+          }
+        }
+      },
+      "nodeInfo": {
+        "path": "money_transfer_assistant@1",
+        "runId": "1"
+      },
+      "id": "e-5"
+    },
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "I need to confirm this transfer with you. Please approve or reject."
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "invocationId": "i-1",
+      "author": "money_transfer_assistant",
+      "nodeInfo": {
+        "path": "money_transfer_assistant@1",
+        "runId": "1"
+      },
+      "id": "e-9"
+    },
+    {
+      "content": {
+        "parts": [
+          {
+            "functionResponse": {
+              "id": "fc-2",
+              "name": "adk_request_confirmation",
+              "response": {
+                "confirmed": true
+              }
+            }
+          }
+        ],
+        "role": "user"
+      },
+      "invocationId": "i-1",
+      "author": "user",
+      "nodeInfo": {
+        "path": "",
+        "runId": ""
+      },
+      "id": "e-11"
+    },
+    {
+      "content": {
+        "parts": [
+          {
+            "functionResponse": {
+              "id": "fc-1",
+              "name": "transfer_funds",
+              "response": {
+                "result": "Successfully transferred $200 to Bob."
+              }
+            }
+          }
+        ],
+        "role": "user"
+      },
+      "invocationId": "i-1",
+      "author": "money_transfer_assistant",
+      "nodeInfo": {
+        "path": "money_transfer_assistant@1",
+        "runId": "1"
+      },
+      "id": "e-13"
+    },
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "Successfully transferred $200 to Bob."
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "invocationId": "i-1",
+      "author": "money_transfer_assistant",
+      "nodeInfo": {
+        "path": "money_transfer_assistant@1",
+        "runId": "1"
+      },
+      "id": "e-14"
+    }
+  ]
+}

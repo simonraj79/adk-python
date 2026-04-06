@@ -1,0 +1,88 @@
+{
+  "events": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "Transfer $50 to Alice\n"
+          }
+        ],
+        "role": "user"
+      },
+      "invocationId": "i-1",
+      "author": "user",
+      "nodeInfo": {
+        "path": "",
+        "runId": ""
+      },
+      "id": "e-1"
+    },
+    {
+      "content": {
+        "parts": [
+          {
+            "functionCall": {
+              "id": "fc-1",
+              "args": {
+                "recipient": "Alice",
+                "amount": 50
+              },
+              "name": "transfer_funds"
+            }
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "invocationId": "i-1",
+      "author": "money_transfer_assistant",
+      "nodeInfo": {
+        "path": "money_transfer_assistant@1",
+        "runId": "1"
+      },
+      "longRunningToolIds": [],
+      "id": "e-3"
+    },
+    {
+      "content": {
+        "parts": [
+          {
+            "functionResponse": {
+              "id": "fc-1",
+              "name": "transfer_funds",
+              "response": {
+                "result": "Successfully transferred $50 to Alice."
+              }
+            }
+          }
+        ],
+        "role": "user"
+      },
+      "invocationId": "i-1",
+      "author": "money_transfer_assistant",
+      "nodeInfo": {
+        "path": "money_transfer_assistant@1",
+        "runId": "1"
+      },
+      "id": "e-5"
+    },
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "Successfully transferred $50 to Alice."
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "invocationId": "i-1",
+      "author": "money_transfer_assistant",
+      "nodeInfo": {
+        "path": "money_transfer_assistant@1",
+        "runId": "1"
+      },
+      "id": "e-7"
+    }
+  ]
+}
