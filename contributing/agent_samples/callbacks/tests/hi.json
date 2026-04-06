@@ -1,0 +1,38 @@
+{
+  "events": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "Hi"
+          }
+        ],
+        "role": "user"
+      },
+      "invocationId": "i-1",
+      "author": "user",
+      "nodeInfo": {
+        "path": "",
+        "runId": ""
+      },
+      "id": "e-1"
+    },
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "Hello from before_model callback!"
+          }
+        ],
+        "role": "model"
+      },
+      "invocationId": "i-1",
+      "author": "callback_demo_agent",
+      "nodeInfo": {
+        "path": "callback_demo_agent@1",
+        "runId": "1"
+      },
+      "id": "e-3"
+    }
+  ]
+}

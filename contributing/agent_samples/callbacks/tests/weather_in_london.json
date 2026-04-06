@@ -1,0 +1,93 @@
+{
+  "events": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "weather in London"
+          }
+        ],
+        "role": "user"
+      },
+      "invocationId": "i-1",
+      "author": "user",
+      "nodeInfo": {
+        "path": "",
+        "runId": ""
+      },
+      "id": "e-1"
+    },
+    {
+      "content": {
+        "parts": [
+          {
+            "functionCall": {
+              "id": "fc-1",
+              "args": {
+                "city": "London"
+              },
+              "name": "get_weather"
+            }
+          },
+          {
+            "text": "\n\nafter_model_callback: [Token Usage: Input=53, Output=15]"
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "invocationId": "i-1",
+      "author": "callback_demo_agent",
+      "nodeInfo": {
+        "path": "callback_demo_agent@1",
+        "runId": "1"
+      },
+      "longRunningToolIds": [],
+      "id": "e-3"
+    },
+    {
+      "content": {
+        "parts": [
+          {
+            "functionResponse": {
+              "id": "fc-1",
+              "name": "get_weather",
+              "response": {
+                "result": "Weather in London is always rainy (intercepted by callback)."
+              }
+            }
+          }
+        ],
+        "role": "user"
+      },
+      "invocationId": "i-1",
+      "author": "callback_demo_agent",
+      "nodeInfo": {
+        "path": "callback_demo_agent@1",
+        "runId": "1"
+      },
+      "id": "e-5"
+    },
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "The weather in London is always rainy (intercepted by callback)."
+          },
+          {
+            "text": "\n\nafter_model_callback: [Token Usage: Input=115, Output=13]"
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "invocationId": "i-1",
+      "author": "callback_demo_agent",
+      "nodeInfo": {
+        "path": "callback_demo_agent@1",
+        "runId": "1"
+      },
+      "id": "e-7"
+    }
+  ]
+}

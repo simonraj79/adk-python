@@ -1,0 +1,93 @@
+{
+  "events": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "weather in Sunnyvale"
+          }
+        ],
+        "role": "user"
+      },
+      "invocationId": "i-1",
+      "author": "user",
+      "nodeInfo": {
+        "path": "",
+        "runId": ""
+      },
+      "id": "e-1"
+    },
+    {
+      "content": {
+        "parts": [
+          {
+            "functionCall": {
+              "id": "fc-1",
+              "args": {
+                "city": "Sunnyvale"
+              },
+              "name": "get_weather"
+            }
+          },
+          {
+            "text": "\n\nafter_model_callback: [Token Usage: Input=54, Output=16]"
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "invocationId": "i-1",
+      "author": "callback_demo_agent",
+      "nodeInfo": {
+        "path": "callback_demo_agent@1",
+        "runId": "1"
+      },
+      "longRunningToolIds": [],
+      "id": "e-3"
+    },
+    {
+      "content": {
+        "parts": [
+          {
+            "functionResponse": {
+              "id": "fc-1",
+              "name": "get_weather",
+              "response": {
+                "result": "The weather in Sunnyvale is sunny."
+              }
+            }
+          }
+        ],
+        "role": "user"
+      },
+      "invocationId": "i-1",
+      "author": "callback_demo_agent",
+      "nodeInfo": {
+        "path": "callback_demo_agent@1",
+        "runId": "1"
+      },
+      "id": "e-5"
+    },
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "The weather in Sunnyvale is sunny."
+          },
+          {
+            "text": "\n\nafter_model_callback: [Token Usage: Input=113, Output=8]"
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "invocationId": "i-1",
+      "author": "callback_demo_agent",
+      "nodeInfo": {
+        "path": "callback_demo_agent@1",
+        "runId": "1"
+      },
+      "id": "e-7"
+    }
+  ]
+}
