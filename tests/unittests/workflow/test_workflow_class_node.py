@@ -20,10 +20,12 @@ from unittest import mock
 
 from google.adk.agents.base_agent import BaseAgent
 from google.adk.agents.llm_agent import LlmAgent
+from google.adk.apps import App
+from google.adk.runners import Runner
+from google.adk.sessions.in_memory_session_service import InMemorySessionService
 from google.adk.tools.base_tool import BaseTool
 from google.adk.workflow import FunctionNode
 from google.adk.workflow import START
-from google.adk.workflow._workflow_class import Workflow
 from google.adk.workflow._agent_node import AgentNode
 from google.adk.workflow._base_node import BaseNode
 from google.adk.workflow._llm_agent_wrapper import _LlmAgentWrapper
@@ -32,9 +34,7 @@ from google.adk.workflow._node import Node
 from google.adk.workflow._parallel_worker import _ParallelWorker as ParallelWorker
 from google.adk.workflow._retry_config import RetryConfig
 from google.adk.workflow._tool_node import _ToolNode as ToolNode
-from google.adk.apps import App
-from google.adk.runners import Runner
-from google.adk.sessions.in_memory_session_service import InMemorySessionService
+from google.adk.workflow._workflow_class import Workflow
 from google.genai import types
 import pytest
 
@@ -48,15 +48,15 @@ ANY = mock.ANY
 # ---------------------------------------------------------------------------
 
 
-async def _run_workflow(wf, message='start'):
+async def _run_workflow(wf, message="start"):
   """Run a Workflow through Runner, return collected events."""
   ss = InMemorySessionService()
-  runner = Runner(app_name='test', node=wf, session_service=ss)
-  session = await ss.create_session(app_name='test', user_id='u')
-  msg = types.Content(parts=[types.Part(text=message)], role='user')
+  runner = Runner(app_name="test", node=wf, session_service=ss)
+  session = await ss.create_session(app_name="test", user_id="u")
+  msg = types.Content(parts=[types.Part(text=message)], role="user")
   events = []
   async for event in runner.run_async(
-      user_id='u', session_id=session.id, new_message=msg
+      user_id="u", session_id=session.id, new_message=msg
   ):
     events.append(event)
   return events, ss, session
@@ -66,10 +66,10 @@ def _output_by_node(events):
   """Extract (node_name_from_path, output) for child node events."""
   results = []
   for e in events:
-    if e.output is not None and e.node_info.path and '/' in e.node_info.path:
-      node_name = e.node_info.path.rsplit('/', 1)[-1]
-      if '@' in node_name:
-        node_name = node_name.rsplit('@', 1)[0]
+    if e.output is not None and e.node_info.path and "/" in e.node_info.path:
+      node_name = e.node_info.path.rsplit("/", 1)[-1]
+      if "@" in node_name:
+        node_name = node_name.rsplit("@", 1)[0]
       results.append((node_name, e.output))
   return results
 
@@ -98,7 +98,7 @@ async def test_node_decorator():
   events, _, _ = await _run_workflow(wf)
 
   by_node = _output_by_node(events)
-  assert ('decorated_node', 'Hello from decorated_func') in by_node
+  assert ("decorated_node", "Hello from decorated_func") in by_node
 
 
 def test_node_parallel_worker_instance():
@@ -140,8 +140,8 @@ async def test_node_parallel_worker_execution():
   events, _, _ = await _run_workflow(wf)
 
   by_node = _output_by_node(events)
-  assert ('producer_func', [1, 2, 3]) in by_node
-  assert ('my_func', [2, 4, 6]) in by_node
+  assert ("producer_func", [1, 2, 3]) in by_node
+  assert ("my_func", [2, 4, 6]) in by_node
 
 
 def test_node_decorator_rerun_on_resume():
@@ -190,7 +190,14 @@ def test_node_no_unnecessary_wrap():
 
   llm_agent = LlmAgent(name="llm")
   llm_node = node(llm_agent, name="overridden_llm")
-  assert isinstance(llm_node, _LlmAgentWrapper)
+  from google.adk.features import FeatureName
+  from google.adk.features import is_feature_enabled
+  from google.adk.workflow._v1_llm_agent_wrapper import _V1LlmAgentWrapper
+
+  if is_feature_enabled(FeatureName.V1_LLM_AGENT):
+    assert isinstance(llm_node, _V1LlmAgentWrapper)
+  else:
+    assert isinstance(llm_node, _LlmAgentWrapper)
   assert llm_node.name == "overridden_llm"
   assert llm_agent.mode == "single_turn"
 
@@ -225,6 +232,7 @@ class StatefulTool(BaseTool):
 
 from .workflow_testing_utils import simplify_events_with_node
 
+
 @pytest.mark.asyncio
 async def test_tool_node_state_delta():
   """Tests that state set via tool_context.state in ToolNode is persisted."""
@@ -249,9 +257,26 @@ async def test_tool_node_state_delta():
   )
 
   events, _, _ = await _run_workflow(wf)
-  
-  simplified = simplify_events_with_node(events, include_workflow_output=True, include_state_delta=True)
 
-  assert ('test_tool_node_state_delta', {'node_name': 'stateful_tool', 'output': {'status': 'ok'}}) in [(e[0], {'node_name': e[1]['node_name'], 'output': e[1].get('output')}) for e in simplified]
+  simplified = simplify_events_with_node(
+      events, include_workflow_output=True, include_state_delta=True
+  )
 
-  assert ('test_tool_node_state_delta', {'node_name': 'read_state', 'output': 'tool_key=tool_value, tool_count=10'}) in [(e[0], {'node_name': e[1]['node_name'], 'output': e[1].get('output')}) for e in simplified]
+  assert (
+      "test_tool_node_state_delta",
+      {"node_name": "stateful_tool", "output": {"status": "ok"}},
+  ) in [
+      (e[0], {"node_name": e[1]["node_name"], "output": e[1].get("output")})
+      for e in simplified
+  ]
+
+  assert (
+      "test_tool_node_state_delta",
+      {
+          "node_name": "read_state",
+          "output": "tool_key=tool_value, tool_count=10",
+      },
+  ) in [
+      (e[0], {"node_name": e[1]["node_name"], "output": e[1].get("output")})
+      for e in simplified
+  ]
