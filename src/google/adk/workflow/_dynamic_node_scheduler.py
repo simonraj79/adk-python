@@ -114,6 +114,7 @@ class DynamicNodeScheduler:
       node_name: str | None = None,
       use_as_output: bool = False,
       run_id: str,
+      sub_branch: str | None = None,
   ) -> Context:
     """Schedule a dynamic node: dedup, resume, or fresh run.
 
@@ -155,6 +156,7 @@ class DynamicNodeScheduler:
           node_input,
           use_as_output,
           is_fresh=True,
+          sub_branch=sub_branch,
       )
 
     # Found an existing run for this node and run_id -> rerun or interrupt or auto-complete.
@@ -169,7 +171,9 @@ class DynamicNodeScheduler:
       # Unresolved interrupts remain → propagate to parent.
       if state.interrupts:
         self._state.interrupt_ids.update(state.interrupts)
-        logger.info('node %s schedule end: Unresolved interrupts remain.', node_path)
+        logger.info(
+            'node %s schedule end: Unresolved interrupts remain.', node_path
+        )
         return self._make_cached_ctx(
             ctx,
             node_path,
@@ -183,11 +187,15 @@ class DynamicNodeScheduler:
         output = dict(state.resume_inputs)
         state.status = NodeStatus.COMPLETED
         run.output = output
-        logger.info('node %s schedule end: Auto-complete with resume_inputs.', node_path)
+        logger.info(
+            'node %s schedule end: Auto-complete with resume_inputs.', node_path
+        )
         return self._make_cached_ctx(ctx, node_path, run_id)
 
       # All resolved, rerun → re-execute with resume_inputs.
-      logger.info('node %s schedule end: Re-execute with resume_inputs.', node_path)
+      logger.info(
+          'node %s schedule end: Re-execute with resume_inputs.', node_path
+      )
       return await self._run_node_internal(
           ctx,
           node,
@@ -197,6 +205,7 @@ class DynamicNodeScheduler:
           node_input,
           use_as_output,
           is_fresh=False,
+          sub_branch=sub_branch,
       )
 
     # Running in this invocation — await existing task.
@@ -337,6 +346,7 @@ class DynamicNodeScheduler:
       node_input: Any,
       use_as_output: bool,
       is_fresh: bool,
+      sub_branch: str | None = None,
   ) -> Context:
     """Unified runner for both fresh and resume executions."""
     if is_fresh:
@@ -366,6 +376,7 @@ class DynamicNodeScheduler:
         additional_output_for_ancestor=(
             ctx.node_path if use_as_output else None
         ),
+        sub_branch=sub_branch,
     )
     run.task = asyncio.create_task(
         runner.run(node_input=node_input, resume_inputs=resume_inputs)

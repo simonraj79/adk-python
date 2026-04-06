@@ -61,6 +61,7 @@ class NodeRunner:
       # Resume state from a previous run
       prior_output: Any = None,
       prior_interrupt_ids: set[str] | None = None,
+      sub_branch: str | None = None,
   ) -> None:
     """Initialize a NodeRunner.
 
@@ -79,11 +80,13 @@ class NodeRunner:
         interrupts.
       prior_interrupt_ids: Unresolved interrupt IDs (set) from a
         previous run, carried forward on resume.
+      sub_branch: Optional sub-branch name to run the node in.
     """
     # Core
     self._node = node
     self._parent_ctx = parent_ctx
     self._run_id = str(run_id) if run_id else "1"
+    self._sub_branch = sub_branch
 
     # Graph context
     self._triggered_by = triggered_by
@@ -207,8 +210,13 @@ class NodeRunner:
 
       scheduler = DynamicNodeScheduler(DynamicNodeState())
 
+    ic = self._parent_ctx._invocation_context
+    if self._sub_branch:
+      branch = f"node:{self._build_node_path()}.{self._sub_branch}"
+      ic = ic.model_copy(update={"branch": branch})
+
     ctx = Context(
-        self._parent_ctx._invocation_context,
+        ic,
         node_path=self._build_node_path(),
         run_id=self._run_id,
         resume_inputs=resume_inputs,

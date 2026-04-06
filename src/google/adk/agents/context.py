@@ -443,6 +443,7 @@ class Context(ReadonlyContext):
       *,
       use_as_output: bool = False,
       run_id: str | None = None,
+      sub_branch: str | None = None,
   ) -> Any:
     """Executes a node dynamically.
 
@@ -502,9 +503,9 @@ class Context(ReadonlyContext):
       if run_id:
         if run_id.isdigit():
           raise ValueError(
-              f'Explicit run_id "{run_id}" for node "{built_node.name}" must contain'
-              ' non-numeric characters to prevent collision with auto-generated'
-              ' IDs.'
+              f'Explicit run_id "{run_id}" for node "{built_node.name}" must'
+              ' contain non-numeric characters to prevent collision with'
+              ' auto-generated IDs.'
           )
       else:
         self._child_run_counters[built_node.name] = (
@@ -519,6 +520,7 @@ class Context(ReadonlyContext):
           node_name=built_node.name,
           use_as_output=use_as_output,
           run_id=run_id,
+          sub_branch=sub_branch,
       )
       if child_ctx.error:
         from ..workflow._errors import DynamicNodeFailError
@@ -538,9 +540,7 @@ class Context(ReadonlyContext):
     # Fall back to the early-2.0 scheduler (used by _workflow.py,
     # LoopAgent, ParallelAgent, SequentialAgent).
     if self.schedule_dynamic_node:
-      run_id = self.get_next_child_run_id(
-          built_node.name, is_static_name=False
-      )
+      run_id = self.get_next_child_run_id(built_node.name, is_static_name=False)
       return await self.schedule_dynamic_node(
           self,
           built_node,
