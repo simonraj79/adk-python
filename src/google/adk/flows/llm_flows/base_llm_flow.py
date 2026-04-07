@@ -802,16 +802,22 @@ class BaseLlmFlow(ABC):
         invocation_context.is_resumable
         and events
         and len(events) > 1
-        # TODO: here we are using the last 2 events to decide whether to pause
-        # the invocation. But this is just being optimistic, we should find a
-        # way to pause when the long running tool call is followed by more than
-        # one text responses.
-        and (
-            invocation_context.should_pause_invocation(events[-1])
-            or invocation_context.should_pause_invocation(events[-2])
-        )
     ):
-      return
+      pause = False
+      if invocation_context.should_pause_invocation(events[-1]):
+        pause = True
+      elif invocation_context.should_pause_invocation(events[-2]):
+        # NOTE: This only checks the last 2 events. If an LRO is followed by
+        # multiple text responses, this check may not trigger correctly.
+        # This is a known limitation of the current 2-event window.
+        # Check if the function call in events[-2] is resolved by events[-1]
+        fc_ids = {fc.id for fc in events[-2].get_function_calls()}
+        fr_ids = {fr.id for fr in events[-1].get_function_responses()}
+        if fc_ids and not fc_ids.issubset(fr_ids):
+          pause = True
+
+      if pause:
+        return
 
     if (
         invocation_context.is_resumable

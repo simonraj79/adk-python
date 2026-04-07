@@ -154,7 +154,9 @@ class _V1LlmAgentWrapper(BaseNode):
     agent_ctx = self._prepare_context(ctx)
     self._prepare_input(agent_ctx, node_input)
 
-    run_iter = self.agent.run_async(agent_ctx._invocation_context)
+    ic = agent_ctx.get_invocation_context()
+
+    run_iter = self.agent.run_async(ic)
 
     if self.agent.mode == 'single_turn':
       async for event in run_iter:
