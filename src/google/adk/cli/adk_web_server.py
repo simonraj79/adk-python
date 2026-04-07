@@ -664,6 +664,7 @@ class AdkWebServer:
       logo_image_url: Optional[str] = None,
       url_prefix: Optional[str] = None,
       auto_create_session: bool = False,
+      trigger_sources: Optional[list[str]] = None,
   ):
     self.agent_loader = agent_loader
     self.session_service = session_service
@@ -682,6 +683,7 @@ class AdkWebServer:
     self.runner_dict = {}
     self.url_prefix = url_prefix
     self.auto_create_session = auto_create_session
+    self.trigger_sources = trigger_sources
 
   async def get_runner_async(self, app_name: str) -> Runner:
     """Returns the cached runner for the given app."""
@@ -2335,6 +2337,13 @@ class AdkWebServer:
       finally:
         for task in pending:
           task.cancel()
+
+    # Register /trigger/* endpoints when enabled.
+    if self.trigger_sources:
+      from .trigger_routes import TriggerRouter
+
+      trigger_router = TriggerRouter(self, trigger_sources=self.trigger_sources)
+      trigger_router.register(app)
 
     if web_assets_dir:
       import mimetypes
