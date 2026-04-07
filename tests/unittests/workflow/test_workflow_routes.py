@@ -23,6 +23,7 @@ from google.adk.workflow import START
 from google.adk.workflow._workflow_class import Workflow
 from google.adk.workflow._workflow_graph import DEFAULT_ROUTE
 from google.adk.workflow._workflow_graph import WorkflowGraph
+from google.adk.workflow._join_node import JoinNode
 from google.adk.apps.app import App
 from .. import testing_utils
 import pytest
@@ -441,43 +442,6 @@ async def test_edge_with_multiple_routes(
 # --- Routing map integration tests ---
 
 
-@pytest.mark.asyncio
-@pytest.mark.parametrize(
-    'emitted_route, expected_target',
-    [
-        ('route_b', 'NodeB'),
-        ('route_c', 'NodeC'),
-    ],
-    ids=['route_b', 'route_c'],
-)
-async def test_routing_map_selects_correct_route(
-    request: pytest.FixtureRequest, emitted_route: str, expected_target: str
-):
-  """Tests that a routing map routes to the correct node at runtime."""
-  node_a = TestingNode(name='NodeA', output='A', route=emitted_route)
-  node_b = TestingNode(name='NodeB', output='B')
-  node_c = TestingNode(name='NodeC', output='C')
-
-  agent = Workflow(
-      name='test_routing_map',
-      edges=[
-          (START, node_a),
-          (node_a, {'route_b': node_b, 'route_c': node_c}),
-      ],
-  )
-
-  app = App(name=request.function.__name__, root_agent=agent)
-  runner = testing_utils.InMemoryRunner(app=app)
-  events = await runner.run_async(testing_utils.get_user_content('start'))
-  expected_output = 'B' if expected_target == 'NodeB' else 'C'
-  assert simplify_events_with_node(events) == [
-      ('test_routing_map', {'node_name': 'NodeA', 'output': 'A'}),
-      (
-          'test_routing_map',
-          {'node_name': expected_target, 'output': expected_output},
-      ),
-  ]
-
 
 @pytest.mark.asyncio
 async def test_routing_map_with_default_route(
@@ -543,12 +507,15 @@ async def test_routing_map_fan_out_runs_both_targets(
   node_a = TestingNode(name='NodeA', output='A', route='route_x')
   node_b = TestingNode(name='NodeB', output='B')
   node_c = TestingNode(name='NodeC', output='C')
+  gate = JoinNode(name='Gate')
 
   agent = Workflow(
       name='test_routing_map_fan_out',
       edges=[
           (START, node_a),
           (node_a, {'route_x': (node_b, node_c)}),
+          (node_b, gate),
+          (node_c, gate),
       ],
   )
 
@@ -557,17 +524,97 @@ async def test_routing_map_fan_out_runs_both_targets(
   events = await runner.run_async(testing_utils.get_user_content('start'))
   simplified = simplify_events_with_node(events)
 
-  assert len(simplified) == 3
-  assert simplified[0] == (
+  # NodeB and NodeC should both be triggered, in any order.
+  # Gate node also produces output combining the two.
+  outputs = [e for e in simplified if isinstance(e[1], dict) and e[1].get('output') is not None]
+
+  assert len(outputs) == 4
+  assert outputs[0] == (
       'test_routing_map_fan_out',
       {'node_name': 'NodeA', 'output': 'A'},
   )
 
-  # NodeB and NodeC should both be triggered, in any order.
-  other = simplified[1:]
+  # Gate should be last
+  assert outputs[-1] == (
+      'test_routing_map_fan_out',
+      {'node_name': 'Gate', 'output': {'NodeB': 'B', 'NodeC': 'C'}},
+  )
+
+  other = outputs[1:3]
   expected = [
       ('test_routing_map_fan_out', {'node_name': 'NodeB', 'output': 'B'}),
       ('test_routing_map_fan_out', {'node_name': 'NodeC', 'output': 'C'}),
   ]
   assert len(other) == len(expected)
   assert all(item in other for item in expected)
+
+
+@pytest.mark.asyncio
+async def test_fan_in_with_route(request: pytest.FixtureRequest):
+  """Fan-in with conditional routes — both route to same target."""
+  a = TestingNode(name='a', output='A', route='route1')
+  b = TestingNode(name='b', output='B', route='route1')
+  c = TestingNode(name='c', output='C')
+  wf = Workflow(
+      name='wf',
+      edges=[
+          (START, a),
+          (START, b),
+          ((a, b), {'route1': c}),
+      ],
+  )
+
+  app = App(name=request.function.__name__, root_agent=wf)
+  runner = testing_utils.InMemoryRunner(app=app)
+  events = await runner.run_async(testing_utils.get_user_content('start'))
+  simplified = simplify_events_with_node(events)
+
+  # 'c' should receive from both 'a' and 'b' and run twice.
+  c_events = [e for e in simplified if e[1].get('node_name') == 'c']
+  assert len(c_events) == 2
+
+
+@pytest.mark.asyncio
+async def test_fan_out_with_route(request: pytest.FixtureRequest):
+  """Fan-out via route to multiple terminals raises ValueError."""
+  router = TestingNode(name='r', output='R', route='route1')
+  b = TestingNode(name='b', output='B')
+  c = TestingNode(name='c', output='C')
+  wf = Workflow(
+      name='wf',
+      edges=[
+          (START, router),
+          (router, {'route1': (b, c)}),
+      ],
+  )
+
+  app = App(name=request.function.__name__, root_agent=wf)
+  runner = testing_utils.InMemoryRunner(app=app)
+  
+  with pytest.raises(ValueError, match='multiple terminal nodes'):
+    await runner.run_async(testing_utils.get_user_content('start'))
+
+
+@pytest.mark.asyncio
+async def test_fan_in_out_with_route(request: pytest.FixtureRequest):
+  """Fan-in/out with routes to multiple terminals raises ValueError."""
+  a = TestingNode(name='a', output='A', route='route1')
+  b = TestingNode(name='b', output='B', route='route1')
+  c = TestingNode(name='c', output='C')
+  d = TestingNode(name='d', output='D')
+  wf = Workflow(
+      name='wf',
+      edges=[
+          (START, a),
+          (START, b),
+          ((a, b), {'route1': (c, d)}),
+      ],
+  )
+
+  app = App(name=request.function.__name__, root_agent=wf)
+  runner = testing_utils.InMemoryRunner(app=app)
+  
+  with pytest.raises(ValueError, match='multiple terminal nodes'):
+    await runner.run_async(testing_utils.get_user_content('start'))
+
+

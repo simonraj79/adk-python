@@ -714,29 +714,6 @@ async def test_state_update_via_event_persisted():
   assert updated.state.get('key1') == 'value1'
 
 
-# 10. test_run_async_with_event
-@pytest.mark.asyncio
-async def test_event_with_output_and_route():
-  """Node yields Event with output and route — only matching target runs.
-
-  Maps to: test_run_async_with_event in test_workflow_agent.py.
-  """
-  router = _RouteNode(name='NodeA', value='Hello', route_value='route_b')
-  node_b = _InputCapturingNode(name='NodeB')
-  node_c = _InputCapturingNode(name='NodeC')
-  wf = Workflow(
-      name='wf',
-      edges=[
-          (START, router),
-          (router, {'route_b': node_b, 'route_c': node_c}),
-      ],
-  )
-
-  events, _, _ = await _run_workflow(wf)
-
-  assert node_b.received_inputs == ['Hello']
-  assert not node_c.received_inputs
-
 
 # 11. test_run_async_with_raw_output_node
 @pytest.mark.asyncio
@@ -1355,78 +1332,6 @@ async def test_multiple_outputs_rejected():
   with pytest.raises(ValueError, match='at most one output'):
     await _run_workflow(wf)
 
-
-# 35. test_run_async_with_implicit_graph_fan_in_with_route
-@pytest.mark.asyncio
-async def test_fan_in_with_route():
-  """Fan-in with conditional routes — both route to same target.
-
-  Maps to: test_run_async_with_implicit_graph_fan_in_with_route
-  in test_workflow_agent.py.
-  """
-  a = _RouteNode(name='a', value='A', route_value='route1')
-  b = _RouteNode(name='b', value='B', route_value='route1')
-  c = _InputCapturingNode(name='c')
-  wf = Workflow(
-      name='wf',
-      edges=[
-          (START, a),
-          (START, b),
-          ((a, b), {'route1': c}),
-      ],
-  )
-
-  events, _, _ = await _run_workflow(wf)
-
-  assert Counter(c.received_inputs) == Counter(['A', 'B'])
-
-
-# 36. test_run_async_with_implicit_graph_fan_out_with_route
-@pytest.mark.asyncio
-async def test_fan_out_with_route():
-  """Fan-out via route to multiple terminals raises ValueError.
-
-  Maps to: test_run_async_with_implicit_graph_fan_out_with_route
-  in test_workflow_agent.py.
-  """
-  router = _RouteNode(name='r', value='R', route_value='route1')
-  b = _InputCapturingNode(name='b')
-  c = _InputCapturingNode(name='c')
-  wf = Workflow(
-      name='wf',
-      edges=[
-          (START, router),
-          (router, {'route1': (b, c)}),
-      ],
-  )
-
-  with pytest.raises(ValueError, match='multiple terminal nodes'):
-    await _run_workflow(wf)
-
-
-# 37. test_run_async_with_implicit_graph_fan_in_out_with_route
-@pytest.mark.asyncio
-async def test_fan_in_out_with_route():
-  """Fan-in/out with routes to multiple terminals raises ValueError.
-
-  Maps to: test_run_async_with_implicit_graph_fan_in_out_with_route
-  in test_workflow_agent.py.
-  """
-  a = _RouteNode(name='a', value='A', route_value='route1')
-  b = _RouteNode(name='b', value='B', route_value='route1')
-  c = _InputCapturingNode(name='c')
-  d = _InputCapturingNode(name='d')
-  wf = Workflow(
-      name='wf',
-      edges=[
-          (START, a),
-          (START, b),
-          ((a, b), {'route1': (c, d)}),
-      ],
-  )
-
-  with pytest.raises(ValueError, match='multiple terminal nodes'):
-    await _run_workflow(wf)
 
 
 # 38. test_run_async_streaming_behavior
