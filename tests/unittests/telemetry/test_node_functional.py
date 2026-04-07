@@ -26,9 +26,11 @@ from google.adk.agents.llm_agent import Agent
 from google.adk.runners import InMemoryRunner
 from google.adk.telemetry import node_tracing
 from google.adk.telemetry import tracing
-from google.adk.tools import FunctionTool
+from google.adk.tools.function_tool import FunctionTool
 from google.adk.workflow._base_node import START
 from google.genai.types import Content
+from google.adk.workflow._workflow_class import Workflow
+from google.adk.telemetry import node_tracing
 from google.genai.types import Part
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace import TracerProvider
@@ -39,6 +41,7 @@ import pytest
 
 from ..testing_utils import MockModel
 from ..testing_utils import TestInMemoryRunner
+from .utils import set_aclosing_wrapping_assertions
 
 # Difficult to extract, non deterministic attribute keys.
 # We check only for their presence, instead of their values.
@@ -135,7 +138,10 @@ async def test_tracer_start_as_current_span(
     span_exporter: InMemorySpanExporter,
 ):
   """Test creation of multiple spans and their attributes in an E2E runner invocation with a workflow."""
+
   # Arrange
+  set_aclosing_wrapping_assertions()
+
   mock_model = MockModel.create(
       responses=[
           Part.from_function_call(name='some_tool', args={'arg1': 'val1'}),

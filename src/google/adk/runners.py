@@ -17,6 +17,7 @@ from __future__ import annotations
 import asyncio
 import inspect
 import logging
+from contextlib import aclosing
 from pathlib import Path
 import queue
 import sys
@@ -63,7 +64,6 @@ from .sessions.session import Session
 from .telemetry.tracing import tracer
 from .tools.base_toolset import BaseToolset
 from .utils._debug_output import print_event
-from .utils.context_utils import Aclosing
 
 logger = logging.getLogger('google_adk.' + __name__)
 
@@ -503,8 +503,11 @@ class Runner:
 
     # 4. Main loop: consume events, persist, yield
     try:
-      async for event in self._consume_event_queue(ic, done_sentinel):
-        yield event
+      async with aclosing(
+          self._consume_event_queue(ic, done_sentinel)
+      ) as agen:
+        async for event in agen:
+          yield event
     finally:
       await self._cleanup_root_task(task, self.agent.name)
 
@@ -820,15 +823,18 @@ class Runner:
             "LlmAgent as root agent must have mode='chat', but got"
             f" mode='{self.agent.mode}'."
         )
-      async for event in self._run_node_async(
-          user_id=user_id,
-          session_id=session_id,
-          new_message=new_message,
-          run_config=run_config,
-          yield_user_message=yield_user_message,
-          node=agent_to_run,
-      ):
-        yield event
+      async with aclosing(
+          self._run_node_async(
+              user_id=user_id,
+              session_id=session_id,
+              new_message=new_message,
+              run_config=run_config,
+              yield_user_message=yield_user_message,
+              node=agent_to_run,
+          )
+      ) as agen:
+        async for event in agen:
+          yield event
       return
 
     # TODO: remove `not isinstance(self.agent, BaseAgent)` after all agents are
@@ -836,14 +842,17 @@ class Runner:
     if isinstance(self.agent, BaseNode) and not isinstance(
         self.agent, BaseAgent
     ):
-      async for event in self._run_node_async(
-          user_id=user_id,
-          session_id=session_id,
-          new_message=new_message,
-          run_config=run_config,
-          yield_user_message=yield_user_message,
-      ):
-        yield event
+      async with aclosing(
+          self._run_node_async(
+              user_id=user_id,
+              session_id=session_id,
+              new_message=new_message,
+              run_config=run_config,
+              yield_user_message=yield_user_message,
+          )
+      ) as agen:
+        async for event in agen:
+          yield event
       return
 
     async def _run_with_trace(
@@ -1395,11 +1404,11 @@ class Runner:
     invocation_context.agent = self._find_agent_to_run(session, root_agent)
 
     async def execute(ctx: InvocationContext) -> AsyncGenerator[Event]:
-      async with Aclosing(ctx.agent.run_live(ctx)) as agen:
+      async with aclosing(ctx.agent.run_live(ctx)) as agen:
         async for event in agen:
           yield event
 
-    async with Aclosing(
+    async with aclosing(
         self._exec_with_plugin(
             invocation_context=invocation_context,
             session=session,
@@ -1600,16 +1609,19 @@ class Runner:
       if not quiet:
         logger.info('User > %s', message)
 
-      async for event in self.run_async(
-          user_id=user_id,
-          session_id=session.id,
-          new_message=types.UserContent(parts=[types.Part(text=message)]),
-          run_config=run_config,
-      ):
-        if not quiet:
-          print_event(event, verbose=verbose)
+      async with aclosing(
+          self.run_async(
+              user_id=user_id,
+              session_id=session.id,
+              new_message=types.UserContent(parts=[types.Part(text=message)]),
+              run_config=run_config,
+          )
+      ) as agen:
+        async for event in agen:
+          if not quiet:
+            print_event(event, verbose=verbose)
 
-        collected_events.append(event)
+          collected_events.append(event)
 
     return collected_events
 

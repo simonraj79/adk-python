@@ -12,9 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import gc
-import sys
-
 from google.adk.agents import base_agent
 from google.adk.agents.llm_agent import Agent
 from google.adk.models.base_llm import BaseLlm
@@ -30,6 +27,7 @@ import pytest
 
 from ..testing_utils import MockModel
 from ..testing_utils import TestInMemoryRunner
+from .utils import set_aclosing_wrapping_assertions
 
 
 @pytest.fixture
@@ -93,53 +91,7 @@ async def test_tracer_start_as_current_span(
   This is necessary because instrumentation utilizes contextvars, which ran into "ContextVar was created in a different Context" errors,
   when a given coroutine gets indeterminately suspended.
   """
-  firstiter, finalizer = sys.get_asyncgen_hooks()
-
-  def wrapped_firstiter(coro):
-    nonlocal firstiter
-    # Skip check for:
-    # - tracing context managers (use_inference_span, etc.)
-    # - workflow-internal generators: the workflow engine uses many
-    #   small async generators (_checkpoint_agent_state,
-    #   _handle_adk_event, _execute_node, etc.) that run within a
-    #   single task and don't hold cross-context state. These are
-    #   identified by their source file path containing 'workflow'.
-    # - run_async: called internally by Workflow.run() for the
-    #   coordinator _SingleLlmAgent; already wrapped at the
-    #   top-level runner invocation.
-    # - run_node_impl: LlmAgent.run_node_impl lives in agents/
-    #   (outside workflow/) but is workflow-internal; it wraps
-    #   its inner delegation with Aclosing.
-    # - call_llm, execute_tools: live in agents/llm/ (outside
-    #   workflow/) but are workflow-internal node functions.
-    # - _run_node_async, _consume_event_queue: live in runners.py
-    #   but are part of the new workflow node runtime path.
-    # - start_as_current_node_span: @asynccontextmanager in
-    #   telemetry/node_tracing.py; cleanup is handled by
-    #   __aexit__, not Aclosing.
-    if coro.__name__ in (
-        'use_inference_span',
-        '_use_native_generate_content_span',
-        'run_async',
-        '_run_node_async',
-        '_consume_event_queue',
-        'run_node_impl',
-        'call_llm',
-        'execute_tools',
-        'start_as_current_node_span',
-    ):
-      firstiter(coro)
-      return
-    assert any(
-        isinstance(referrer, Aclosing)
-        or isinstance(indirect_referrer, Aclosing)
-        for referrer in gc.get_referrers(coro)
-        # Some coroutines have a layer of indirection in Python 3.10
-        for indirect_referrer in gc.get_referrers(referrer)
-    ), f'Coro `{coro.__name__}` is not wrapped with Aclosing'
-    firstiter(coro)
-
-  sys.set_asyncgen_hooks(wrapped_firstiter, finalizer)
+  set_aclosing_wrapping_assertions()
 
   # Act
   async with Aclosing(test_runner.run_async_with_new_session_agen('')) as agen:

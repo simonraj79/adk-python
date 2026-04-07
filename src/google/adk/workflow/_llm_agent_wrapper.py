@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 from typing import Any
 from typing import AsyncGenerator
+from contextlib import aclosing
 
 from google.genai import types
 from pydantic import BaseModel
@@ -132,37 +133,38 @@ async def run_llm_agent_as_node(
 
   ic = agent_ctx.get_invocation_context()
   ic = ic.model_copy(update={'agent': agent})
-  run_iter = agent.run_async(ic)
+  run_iter = aclosing(agent.run_async(ic))
 
-  if agent.mode == 'single_turn':
-    async for event in run_iter:
-      process_llm_agent_output(agent, ctx, event)
-      yield event
-  elif agent.mode == 'chat':
-    async for event in run_iter:
-      yield event
-      if event.actions.transfer_to_agent:
-        target_name = event.actions.transfer_to_agent
-        if target_name != agent.name:
-          target_agent = agent.root_agent.find_agent(target_name)
-          if target_agent:
-            from .utils._workflow_graph_utils import build_node
-
-            wrapped_target = build_node(target_agent)
-            wrapped_target.parent_agent = target_agent.parent_agent
-            await ctx.run_node(wrapped_target, node_input=None)
-            if ctx._invocation_context.is_resumable:
-              ctx._invocation_context.set_agent_state(
-                  agent.name, end_of_agent=True
-              )
-              yield agent._create_agent_state_event(ctx._invocation_context)
-            break
-  else:
-    # Task mode: finish_task output is inside event.actions, not
-    # event.output. Intercept it and set as a proper output event.
-    async for event in run_iter:
-      if event.actions.finish_task:
-        event.output = event.actions.finish_task.get('output')
+  async with run_iter as run_iter:
+    if agent.mode == 'single_turn':
+      async for event in run_iter:
+        process_llm_agent_output(agent, ctx, event)
         yield event
-        break
-      yield event
+    elif agent.mode == 'chat':
+      async for event in run_iter:
+        yield event
+        if event.actions.transfer_to_agent:
+          target_name = event.actions.transfer_to_agent
+          if target_name != agent.name:
+            target_agent = agent.root_agent.find_agent(target_name)
+            if target_agent:
+              from .utils._workflow_graph_utils import build_node
+
+              wrapped_target = build_node(target_agent)
+              wrapped_target.parent_agent = target_agent.parent_agent
+              await ctx.run_node(wrapped_target, node_input=None)
+              if ctx._invocation_context.is_resumable:
+                ctx._invocation_context.set_agent_state(
+                    agent.name, end_of_agent=True
+                )
+                yield agent._create_agent_state_event(ctx._invocation_context)
+              break
+    else:
+      # Task mode: finish_task output is inside event.actions, not
+      # event.output. Intercept it and set as a proper output event.
+      async for event in run_iter:
+        if event.actions.finish_task:
+          event.output = event.actions.finish_task.get('output')
+          yield event
+          break
+        yield event
