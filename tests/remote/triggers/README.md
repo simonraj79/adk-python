@@ -3,9 +3,9 @@
 End-to-end tests that verify Pub/Sub push, and
 Eventarc triggers against a real ADK agent deployed to Cloud Run.
 
-## Workflow (Decoupled & Robust)
+## Workflow
 
-This workflow is split into three independent phases. For Google-internal instructions, see [README_INTERNAL.md](README_INTERNAL.md).
+This workflow is split into three independent phases.
 
 ### Phase 1: Deploy Agent
 
