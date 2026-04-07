@@ -65,10 +65,8 @@ https://google.github.io/adk-docs/agents/models
 _EXPRESS_TOS_MSG = """
 Google Cloud Express Mode Terms of Service: https://cloud.google.com/terms/google-cloud-express
 By using this application, you agree to the Google Cloud Express Mode terms of service and any
-applicable services and APIs. You also agree to only use this application for your trade,
-business, craft, or profession.
-
-Would you like to proceed? (yes/no)
+applicable services and APIs: https://console.cloud.google.com/terms. You also agree to only use
+this application for your trade, business, craft, or profession.
 """
 
 _NOT_ELIGIBLE_MSG = """
