@@ -114,6 +114,16 @@ async def _resume_turn(
   ]
 
 
+def create_lro_tool(name: str = 'long_running_op') -> LongRunningFunctionTool:
+  """Creates a minimal LRO tool for testing."""
+
+  def _impl() -> None:
+    return None
+
+  _impl.__name__ = name
+  return LongRunningFunctionTool(_impl)
+
+
 # ---------------------------------------------------------------------------
 # Tests: Single Agent
 # ---------------------------------------------------------------------------
@@ -129,13 +139,6 @@ class TestSingleAgentInterruptions:
     Act: Run the agent with a prompt that triggers the tool.
     Assert: Verify that the execution yields a long running tool interrupt.
     """
-
-    def create_lro_tool(name='long_running_op'):
-      def _impl() -> None:
-        return None
-
-      _impl.__name__ = name
-      return LongRunningFunctionTool(_impl)
 
     fc = types.Part.from_function_call(name='long_running_op', args={})
     mock_model = testing_utils.MockModel.create(responses=[fc, 'Final answer'])
@@ -186,14 +189,7 @@ class TestNestedAgentInterruptions:
         responses=[fc_child, 'Child final answer']
     )
 
-    def create_lro_tool(name='child_lro'):
-      def _impl() -> None:
-        return None
-
-      _impl.__name__ = name
-      return LongRunningFunctionTool(_impl)
-
-    lro_tool = create_lro_tool()
+    lro_tool = create_lro_tool('child_lro')
 
     child_agent = LlmAgent(
         name='child_agent',
@@ -223,14 +219,140 @@ class TestNestedAgentInterruptions:
         app_name='test', agent=parent_agent, session_service=session_service
     )
 
-    # Act: Run first turn
+    # When Parent runs the first turn
     events = await _run_turn(runner, 'Go')
 
-    # Assert: Should have triggered child LRO interrupt!
+    # Then it should trigger child LRO interrupt
     assert any(e.long_running_tool_ids for e in events)
 
-    # Act: Resume
+    # When Parent resumes the turn
     resume_events = await _resume_turn(runner, events, 'child_lro')
 
-    # Assert: Should have completed!
+    # Then it should complete successfully
     assert any('Child final answer' in t for t in text_parts(resume_events))
+
+  async def test_task_child_agent_interrupt_and_resume(self):
+    """Task child agent yields on LRO and resumes successfully.
+
+    Arrange: Parent agent with Task Child agent. Parent transfers to Child.
+      Child calls LRO tool.
+    Act: Run, expect LRO interrupt. Then resume.
+    Assert: Should complete successfully.
+    """
+
+    def transfer_to_child(tool_context: ToolContext) -> str:
+      tool_context.actions.transfer_to_agent = 'child_agent'
+      return 'transferring'
+
+    # Child agent (Task mode)
+    fc_child = types.Part.from_function_call(name='child_lro', args={})
+    fc_finish = types.Part.from_function_call(
+        name='finish_task', args={'result': 'Task done'}
+    )
+    child_mock_model = testing_utils.MockModel.create(
+        responses=[fc_child, fc_finish, 'Child final answer']
+    )
+
+    lro_tool = create_lro_tool('child_lro')
+
+    child_agent = LlmAgent(
+        name='child_agent',
+        model=child_mock_model,
+        tools=[lro_tool],
+        mode='task',
+    )
+
+    # Parent agent
+    fc_parent = types.Part.from_function_call(name='transfer_to_child', args={})
+    parent_mock_model = testing_utils.MockModel.create(
+        responses=[fc_parent, 'Parent final answer']
+    )
+
+    parent_agent = LlmAgent(
+        name='parent_agent',
+        model=parent_mock_model,
+        tools=[transfer_to_child],
+        sub_agents=[child_agent],
+    )
+
+    # Setup runner
+    session_service = InMemorySessionService()
+    await session_service.create_session(
+        app_name='test', user_id=_USER_ID, session_id=_SESSION_ID
+    )
+    runner = Runner(
+        app_name='test', agent=parent_agent, session_service=session_service
+    )
+
+    # When Parent runs the first turn
+    events = await _run_turn(runner, 'Go')
+
+    # Then it should trigger child LRO interrupt
+    assert any(e.long_running_tool_ids for e in events)
+
+    # When Parent resumes the turn
+    resume_events = await _resume_turn(runner, events, 'child_lro')
+
+    # Then it should complete successfully
+    assert any('Parent final answer' in t for t in text_parts(resume_events))
+
+  @pytest.mark.xfail(reason='_SingleTurnAgentTool swallows interruptions.')
+  async def test_single_turn_child_agent_interrupt_and_resume(self):
+    """Single-turn child agent yields on LRO and resumes successfully.
+
+    Arrange: Parent agent with Single-turn Child agent.
+      Parent calls Child via tool.
+      Child calls LRO tool.
+    Act: Run, expect LRO interrupt. Then resume.
+    Assert: Should complete successfully.
+    """
+
+    # Child agent (Single-turn)
+    fc_child = types.Part.from_function_call(name='child_lro', args={})
+    child_mock_model = testing_utils.MockModel.create(
+        responses=[fc_child, 'Child final answer']
+    )
+
+    lro_tool = create_lro_tool('child_lro')
+
+    child_agent = LlmAgent(
+        name='child_agent',
+        model=child_mock_model,
+        tools=[lro_tool],
+        mode='single_turn',
+    )
+
+    # Parent agent
+    fc_call_child = types.Part.from_function_call(
+        name='child_agent', args={'request': 'Go to child'}
+    )
+    parent_mock_model = testing_utils.MockModel.create(
+        responses=[fc_call_child, 'Parent final answer']
+    )
+
+    parent_agent = LlmAgent(
+        name='parent_agent',
+        model=parent_mock_model,
+        sub_agents=[child_agent],
+    )
+
+    # Setup runner
+    session_service = InMemorySessionService()
+    await session_service.create_session(
+        app_name='test', user_id=_USER_ID, session_id=_SESSION_ID
+    )
+    runner = Runner(
+        app_name='test', agent=parent_agent, session_service=session_service
+    )
+
+    # When Parent runs the first turn
+    events = await _run_turn(runner, 'Go')
+
+    # Then it should trigger child LRO interrupt
+    assert any(e.long_running_tool_ids for e in events)
+
+    # When Parent resumes the turn
+    resume_events = await _resume_turn(runner, events, 'child_lro')
+
+    # Then it should complete successfully
+    assert any('Parent final answer' in t for t in text_parts(resume_events))

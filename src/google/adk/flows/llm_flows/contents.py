@@ -518,7 +518,11 @@ def _get_contents(
         if part.function_response:
           resp_id = part.function_response.id
           call_author = fc_author_by_id.get(resp_id)
-          if call_author and call_author != agent_name and call_author != 'user':
+          if (
+              call_author
+              and call_author != agent_name
+              and call_author != 'user'
+          ):
             is_other_reply = True
             break
 
