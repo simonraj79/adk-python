@@ -383,6 +383,17 @@ def get_auth_request_events(events: list[Any]) -> list[Any]:
   return [e for e in events if has_auth_request_function_call(e)]
 
 
+def get_output_events(events: list[Any], output: Any = None) -> list[Any]:
+  """Returns a list of events that have output populated."""
+  return [
+      e
+      for e in events
+      if isinstance(e, Event)
+      and e.output is not None
+      and (output is None or e.output == output)
+  ]
+
+
 def strip_checkpoint_events(
     simplified_events: list[tuple[str, Any]],
 ) -> list[tuple[str, Any]]:

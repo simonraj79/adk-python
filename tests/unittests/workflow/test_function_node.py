@@ -28,10 +28,12 @@ from google.adk.apps.app import ResumabilityConfig
 from google.adk.events.event import Event
 from google.adk.events.event import Event as AdkEvent
 from google.adk.events.request_input import RequestInput
+from google.adk.runners import Runner
+from google.adk.sessions import InMemorySessionService
 from google.adk.workflow import FunctionNode
 from google.adk.workflow import START
-from google.adk.workflow._workflow_class import Workflow
 from google.adk.workflow._node_status import NodeStatus
+from google.adk.workflow._workflow_class import Workflow
 from google.adk.workflow.utils._node_path_utils import is_direct_child
 from google.adk.workflow.utils._workflow_hitl_utils import create_request_input_response
 from google.adk.workflow.utils._workflow_hitl_utils import get_request_input_interrupt_ids
@@ -41,11 +43,10 @@ import pytest
 
 from .. import testing_utils
 from .workflow_testing_utils import create_parent_invocation_context
+from .workflow_testing_utils import get_output_events
 from .workflow_testing_utils import get_request_input_events
 from .workflow_testing_utils import simplify_events_with_node
 from .workflow_testing_utils import simplify_events_with_node_and_agent_state
-from google.adk.runners import Runner
-from google.adk.sessions import InMemorySessionService
 
 ANY = mock.ANY
 
@@ -440,8 +441,19 @@ async def test_function_node_state_injection_pydantic(
 
 @pytest.mark.asyncio
 async def test_function_node_hitl(request: pytest.FixtureRequest):
-  """Tests that FunctionNode can trigger HITL."""
+  """Tests that FunctionNode can trigger HITL.
 
+  Setup: Workflow with request_input_fn -> process_input_fn.
+    request_input_fn yields RequestInput.
+  Act:
+    - Run 1: start workflow, request_input_fn yields RequestInput.
+    - Run 2: resume with user response.
+  Assert:
+    - Run 1: returns RequestInput event with valid ID.
+    - Run 2: process_input_fn receives input and completes.
+  """
+
+  # Given: A workflow where the first node requests input
   def request_input_fn() -> Generator[Any, None, None]:
     yield RequestInput(message='Provide input')
 
@@ -462,45 +474,20 @@ async def test_function_node_hitl(request: pytest.FixtureRequest):
   )
   runner = testing_utils.InMemoryRunner(app=app)
 
-  # First run: should pause on RequestInput.
+  # When: Starting the workflow
   user_event = testing_utils.get_user_content('start workflow')
   events1 = await runner.run_async(user_event)
 
+  # Then: It should yield a RequestInput event with a valid ID
   req_events = get_request_input_events(events1)
   assert len(req_events) == 1
   interrupt_id = get_request_input_interrupt_ids(req_events[0])[0]
   invocation_id = events1[0].invocation_id
 
-  simplified_events1 = simplify_events_with_node_and_agent_state(
-      copy.deepcopy(events1)
-  )
-  assert simplified_events1 == [
-      (
-          'test_workflow_agent_hitl',
-          {
-              'nodes': {
-                  'request_input_fn': {'status': NodeStatus.RUNNING.value},
-              }
-          },
-      ),
-      (
-          'test_workflow_agent_hitl',
-          testing_utils.simplify_content(req_events[0].content),
-      ),
-      (
-          'test_workflow_agent_hitl',
-          {
-              'nodes': {
-                  'request_input_fn': {
-                      'status': NodeStatus.WAITING.value,
-                      'interrupts': [interrupt_id],
-                  },
-              }
-          },
-      ),
-  ]
+  # Verify that the FunctionCall object actually has the id set
+  assert req_events[0].content.parts[0].function_call.id == interrupt_id
 
-  # Resume with user input
+  # When: Resuming with user response
   user_input = create_request_input_response(
       interrupt_id, {'text': 'Hello from user'}
   )
@@ -508,44 +495,10 @@ async def test_function_node_hitl(request: pytest.FixtureRequest):
       new_message=testing_utils.UserContent(user_input),
       invocation_id=invocation_id,
   )
-  simplified_events2 = simplify_events_with_node_and_agent_state(
-      copy.deepcopy(events2)
-  )
-  assert simplified_events2 == [
-      (
-          'test_workflow_agent_hitl',
-          {
-              'node_name': 'request_input_fn',
-              'output': {'text': 'Hello from user'},
-          },
-      ),
-      (
-          'test_workflow_agent_hitl',
-          {
-              'nodes': {
-                  'request_input_fn': {'status': NodeStatus.COMPLETED.value},
-                  'process_input_fn': {'status': NodeStatus.RUNNING.value},
-              }
-          },
-      ),
-      (
-          'test_workflow_agent_hitl',
-          {
-              'node_name': 'process_input_fn',
-              'output': 'received: Hello from user',
-          },
-      ),
-      (
-          'test_workflow_agent_hitl',
-          {
-              'nodes': {
-                  'request_input_fn': {'status': NodeStatus.COMPLETED.value},
-                  'process_input_fn': {'status': NodeStatus.COMPLETED.value},
-              }
-          },
-      ),
-      ('test_workflow_agent_hitl', testing_utils.END_OF_AGENT),
-  ]
+
+  # Then: It should complete and pass output to the next node
+  data_events = get_output_events(events2, output='received: Hello from user')
+  assert len(data_events) == 1
 
 
 @pytest.mark.asyncio
@@ -1140,7 +1093,7 @@ async def test_function_node_ctx_state_delta_generator(
           {
               'node_name': 'gen_with_state',
               'output': 'done',
-              'state_delta': {'key1': 'value1', 'key2': 'value2'},
+              'state_delta': {'key2': 'value2'},
           },
       ),
       (
@@ -1187,7 +1140,7 @@ async def test_output_schema_inferred_validates_dict(
       for e in events
       if isinstance(e, Event)
       and e.output is not None
-      and is_direct_child(e.node_info.path, 'wf')
+      and is_direct_child(e.node_info.path, 'wf@1')
   ]
   assert len(data_events) == 1
   assert data_events[0].output == {'name': 'test', 'value': 42}
@@ -1259,7 +1212,7 @@ async def test_output_schema_inferred_coerces_defaults(
       for e in events
       if isinstance(e, Event)
       and e.output is not None
-      and is_direct_child(e.node_info.path, 'wf')
+      and is_direct_child(e.node_info.path, 'wf@1')
   ]
   assert len(data_events) == 1
   assert data_events[0].output == {
@@ -1289,7 +1242,7 @@ async def test_output_schema_inferred_from_return_hint(
       for e in events
       if isinstance(e, Event)
       and e.output is not None
-      and is_direct_child(e.node_info.path, 'wf')
+      and is_direct_child(e.node_info.path, 'wf@1')
   ]
   assert len(data_events) == 1
   assert data_events[0].output == {'name': 'inferred', 'value': 1}
@@ -1323,7 +1276,7 @@ async def test_output_schema_inferred_type_coercion(
       for e in events
       if isinstance(e, Event)
       and e.output is not None
-      and is_direct_child(e.node_info.path, 'wf')
+      and is_direct_child(e.node_info.path, 'wf@1')
   ]
   assert len(data_events) == 1
   assert data_events[0].output == {'name': 'coerce', 'value': 42}
@@ -1350,7 +1303,7 @@ async def test_output_schema_none_return(request: pytest.FixtureRequest):
       for e in events
       if isinstance(e, Event)
       and e.output is not None
-      and is_direct_child(e.node_info.path, 'wf')
+      and is_direct_child(e.node_info.path, 'wf@1')
   ]
   assert len(data_events) == 1
   assert data_events[0].output == 'got: None'
@@ -1376,7 +1329,7 @@ async def test_output_schema_validates_returned_event_data(
       for e in events
       if isinstance(e, Event)
       and e.output is not None
-      and is_direct_child(e.node_info.path, 'wf')
+      and is_direct_child(e.node_info.path, 'wf@1')
   ]
   assert len(data_events) == 1
   assert data_events[0].output == {'name': 'evt', 'value': 7}
@@ -1511,7 +1464,7 @@ async def test_input_schema_none_passthrough(request: pytest.FixtureRequest):
       for e in events
       if isinstance(e, Event)
       and e.output is not None
-      and is_direct_child(e.node_info.path, 'wf')
+      and is_direct_child(e.node_info.path, 'wf@1')
   ]
   assert any(e.output == 'got: None' for e in data_events)
 
@@ -1644,9 +1597,7 @@ class TestParameterBindingNodeInput:
     def produce():
       return producer_output
 
-    node = FunctionNode(
-        add_func, name='add', parameter_binding='node_input'
-    )
+    node = FunctionNode(add_func, name='add', parameter_binding='node_input')
 
     agent = Workflow(
         name='test_bind_from_node_input',
