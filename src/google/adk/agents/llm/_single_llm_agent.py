@@ -176,11 +176,18 @@ class _SingleLlmAgent(Workflow, BaseLlmAgent):
     multiple_tools = len(self.tools) > 1
     model = self.canonical_model
     for tool_union in self.tools:
-      resolved_tools.extend(
-          await _convert_tool_union_to_tools(
-              tool_union, ctx, model, multiple_tools
-          )
-      )
+      try:
+        resolved_tools.extend(
+            await _convert_tool_union_to_tools(
+                tool_union, ctx, model, multiple_tools
+            )
+        )
+      except Exception as e:
+        logger.warning(
+            'Failed to get tools from toolset %s: %s',
+            type(tool_union).__name__,
+            e,
+        )
     return resolved_tools
 
   @property
