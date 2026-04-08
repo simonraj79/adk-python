@@ -449,7 +449,7 @@ class _FlakyNode(BaseNode):
   ) -> AsyncGenerator[Any, None]:
     iteration_count = self.tracker.get('iteration_count', 0) + 1
     self.tracker['iteration_count'] = iteration_count
-    self.tracker.setdefault('retry_counts', []).append(ctx.retry_count)
+    self.tracker.setdefault('attempt_counts', []).append(ctx.attempt_count)
 
     if iteration_count < self.succeed_on_iteration:
       raise self.exception_to_raise

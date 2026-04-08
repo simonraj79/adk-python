@@ -519,7 +519,7 @@ class Workflow(BaseAgent, Node):
       if _should_retry_node(completion.exception, retry_config, node_state):
         # Mark node as PENDING and schedule it for retry.
         node_state.status = NodeStatus.PENDING
-        node_state.retry_count += 1
+        node_state.attempt_count += 1
 
         delay = _get_retry_delay(retry_config, node_state)
         if delay:

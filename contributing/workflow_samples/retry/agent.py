@@ -22,11 +22,11 @@ from google.adk.workflow import node
 from google.adk.workflow import RetryConfig
 
 
-@node(retry_config=RetryConfig(max_retries=5, initial_delay=1))
+@node(retry_config=RetryConfig(max_attempts=5, initial_delay=1))
 def get_weather(ctx: Context) -> str:
   """A mock task that fails randomly."""
 
-  yield Event(message=f"Getting weather... attempt {ctx.retry_count}")
+  yield Event(message=f"Getting weather... attempt {ctx.attempt_count}")
   if random.random() < 0.7:  # 70% chance of failure
     raise HTTPError(
         url="http://mock-api.example.com",

@@ -31,18 +31,18 @@ This sample demonstrates a `get_weather` node that intentionally fails randomly 
    from google.adk.workflow import RetryConfig
    ```
 
-1. **Configure the Decorator**: Apply the `@node` decorator to your Python function and specify the `retry_config` parameter with your desired logic (e.g., `max_retries`, `initial_delay`).
+1. **Configure the Decorator**: Apply the `@node` decorator to your Python function and specify the `retry_config` parameter with your desired logic (e.g., `max_attempts`, `initial_delay`).
 
    ```python
-   @node(retry_config=RetryConfig(max_retries=5, initial_delay=1))
+   @node(retry_config=RetryConfig(max_attempts=5, initial_delay=1))
    def get_weather(ctx: Context) -> str:
        # ... flaky logic here ...
    ```
 
-   When an exception like `HTTPError` occurs, the ADK framework catches it, emits an error event, and processes the backoff delay automatically. As long as `max_retries` hasn't been exceeded, the node executes again.
+   When an exception like `HTTPError` occurs, the ADK framework catches it, emits an error event, and processes the backoff delay automatically. As long as `max_attempts` hasn't been exceeded, the node executes again.
 
-1. **Track Retries (Optional)**: If you need to know which attempt the node is currently running, you can access `ctx.retry_count` from the `Context`.
+1. **Track Retries (Optional)**: If you need to know which attempt the node is currently running, you can access `ctx.attempt_count` from the `Context`.
 
    ```python
-   yield Event(message=f"Getting weather... attempt {ctx.retry_count}")
+   yield Event(message=f"Getting weather... attempt {ctx.attempt_count}")
    ```

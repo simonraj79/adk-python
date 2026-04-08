@@ -99,7 +99,7 @@ def _schedule_node(
           in_nodes=in_nodes,
           resume_inputs=resume_inputs,
           run_id=node_state.run_id,
-          retry_count=node_state.retry_count,
+          attempt_count=node_state.attempt_count,
       ),
       name=node_name,
   )
@@ -321,7 +321,7 @@ async def _node_runner(
     in_nodes: set[str],
     resume_inputs: dict[str, Any] | None,
     run_id: str,
-    retry_count: int,
+    attempt_count: int,
 ) -> None:
   """Runs a node in a cancellable task and streams events to the queue.
 
@@ -387,7 +387,7 @@ async def _node_runner(
           in_nodes=in_nodes,
           resume_inputs=resume_inputs,
           run_id=run_id,
-          retry_count=retry_count,
+          attempt_count=attempt_count,
           current_node_path=run_state.node_path,
           schedule_dynamic_node=make_schedule_dynamic_node(),
           transfer_targets=run_state.transfer_targets,
@@ -612,7 +612,7 @@ async def _execute_node(
     current_node_path: str,
     schedule_dynamic_node: ScheduleDynamicNode,
     transfer_targets: list[_TransferTargetInfo] | None = None,
-    retry_count: int = 0,
+    attempt_count: int = 1,
 ) -> AsyncGenerator[Event, None]:
   """Executes a node in the workflow graph.
 
@@ -645,7 +645,7 @@ async def _execute_node(
       in_nodes=in_nodes,
       resume_inputs=resume_inputs,
       run_id=run_id,
-      retry_count=retry_count,
+      attempt_count=attempt_count,
       schedule_dynamic_node=schedule_dynamic_node,
       node_rerun_on_resume=node.rerun_on_resume,
       local_events=local_events,

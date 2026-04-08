@@ -27,6 +27,7 @@ from google.adk.sessions.in_memory_session_service import InMemorySessionService
 from google.adk.workflow import BaseNode
 from google.adk.workflow import Edge
 from google.adk.workflow import START
+from google.adk.workflow._errors import NodeTimeoutError
 from google.adk.workflow._node import node
 from google.adk.workflow._node import Node
 from google.adk.workflow._node_status import NodeStatus
@@ -35,7 +36,6 @@ from google.adk.workflow._workflow import workflow_node_input
 from google.adk.workflow._workflow import WorkflowAgentState
 from google.adk.workflow._workflow_class import Workflow
 from google.adk.workflow._workflow_graph import WorkflowGraph
-from google.adk.workflow._errors import NodeTimeoutError
 from google.adk.workflow.utils._node_path_utils import join_paths
 from google.genai import types
 from pydantic import ConfigDict
@@ -257,14 +257,14 @@ async def test_retry_occurs_for_any_exception_when_exceptions_not_specified(
 
 
 @pytest.mark.asyncio
-async def test_node_receives_incrementing_retry_counts(
+async def test_node_receives_incrementing_attempt_counts(
     request: pytest.FixtureRequest,
 ):
-  """A node receives the current retry count in its context for each retry attempt.
+  """A node receives the current attempt count in its context for each attempt.
 
   Setup: Workflow with NodeA -> FlakyNode -> NodeC. FlakyNode fails twice before success.
   Act: Run the workflow.
-  Assert: FlakyNode observes retry_counts [0, 1, 2] in context across attempts.
+  Assert: FlakyNode observes attempt_counts [1, 2, 3] in context across attempts.
   """
   tracker = {'iteration_count': 0}
   node_a = TestingNode(name='NodeA', output='Executing A')
@@ -316,7 +316,7 @@ async def test_node_receives_incrementing_retry_counts(
       n for n in agent.graph.nodes if n.name == 'FlakyNode'
   )
   assert flaky_node_in_agent.tracker['iteration_count'] == 3
-  assert flaky_node_in_agent.tracker['retry_counts'] == [0, 1, 2]
+  assert flaky_node_in_agent.tracker['attempt_counts'] == [1, 2, 3]
 
 
 @pytest.mark.asyncio
@@ -646,10 +646,10 @@ async def test_retry_applies_backoff_strategy(request: pytest.FixtureRequest):
     ):
       events.append(event)
     # Attempt 1 (First Retry): fails, delay = 2.0 * (3.0 ** 0) = 2.0
-    # Attempt 2 (Second Retry): fails, delay = 2.0 * (3.0 ** 0) = 2.0
-    # Attempt 3 (Third Retry): fails, delay = 2.0 * (3.0 ** 1) = 6.0
+    # Attempt 2 (Second Retry): fails, delay = 2.0 * (3.0 ** 1) = 6.0
+    # Attempt 3 (Third Retry): fails, delay = 2.0 * (3.0 ** 2) = 18.0
     mock_sleep.assert_has_awaits(
-        [mock.call(2.0), mock.call(2.0), mock.call(6.0)]
+        [mock.call(2.0), mock.call(6.0), mock.call(18.0)]
     )
 
   results = simplify_events_with_node(events)

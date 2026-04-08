@@ -40,8 +40,8 @@ class NodeState(BaseModel):
   triggered_by: Optional[str] = None
   """The node that triggered the current node."""
 
-  retry_count: int = Field(default=0, exclude_if=lambda v: v == 0)
-  """The retry count number for this node run."""
+  attempt_count: int = Field(default=1, exclude_if=lambda v: v == 1)
+  """The attempt count for this node run (1-based)."""
 
   interrupts: list[str] = Field(default_factory=list)
   """The interrupt ids that are pending to be resolved."""

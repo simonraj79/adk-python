@@ -117,9 +117,9 @@ class NodeRunner:
     The caller reads ctx.output, ctx.route, and ctx.interrupt_ids
     for the node's results.
     """
-    retry_count = 0
+    attempt_count = 1
     while True:
-      ctx = self._create_child_context(resume_inputs, retry_count=retry_count)
+      ctx = self._create_child_context(resume_inputs, attempt_count=attempt_count)
       logger.info("node %s started.", ctx.node_path)
       try:
         # Start the span within try-except block to record exceptions on the span
@@ -150,7 +150,7 @@ class NodeRunner:
         )
         await self._enqueue_event(error_event, ctx)
 
-        if not await self._attempt_retry(e, ctx, retry_count):
+        if not await self._attempt_retry(e, ctx, attempt_count):
           ctx.error = e
           ctx.error_node_path = ctx.node_path
           logger.info("node %s end.", ctx.node_path)
@@ -160,16 +160,16 @@ class NodeRunner:
             " not persisted across resuming.",
             self._node.name,
         )
-        retry_count += 1
+        attempt_count += 1
 
   async def _attempt_retry(
-      self, e: Exception, ctx: Context, retry_count: int
+      self, e: Exception, ctx: Context, attempt_count: int
   ) -> bool:
     """Checks if node should retry and sleeps if so."""
     from .utils._retry_utils import _get_retry_delay
     from .utils._retry_utils import _should_retry_node
 
-    node_state = SimpleNamespace(retry_count=retry_count + 1)
+    node_state = SimpleNamespace(attempt_count=attempt_count)
 
     if not _should_retry_node(e, self._node.retry_config, node_state):
       return False
@@ -189,7 +189,7 @@ class NodeRunner:
   def _create_child_context(
       self,
       resume_inputs: dict[str, Any] | None,
-      retry_count: int = 0,
+      attempt_count: int = 1,
   ) -> Context:
     """Create a child Context for the node, inheriting from parent.
 
@@ -234,7 +234,7 @@ class NodeRunner:
         event_author=self._parent_ctx.event_author,
         state_schema=self._node.state_schema
         or (self._parent_ctx.state._schema if self._parent_ctx else None),
-        retry_count=retry_count,
+        attempt_count=attempt_count,
     )
 
     # Carry forward state from a previous run (resume scenario).

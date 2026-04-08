@@ -79,7 +79,7 @@ class _FlakyNode(BaseNode):
   ) -> AsyncGenerator[Any, None]:
     iteration_count = self.tracker.get('iteration_count', 0) + 1
     self.tracker['iteration_count'] = iteration_count
-    self.tracker.setdefault('retry_counts', []).append(ctx.retry_count)
+    self.tracker.setdefault('attempt_counts', []).append(ctx.attempt_count)
 
     if iteration_count < self.succeed_on_iteration:
       raise self.exception_to_raise
@@ -256,7 +256,7 @@ async def test_retry_on_all_exceptions_if_not_specified(
 
 
 @pytest.mark.asyncio
-async def test_retry_count_populated_correctly(
+async def test_attempt_count_populated_correctly(
     request: pytest.FixtureRequest,
 ):
   tracker = {'iteration_count': 0}
@@ -307,7 +307,7 @@ async def test_retry_count_populated_correctly(
       n for n in agent.graph.nodes if n.name == 'FlakyNode'
   )
   assert flaky_node_in_agent.tracker['iteration_count'] == 3
-  assert flaky_node_in_agent.tracker['retry_counts'] == [0, 1, 2]
+  assert flaky_node_in_agent.tracker['attempt_counts'] == [1, 2, 3]
 
 
 @pytest.mark.asyncio

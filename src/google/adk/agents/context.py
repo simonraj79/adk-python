@@ -165,7 +165,7 @@ class Context(ReadonlyContext):
       schedule_dynamic_node_internal: ScheduleDynamicNodeInternal | None = None,
       node_rerun_on_resume: bool = True,
       transfer_targets: list[Any] | None = None,
-      retry_count: int = 0,
+      attempt_count: int = 1,
       output_for_ancestors: list[str] | None = None,
       event_author: str = '',
       state_schema: type[BaseModel] | None = None,
@@ -222,7 +222,7 @@ class Context(ReadonlyContext):
     self._child_run_counter = 0
     self._local_events = local_events if local_events is not None else []
     self._transfer_targets = transfer_targets or []
-    self._retry_count = retry_count
+    self._attempt_count = attempt_count
     self._output_delegated = False
     self._output_value: Any = None
     self._output_emitted: bool = False
@@ -308,10 +308,11 @@ class Context(ReadonlyContext):
     """Returns the name of the node that triggered the current node."""
     return self._triggered_by
 
+
   @property
-  def retry_count(self) -> int:
-    """Returns the number of times this node has been retried."""
-    return self._retry_count
+  def attempt_count(self) -> int:
+    """Returns the current attempt number (1-based)."""
+    return self._attempt_count
 
   @property
   def in_nodes(self) -> frozenset[str]:

@@ -33,12 +33,12 @@ def _should_retry_node(
   if not retry_config:
     return False
 
-  retry_count = node_state.retry_count
+  attempt_count = node_state.attempt_count
   max_attempts = retry_config.max_attempts or 5
 
-  # If max_attempts is 1, it means no retries. It includes the original
-  # attempt.
-  if (retry_count + 1) >= max_attempts:
+  # attempt_count starts at 1 for the original request.
+  # So if attempt_count >= max_attempts, we have reached the limit.
+  if attempt_count >= max_attempts:
     return False
 
   if retry_config.exceptions is not None:
@@ -73,10 +73,10 @@ def _get_retry_delay(
   )
   jitter = retry_config.jitter if retry_config.jitter is not None else 1.0
 
-  retry_count = node_state.retry_count or 0
-  # retry_count has already been incremented.
-  # So the first retry has retry_count = 1.
-  attempt_for_calc = max(0, retry_count - 1)
+  attempt_count = node_state.attempt_count or 1
+  # attempt_count is the attempt number that just failed (1-based).
+  # For the first failure (attempt 1), the exponent should be 0.
+  attempt_for_calc = max(0, attempt_count - 1)
 
   delay = initial_delay * (backoff_factor**attempt_for_calc)
   delay = min(delay, max_delay)
