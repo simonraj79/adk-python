@@ -125,6 +125,8 @@ class BaseNode(BaseModel):
 
   def _validate_input_data(self, data: Any) -> Any:
     """Validates data against input_schema if set."""
+    if self.input_schema is str and isinstance(data, types.Content):
+      return ''.join(part.text for part in data.parts if part.text)
     return self._validate_schema(data, self.input_schema)
 
   def _validate_output_data(self, data: Any) -> Any:
