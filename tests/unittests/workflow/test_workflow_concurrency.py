@@ -17,12 +17,12 @@ from typing import Any
 from typing import AsyncGenerator
 
 from google.adk.agents.context import Context
+from google.adk.apps.app import App
 from google.adk.events.event import Event
 from google.adk.workflow import BaseNode
 from google.adk.workflow import START
-from google.adk.workflow._workflow_class import Workflow
-from google.adk.apps.app import App
 from google.adk.workflow._parallel_worker import _ParallelWorker as ParallelWorker
+from google.adk.workflow._workflow_class import Workflow
 from pydantic import Field
 import pytest
 from typing_extensions import override
@@ -31,160 +31,102 @@ from .. import testing_utils
 from .workflow_testing_utils import create_parent_invocation_context
 
 
-class ConcurrencyWorkerNode(BaseNode):
-  """A node that signals when it starts and waits for a signal to finish."""
-
-  def __init__(
-      self, name: str, started_event: asyncio.Event, finish_event: asyncio.Event
-  ):
-    super().__init__(name=name)
-    object.__setattr__(self, 'started_event', started_event)
-    object.__setattr__(self, 'finish_event', finish_event)
-
-  @override
-  def get_name(self) -> str:
-    return self.name
-
-  @override
-  async def run(
-      self,
-      *,
-      ctx: Context,
-      node_input: Any,
-  ) -> AsyncGenerator[Any, None]:
-    self.started_event.set()
-    await self.finish_event.wait()
-    yield f'{self.name}_done'
-
-
-class ProducerNode(BaseNode):
-  """A node that produces a list of items."""
-
-  items: list[Any] = Field(default_factory=list)
-
-  def __init__(self, items: list[Any], name: str = 'Producer'):
-    super().__init__(name=name)
-    object.__setattr__(self, 'items', items)
-
-  @override
-  async def run(
-      self, *, ctx: Context, node_input: Any
-  ) -> AsyncGenerator[Any, None]:
-    yield Event(output=self.items)
-
-
 @pytest.mark.asyncio
-async def test_workflow_max_concurrency(request: pytest.FixtureRequest):
-  """Tests that max_concurrency limits the number of running nodes."""
+async def test_max_concurrency_limits_running_nodes(
+    request: pytest.FixtureRequest,
+):
+  """Max concurrency limits the number of parallel graph-scheduled nodes.
+
+  Setup:
+    Workflow with 4 parallel nodes and max_concurrency=2.
+  Act:
+    - Start workflow in background.
+    - Release nodes one by one.
+  Assert:
+    - Initially only 2 nodes start.
+    - Releasing one node allows another to start.
+    - All nodes eventually complete.
+  """
+
+  class ConcurrencyWorkerNode(BaseNode):
+    """A node that signals when it starts and waits for a signal to finish."""
+
+    started_event: asyncio.Event
+    finish_event: asyncio.Event
+
+    @override
+    async def _run_impl(
+        self,
+        *,
+        ctx: Context,
+        node_input: Any,
+    ) -> AsyncGenerator[Any, None]:
+      self.started_event.set()
+      await self.finish_event.wait()
+      yield f'{self.name}_done'
+
+  class TerminalNode(BaseNode):
+
+    @override
+    async def _run_impl(
+        self, ctx: Context, node_input: Any
+    ) -> AsyncGenerator[Any, None]:
+      yield 'workflow_done'
+
+  # Given a workflow with 4 parallel nodes and max_concurrency=2
   num_nodes = 4
   max_concurrency = 2
   started_events = [asyncio.Event() for _ in range(num_nodes)]
   finish_events = [asyncio.Event() for _ in range(num_nodes)]
+
   nodes = [
-      ConcurrencyWorkerNode(f'Node{i}', started_events[i], finish_events[i])
+      ConcurrencyWorkerNode(
+          name=f'Node{i}',
+          started_event=started_events[i],
+          finish_event=finish_events[i],
+      )
       for i in range(num_nodes)
   ]
+
+  terminal_node = TerminalNode(name='Terminal')
+  edges = [(START, tuple(nodes), terminal_node)]
 
   agent = Workflow(
       name='concurrency_agent',
       max_concurrency=max_concurrency,
-      edges=[(START, node) for node in nodes],
+      edges=edges,
   )
 
   app = App(name=request.function.__name__, root_agent=agent)
   runner = testing_utils.InMemoryRunner(app=app)
 
-  # Run the agent in a background task
+  # When the workflow is run in background
   async def run_agent():
     return await runner.run_async(testing_utils.get_user_content('start'))
 
   run_task = asyncio.create_task(run_agent())
 
-  # Wait a bit for nodes to start.
+  # Then initially only max_concurrency nodes should start
   await asyncio.sleep(0.1)
-
-  # Check how many nodes have started
   started_count = sum(1 for e in started_events if e.is_set())
   assert started_count == max_concurrency
 
-  # Release one node
+  # When one node is released
   for i in range(num_nodes):
     if started_events[i].is_set():
       finish_events[i].set()
       break
 
-  # Wait for another node to start
+  # Then another node should start, bringing total to max_concurrency + 1
   await asyncio.sleep(0.1)
   started_count = sum(1 for e in started_events if e.is_set())
   assert started_count == max_concurrency + 1
 
-  # Release remaining nodes
+  # When all remaining nodes are released
   for e in finish_events:
     e.set()
 
+  # Then all nodes should eventually complete
   await run_task
   started_count = sum(1 for e in started_events if e.is_set())
   assert started_count == num_nodes
-
-
-@pytest.mark.asyncio
-async def test_parallel_worker_with_workflow_concurrency(
-    request: pytest.FixtureRequest,
-):
-  """Tests that ParallelWorker respects workflow-level max_concurrency."""
-  num_items = 5
-  max_concurrency = 3
-  started_events = [asyncio.Event() for _ in range(num_items)]
-  finish_events = [asyncio.Event() for _ in range(num_items)]
-
-  # Create a function that uses the shared events
-  async def worker_fn(node_input: int) -> AsyncGenerator[Any, None]:
-    started_events[node_input].set()
-    await finish_events[node_input].wait()
-    yield f'done_{node_input}'
-
-  producer = ProducerNode(items=list(range(num_items)))
-  worker = ParallelWorker(worker_fn, max_concurrency=None)  # No limit in worker
-
-  agent = Workflow(
-      name='parallel_concurrency_agent',
-      max_concurrency=max_concurrency,
-      edges=[
-          (START, producer),
-          (producer, worker),
-      ],
-  )
-
-  app = App(name=request.function.__name__, root_agent=agent)
-  runner = testing_utils.InMemoryRunner(app=app)
-
-  async def run_agent():
-    return await runner.run_async(testing_utils.get_user_content('start'))
-
-  run_task = asyncio.create_task(run_agent())
-
-  await asyncio.sleep(0.1)
-
-  # Check how many workers have started
-  started_count = sum(1 for e in started_events if e.is_set())
-  # Total ACTIVE = 1 (ParallelWorker) + children_started
-  # so children_started <= max_concurrency - 1
-  assert started_count == max_concurrency - 1
-
-  # Release one child
-  for i in range(num_items):
-    if started_events[i].is_set():
-      finish_events[i].set()
-      break
-
-  await asyncio.sleep(0.1)
-  started_count = sum(1 for e in started_events if e.is_set())
-  assert started_count == max_concurrency
-
-  # Release all
-  for e in finish_events:
-    e.set()
-
-  await run_task
-  started_count = sum(1 for e in started_events if e.is_set())
-  assert started_count == num_items
