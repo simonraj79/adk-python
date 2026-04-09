@@ -32,8 +32,6 @@ from google.adk.workflow._node import node
 from google.adk.workflow._node import Node
 from google.adk.workflow._node_status import NodeStatus
 from google.adk.workflow._retry_config import RetryConfig
-from google.adk.workflow._workflow import workflow_node_input
-from google.adk.workflow._workflow import WorkflowAgentState
 from google.adk.workflow._workflow_class import Workflow
 from google.adk.workflow._workflow_graph import WorkflowGraph
 from google.adk.workflow.utils._node_path_utils import join_paths
@@ -831,14 +829,10 @@ async def test_parallel_worker_cancellation_on_sibling_failure(
       ],
   )
 
-  token = workflow_node_input.set(['item1', 'item2'])
-  try:
-    app = App(name=request.function.__name__, root_agent=agent)
-    runner = testing_utils.InMemoryRunner(app=app)
-    with pytest.raises(ValueError, match='Fail'):
-      await runner.run_async(testing_utils.get_user_content('start'))
-  finally:
-    workflow_node_input.reset(token)
+  app = App(name=request.function.__name__, root_agent=agent)
+  runner = testing_utils.InMemoryRunner(app=app)
+  with pytest.raises(ValueError, match='Fail'):
+    await runner.run_async(testing_utils.get_user_content('start'))
 
   assert slow_node_started is True
   assert slow_node_cancelled is True
@@ -880,15 +874,10 @@ async def test_parallel_worker_cancellation_on_worker_failure(
       ],
   )
 
-  token = workflow_node_input.set(['fail', 'slow'])
-  try:
-    app = App(name=request.function.__name__, root_agent=agent)
-    runner = testing_utils.InMemoryRunner(app=app)
-    with pytest.raises(ValueError, match='Worker Fail'):
-      await runner.run_async(testing_utils.get_user_content('start'))
-
-  finally:
-    workflow_node_input.reset(token)
+  app = App(name=request.function.__name__, root_agent=agent)
+  runner = testing_utils.InMemoryRunner(app=app)
+  with pytest.raises(ValueError, match='Worker Fail'):
+    await runner.run_async(testing_utils.get_user_content('start'))
 
   assert slow_worker_started is True
   assert slow_worker_cancelled is True
