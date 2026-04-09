@@ -198,11 +198,8 @@ def _build_node_name_map(events: list[Event]) -> dict[str, str]:
 
 def simplify_event_with_node(
     event: Event,
-    node_name_map: dict[str, str] | None = None,
     include_state_delta: bool = False,
 ) -> Any | None:
-  if node_name_map is None:
-    node_name_map = {}
   if isinstance(event, Event):
     if (
         'output' not in event.model_fields_set
@@ -265,9 +262,7 @@ def simplify_events_with_node(
     ):
       continue
 
-    simplified_event = simplify_event_with_node(
-        event, node_name_map, include_state_delta
-    )
+    simplified_event = simplify_event_with_node(event, include_state_delta)
     if simplified_event:
       # Map the author to the source node name if it exists.
       if hasattr(event, 'node_info') and event.node_info.path:
@@ -312,9 +307,7 @@ def simplify_events_with_node_and_agent_state(
         and '/' not in (event.node_info.path or '')
     ):
       continue
-    simplified_event = simplify_event_with_node(
-        event, node_name_map, include_state_delta
-    )
+    simplified_event = simplify_event_with_node(event, include_state_delta)
 
     # Map the author to the source node name if it exists.
     if hasattr(event, 'node_info') and event.node_info.path:
