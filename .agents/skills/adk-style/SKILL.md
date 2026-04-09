@@ -5,8 +5,6 @@ description: ADK development style guide — architecture patterns, testing best
 
 # ADK Style Guide
 
-## Development Conventions
-[references/development.md](references/development.md) — public API vs internal methods, comments, file organization, imports, Pydantic patterns, formatting
 
 ## Code Paths
 [references/code_paths.md](references/code_paths.md) — Key files and directories along the different agent and workflow code paths.
@@ -28,5 +26,16 @@ description: ADK development style guide — architecture patterns, testing best
 - [Observability](references/architecture/observability.md) — span-on-Context design, NodeRunner integration, correlated logs, metrics
 - [LLM Context Orchestration](references/architecture/llm-context-orchestration.md) — relationship between events and LLM context, task delegation translation, branch isolation. Use when modifying event processing, context preparation for LLMs, or debugging context pollution issues.
 
+## Style Guide (references/style/)
+- [API Principles](references/style/api-principles.md) — stability, backward compatibility, and self-containment.
+- [Visibility](references/style/visibility.md) — naming conventions for module-private, internal, and package-private visibility.
+- [Imports](references/style/imports.md) — relative vs absolute imports, `TYPE_CHECKING` patterns.
+- [Typing](references/style/typing.md) — strong typing, avoiding Any, and bare type names.
+- [Pydantic Patterns](references/style/pydantic.md) — Pydantic v2 usage, private attributes, post-init setup.
+- [Formatting](references/style/formatting.md) — indentation, line limits, and running pre-commit hooks.
+- [Documentation](references/style/documentation.md) — comments and docstrings.
+- [Logging](references/style/logging.md) — lazy evaluation and log levels.
+- [File Organization](references/style/file-organization.md) — file headers and class organization.
+
 ## Testing
-[references/testing.md](references/testing.md) — core principles, 9 rules for writing ADK tests, test structure template
+[references/style/testing.md](references/style/testing.md) — core principles, 9 rules for writing ADK tests, test structure template
