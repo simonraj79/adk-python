@@ -1437,10 +1437,9 @@ class Runner:
     """
     # Mesh and Workflow Agents handle their own internal routing.
     # Workflow will figure which node is interrupted and should be resumed.
-    from .agents.llm._mesh import _Mesh
     from .workflow._workflow import Workflow
 
-    if isinstance(root_agent, (_Mesh, Workflow)):
+    if isinstance(root_agent, Workflow):
       return root_agent
 
     # If the last event is a function response, should send this response to
@@ -1448,7 +1447,9 @@ class Runner:
     # type of the agent. e.g. a remote a2a agent may surface a credential
     # request as a special long-running function tool call.
     event = find_matching_function_call(session.events)
-    is_resumable = self.resumability_config and self.resumability_config.is_resumable
+    is_resumable = (
+        self.resumability_config and self.resumability_config.is_resumable
+    )
     # Only route based on a past function response if resumability is enabled.
     # In non-resumable scenarios, a turn ending with function call response
     # shouldn't trap the next turn on that same agent if it's not transferable.

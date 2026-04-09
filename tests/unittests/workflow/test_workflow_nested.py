@@ -18,7 +18,6 @@ from typing import AsyncGenerator
 import uuid
 
 from google.adk.agents.context import Context
-from google.adk.agents.llm._call_llm_node import CallLlmResult
 from google.adk.agents.llm_agent import LlmAgent
 from google.adk.apps.app import App
 from google.adk.events.event import Event

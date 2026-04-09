@@ -73,27 +73,10 @@ def build_node(
   # Lazy import to avoid circular dependency:
   # workflow_graph_utils -> agents.llm_agent -> ... -> workflow_graph_utils
   from ...agents.llm_agent import LlmAgent
-  from ...features import FeatureName
-  from ...features import is_feature_enabled
+  from .._v1_llm_agent_wrapper import _V1LlmAgentWrapper
 
   if isinstance(node_like, LlmAgent):
-    # Reject explicit mode='chat' if V1 is not enabled.
-    if 'mode' in node_like.model_fields_set and node_like.mode == 'chat':
-      if not is_feature_enabled(FeatureName.V1_LLM_AGENT):
-        raise ValueError(
-            f"LlmAgent '{node_like.name}' has mode='chat' which is not"
-            " supported in workflows. Use mode='single_turn' or"
-            " mode='task', or omit mode to auto-default to single_turn."
-        )
-
-    if is_feature_enabled(FeatureName.V1_LLM_AGENT):
-      from .._v1_llm_agent_wrapper import _V1LlmAgentWrapper
-
-      wrapper_class = _V1LlmAgentWrapper
-    else:
-      from .._llm_agent_wrapper import _LlmAgentWrapper
-
-      wrapper_class = _LlmAgentWrapper
+    wrapper_class = _V1LlmAgentWrapper
 
     wrapper = wrapper_class(
         agent=node_like,

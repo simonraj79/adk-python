@@ -14,25 +14,27 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Self
 from contextlib import aclosing
+from dataclasses import dataclass
+from dataclasses import field
+from typing import Self
 
 from google.adk import Event
+from google.adk import Workflow
 from google.adk.agents import base_agent
 from google.adk.agents.llm_agent import Agent
 from google.adk.runners import InMemoryRunner
+from google.adk.telemetry import node_tracing
 from google.adk.telemetry import tracing
 from google.adk.tools import FunctionTool
 from google.adk.workflow._base_node import START
-from google.adk import Workflow
-from google.adk.telemetry import node_tracing
-from google.genai.types import Part
 from google.genai.types import Content
-from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
-from opentelemetry.util.types import AttributeValue
+from google.genai.types import Part
+from opentelemetry.sdk.trace import ReadableSpan
+from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+from opentelemetry.util.types import AttributeValue
 import pytest
 
 from ..testing_utils import MockModel
@@ -41,13 +43,14 @@ from ..testing_utils import TestInMemoryRunner
 # Difficult to extract, non deterministic attribute keys.
 # We check only for their presence, instead of their values.
 NON_DETERMINISTIC_ATTRIBUTE_KEYS = {
-  'gcp.vertex.agent.event_id',
-  'gen_ai.tool.call.id',
+    'gcp.vertex.agent.event_id',
+    'gen_ai.tool.call.id',
 }
 
 # We replace the non deterministic fields that are difficult to extract
 # with a "PRESENT" literal to still test their presence.
-PRESENT = "PRESENT"
+PRESENT = 'PRESENT'
+
 
 @dataclass(frozen=True)
 class SpanDigest:
@@ -90,10 +93,14 @@ class SpanDigest:
   @classmethod
   def from_span(cls, span: ReadableSpan) -> Self:
     determinized_attributes = {
-      attr_key: attr_val if attr_key not in NON_DETERMINISTIC_ATTRIBUTE_KEYS else PRESENT
-      for attr_key, attr_val in (span.attributes or {}).items()
+        attr_key: (
+            attr_val
+            if attr_key not in NON_DETERMINISTIC_ATTRIBUTE_KEYS
+            else PRESENT
+        )
+        for attr_key, attr_val in (span.attributes or {}).items()
     }
-    
+
     return cls(
         name=span.name,
         attributes=determinized_attributes,
@@ -159,16 +166,22 @@ async def test_tracer_start_as_current_span(
       ],
   )
 
-  user_id = "some_user"
-  app_name = "some_app"
+  user_id = 'some_user'
+  app_name = 'some_app'
 
   runner = InMemoryRunner(app_name=app_name, node=workflow)
-  session = await runner.session_service.create_session(app_name=app_name, user_id=user_id)
+  session = await runner.session_service.create_session(
+      app_name=app_name, user_id=user_id
+  )
   content = Content(parts=[Part.from_text(text='hello')], role='user')
 
   # Act
   captured_events: list[Event] = []
-  async with aclosing(runner.run_async(user_id=user_id, session_id=session.id, new_message=content)) as agen:
+  async with aclosing(
+      runner.run_async(
+          user_id=user_id, session_id=session.id, new_message=content
+      )
+  ) as agen:
     async for event in agen:
       captured_events.append(event)
 
@@ -185,17 +198,12 @@ async def test_tracer_start_as_current_span(
       },
       children=[
           SpanDigest(
-              name='invoke_node some_node',
+              name='invoke_agent some_root_agent',
               attributes={
+                  'gen_ai.agent.description': 'A sample root agent.',
+                  'gen_ai.agent.name': 'some_root_agent',
                   'gen_ai.conversation.id': session.id,
-                  'gen_ai.operation.name': 'invoke_node',
-              },
-          ),
-          SpanDigest(
-              name='invoke_node some_root_agent',
-              attributes={
-                  'gen_ai.conversation.id': session.id,
-                  'gen_ai.operation.name': 'invoke_node',
+                  'gen_ai.operation.name': 'invoke_agent',
               },
               children=[
                   SpanDigest(
@@ -282,7 +290,9 @@ async def test_tracer_start_as_current_span(
                           SpanDigest(
                               name='call_llm',
                               attributes={
-                                  'gcp.vertex.agent.invocation_id': invocation_id,
+                                  'gcp.vertex.agent.invocation_id': (
+                                      invocation_id
+                                  ),
                                   'gcp.vertex.agent.llm_request': '{}',
                                   'gcp.vertex.agent.llm_response': '{}',
                                   'gcp.vertex.agent.event_id': PRESENT,
@@ -295,7 +305,9 @@ async def test_tracer_start_as_current_span(
                                       name='generate_content mock',
                                       attributes={
                                           'gcp.vertex.agent.event_id': PRESENT,
-                                          'gcp.vertex.agent.invocation_id': invocation_id,
+                                          'gcp.vertex.agent.invocation_id': (
+                                              invocation_id
+                                          ),
                                           'gen_ai.agent.name': (
                                               'some_root_agent'
                                           ),
@@ -313,6 +325,13 @@ async def test_tracer_start_as_current_span(
                       ],
                   ),
               ],
+          ),
+          SpanDigest(
+              name='invoke_node some_node',
+              attributes={
+                  'gen_ai.conversation.id': session.id,
+                  'gen_ai.operation.name': 'invoke_node',
+              },
           ),
       ],
   )

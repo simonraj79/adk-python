@@ -24,8 +24,8 @@ from google.adk.workflow import START
 from google.adk.workflow import Workflow
 from google.adk.workflow._agent_node import AgentNode
 from google.adk.workflow._dynamic_node_registry import dynamic_node_registry
-from google.adk.workflow._llm_agent_wrapper import _LlmAgentWrapper
 from google.adk.workflow._tool_node import _ToolNode
+from google.adk.workflow._v1_llm_agent_wrapper import _V1LlmAgentWrapper
 import pytest
 
 from .. import testing_utils
@@ -143,8 +143,8 @@ def test_llm_agent_wrapper_deep_check_success():
   agent = LlmAgent(
       name="test_agent", model="gemini-2.5-flash", instruction="test"
   )
-  node1 = _LlmAgentWrapper(agent=agent)
-  node2 = _LlmAgentWrapper(agent=agent)
+  node1 = _V1LlmAgentWrapper(agent=agent)
+  node2 = _V1LlmAgentWrapper(agent=agent)
 
   assert node1 is not node2
   assert node1 == node2
@@ -195,8 +195,8 @@ def test_different_nodes_same_name_still_fails():
   agent2 = LlmAgent(
       name="test_agent", model="gemini-2.5-flash", instruction="t2"
   )
-  node1 = _LlmAgentWrapper(agent=agent1)
-  node2 = _LlmAgentWrapper(agent=agent2)
+  node1 = _V1LlmAgentWrapper(agent=agent1)
+  node2 = _V1LlmAgentWrapper(agent=agent2)
 
   assert node1 != node2
 

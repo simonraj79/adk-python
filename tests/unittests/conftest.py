@@ -101,29 +101,3 @@ def _is_explicitly_marked(mark_name: str, metafunc: Metafunc) -> bool:
       if mark.name == 'parametrize' and mark.args[0] == mark_name:
         return True
   return False
-
-
-def pytest_collection_modifyitems(config, items):
-  """Skip tests in specific directories if V1_LLM_AGENT feature is enabled."""
-  from google.adk.features import FeatureName
-  from google.adk.features import is_feature_enabled
-  import pytest
-
-  if is_feature_enabled(FeatureName.V1_LLM_AGENT):
-    skip_v1 = pytest.mark.skip(
-        reason='Skipped because V1_LLM_AGENT feature is on'
-    )
-    for item in items:
-      fspath = str(item.fspath)
-      if (
-          'tests/unittests/agents/llm_agent_node/' in fspath
-          or 'tests/unittests/agents/llm_agent_workflow/' in fspath
-          or 'tests/unittests/agents/llm/test_mesh.py' in fspath
-          or 'tests/unittests/agents/llm/test_single_llm_agent.py' in fspath
-          or 'tests/unittests/agents/llm/test_agent_transfer.py' in fspath
-          or 'tests/unittests/agents/llm/test_functions_request_euc.py'
-          in fspath
-          or 'tests/unittests/agents/llm/test_model_callbacks.py' in fspath
-          or 'tests/unittests/agents/llm/test_tool_callbacks.py' in fspath
-      ):
-        item.add_marker(skip_v1)

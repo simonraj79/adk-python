@@ -227,9 +227,9 @@ class Workflow(BaseAgent, Node):
     # SequentialAgent, LoopAgent, and ParallelAgent accept sub_agents and
     # convert them into edges/graph in their own model_post_init before
     # calling super(). Skip this check for those subclasses.
-    from ..agents.llm_agent_workflow.loop_agent import LoopAgent
-    from ..agents.llm_agent_workflow.parallel_agent import ParallelAgent
-    from ..agents.llm_agent_workflow.sequential_agent import SequentialAgent
+    from ..agents.loop_agent import LoopAgent
+    from ..agents.parallel_agent import ParallelAgent
+    from ..agents.sequential_agent import SequentialAgent
 
     if self.sub_agents and not isinstance(
         self, (SequentialAgent, LoopAgent, ParallelAgent)

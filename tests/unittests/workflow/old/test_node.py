@@ -24,12 +24,12 @@ from google.adk.workflow import START
 from google.adk.workflow import Workflow
 from google.adk.workflow._agent_node import AgentNode
 from google.adk.workflow._base_node import BaseNode
-from google.adk.workflow._llm_agent_wrapper import _LlmAgentWrapper
 from google.adk.workflow._node import node
 from google.adk.workflow._node import Node
 from google.adk.workflow._parallel_worker import _ParallelWorker as ParallelWorker
 from google.adk.workflow._retry_config import RetryConfig
 from google.adk.workflow._tool_node import _ToolNode as ToolNode
+from google.adk.workflow._v1_llm_agent_wrapper import _V1LlmAgentWrapper
 from google.adk.workflow._workflow import workflow_node_input
 from google.adk.workflow._workflow_class import Workflow as WorkflowV2
 import pytest
@@ -196,12 +196,10 @@ class MyTool(BaseTool):
 def test_node_no_unnecessary_wrap():
   """Tests that node() does not wrap LlmAgent, Agent, Tool, or func in OverridingNode."""
 
-  # LlmAgent: auto-converted to single_turn and wrapped in LlmAgentWrapper
-  from google.adk.workflow._llm_agent_wrapper import _LlmAgentWrapper
-
+  # LlmAgent: auto-converted to single_turn and wrapped in _V1LlmAgentWrapper
   llm_agent = LlmAgent(name="llm")
   llm_node = node(llm_agent, name="overridden_llm")
-  assert isinstance(llm_node, _LlmAgentWrapper)
+  assert isinstance(llm_node, _V1LlmAgentWrapper)
   assert llm_node.name == "overridden_llm"
   assert llm_agent.mode == "single_turn"
 
@@ -418,7 +416,7 @@ def test_node_function_supports_retry_config_and_timeout_for_agents():
   agent = LlmAgent(name="test_agent")
 
   n = node(agent, retry_config=retry_config, timeout=timeout)
-  assert isinstance(n, _LlmAgentWrapper)
+  assert isinstance(n, _V1LlmAgentWrapper)
   assert n.retry_config == retry_config
   assert n.timeout == timeout
 

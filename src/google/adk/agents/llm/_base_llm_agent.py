@@ -122,8 +122,7 @@ class BaseLlmAgent(BaseAgent):
   LLM-specific fields.
 
   Subclassed by:
-    - _SingleLlmAgent (via Workflow + BaseLlmAgent)
-    - LlmAgent (via _Mesh + BaseLlmAgent)
+    - LlmAgent
   """
 
   # --- Model ---

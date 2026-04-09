@@ -19,35 +19,18 @@ Toggles between 1.X and 2.0 implementations based on the V1_LLM_AGENT feature fl
 
 from __future__ import annotations
 
-from google.adk.features import FeatureName
-from google.adk.features import is_feature_enabled
-
-if is_feature_enabled(FeatureName.V1_LLM_AGENT):
-  from .llm_agent_1x import _convert_tool_union_to_tools
-  from .llm_agent_1x import Agent
-  from .llm_agent_1x import AfterModelCallback
-  from .llm_agent_1x import AfterToolCallback
-  from .llm_agent_1x import BeforeModelCallback
-  from .llm_agent_1x import BeforeToolCallback
-  from .llm_agent_1x import InstructionProvider
-  from .llm_agent_1x import LlmAgent
-  from .llm_agent_1x import LlmAgentConfig
-  from .llm_agent_1x import OnModelErrorCallback
-  from .llm_agent_1x import OnToolErrorCallback
-  from .llm_agent_1x import ToolUnion
-else:
-  from .llm_agent_workflow.llm_agent import _convert_tool_union_to_tools
-  from .llm_agent_workflow.llm_agent import Agent
-  from .llm_agent_workflow.llm_agent import AfterModelCallback
-  from .llm_agent_workflow.llm_agent import AfterToolCallback
-  from .llm_agent_workflow.llm_agent import BeforeModelCallback
-  from .llm_agent_workflow.llm_agent import BeforeToolCallback
-  from .llm_agent_workflow.llm_agent import InstructionProvider
-  from .llm_agent_workflow.llm_agent import LlmAgent
-  from .llm_agent_workflow.llm_agent import LlmAgentConfig
-  from .llm_agent_workflow.llm_agent import OnModelErrorCallback
-  from .llm_agent_workflow.llm_agent import OnToolErrorCallback
-  from .llm_agent_workflow.llm_agent import ToolUnion
+from .llm_agent_1x import _convert_tool_union_to_tools
+from .llm_agent_1x import AfterModelCallback
+from .llm_agent_1x import AfterToolCallback
+from .llm_agent_1x import Agent
+from .llm_agent_1x import BeforeModelCallback
+from .llm_agent_1x import BeforeToolCallback
+from .llm_agent_1x import InstructionProvider
+from .llm_agent_1x import LlmAgent
+from .llm_agent_1x import LlmAgentConfig
+from .llm_agent_1x import OnModelErrorCallback
+from .llm_agent_1x import OnToolErrorCallback
+from .llm_agent_1x import ToolUnion
 
 __all__ = [
     "Agent",

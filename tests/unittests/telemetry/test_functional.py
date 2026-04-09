@@ -155,7 +155,7 @@ async def test_tracer_start_as_current_span(
       'generate_content mock',
       'generate_content mock',
       'invoke_agent some_root_agent',
-      'invoke_node some_root_agent',
+      'invoke_agent some_root_agent',
   ]
 
 

@@ -14,27 +14,27 @@
 
 from __future__ import annotations
 
-from ..workflow._base_node import BaseNode
-from ..workflow._agent_node import AgentNode
-from .tracing import tracer
-
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from opentelemetry import context as context_api
-from opentelemetry.util.types import Attributes
 from opentelemetry.semconv._incubating.attributes.gen_ai_attributes import GEN_AI_AGENT_DESCRIPTION
 from opentelemetry.semconv._incubating.attributes.gen_ai_attributes import GEN_AI_AGENT_NAME
 from opentelemetry.semconv._incubating.attributes.gen_ai_attributes import GEN_AI_CONVERSATION_ID
 from opentelemetry.semconv._incubating.attributes.gen_ai_attributes import GEN_AI_OPERATION_NAME
+from opentelemetry.util.types import Attributes
 
 from ..agents.context import Context
+from ..workflow._agent_node import AgentNode
+from ..workflow._base_node import BaseNode
+from .tracing import tracer
 
 if TYPE_CHECKING:
-  from ..workflow._llm_agent_wrapper import _LlmAgentWrapper
+  from ..workflow._v1_llm_agent_wrapper import _V1LlmAgentWrapper
   from ..workflow._workflow_class import Workflow
+
 
 @dataclass
 class TelemetryContext:
@@ -44,6 +44,7 @@ class TelemetryContext:
   inputs and outputs, similar to how tracing for inference is
   implemented in `google.adk.telemetry.tracing`.
   """
+
   otel_context: context_api.Context
 
 
@@ -54,7 +55,9 @@ class _SpanMetadata:
 
 
 @asynccontextmanager
-async def start_as_current_node_span(context: Context, node: BaseNode) -> AsyncIterator[TelemetryContext]:
+async def start_as_current_node_span(
+    context: Context, node: BaseNode
+) -> AsyncIterator[TelemetryContext]:
   """Creates a scope-based OpenTelemetry span, representing a node invocation.
 
   Implements emitting of the following spans:
@@ -85,60 +88,60 @@ async def start_as_current_node_span(context: Context, node: BaseNode) -> AsyncI
     return
 
   with tracer.start_as_current_span(
-    span_metadata.name,
-    attributes=span_metadata.attributes,
-    context=context.otel_context,
+      span_metadata.name,
+      attributes=span_metadata.attributes,
+      context=context.otel_context,
   ):
     yield TelemetryContext(otel_context=context_api.get_current())
 
 
 def _span_metadata(context: Context, node: BaseNode) -> _SpanMetadata | None:
+  from ..workflow._v1_llm_agent_wrapper import _V1LlmAgentWrapper
   from ..workflow._workflow_class import Workflow
-  from ..workflow._llm_agent_wrapper import _LlmAgentWrapper
-  from ..agents.llm_agent_node._call_llm_node import CallLlmNode
 
-  if isinstance(node, (AgentNode, _LlmAgentWrapper)):
+  if isinstance(node, (AgentNode, _V1LlmAgentWrapper)):
     return _agent_span_metadata(context, node)
   elif isinstance(node, Workflow):
     return _workflow_span_metadata(context, node)
-  elif isinstance(node, CallLlmNode):
-    # Do not instrument call_llm nodes. Inference is instrumented with `generate_content` spans in:
-    # - opentelemetry-instrumentation-google-genai if installed for Gemini models.
-    # - google.adk.telemetry.tracing.use_inference_span otherwise.
-    return None
   else:
     return _default_node_span_metadata(context, node)
 
 
-def _agent_span_metadata(context: Context, agent_node: AgentNode | _LlmAgentWrapper) -> _SpanMetadata:
+def _agent_span_metadata(
+    context: Context, agent_node: AgentNode | _V1LlmAgentWrapper
+) -> _SpanMetadata:
   agent = agent_node.agent
   return _SpanMetadata(
-    name=f"invoke_agent {agent.name}",
-    attributes={
-      GEN_AI_OPERATION_NAME: 'invoke_agent',
-      GEN_AI_AGENT_DESCRIPTION: agent.description,
-      GEN_AI_AGENT_NAME: agent.name,
-      GEN_AI_CONVERSATION_ID: context.session.id,
-    }
+      name=f'invoke_agent {agent.name}',
+      attributes={
+          GEN_AI_OPERATION_NAME: 'invoke_agent',
+          GEN_AI_AGENT_DESCRIPTION: agent.description,
+          GEN_AI_AGENT_NAME: agent.name,
+          GEN_AI_CONVERSATION_ID: context.session.id,
+      },
   )
 
 
-def _workflow_span_metadata(context: Context, workflow: Workflow) -> _SpanMetadata:
+def _workflow_span_metadata(
+    context: Context, workflow: Workflow
+) -> _SpanMetadata:
   return _SpanMetadata(
-    name=f"invoke_workflow {workflow.name}",
-    attributes={
-      GEN_AI_OPERATION_NAME: 'invoke_workflow',
-      'gen_ai.workflow.name': workflow.name,
-      GEN_AI_CONVERSATION_ID: context.session.id,
-    }
+      name=f'invoke_workflow {workflow.name}',
+      attributes={
+          GEN_AI_OPERATION_NAME: 'invoke_workflow',
+          'gen_ai.workflow.name': workflow.name,
+          GEN_AI_CONVERSATION_ID: context.session.id,
+      },
   )
 
 
-def _default_node_span_metadata(context: Context, node: BaseNode) -> _SpanMetadata:
+def _default_node_span_metadata(
+    context: Context, node: BaseNode
+) -> _SpanMetadata:
   return _SpanMetadata(
-    name=f"invoke_node {node.name}",
-    attributes={
-      GEN_AI_OPERATION_NAME: 'invoke_node',
-      GEN_AI_CONVERSATION_ID: context.session.id,
-    }
+      name=f'invoke_node {node.name}',
+      attributes={
+          GEN_AI_OPERATION_NAME: 'invoke_node',
+          GEN_AI_CONVERSATION_ID: context.session.id,
+      },
   )
