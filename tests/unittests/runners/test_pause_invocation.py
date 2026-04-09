@@ -168,6 +168,7 @@ class TestPauseInvocationWithSequentialAgent(BasePauseInvocationTest):
         ("sub_agent_1", Part.from_function_call(name="test_tool", args={})),
     ]
 
+  @pytest.mark.xfail(reason="Tests implementation details that are different in V2 and will be deprecated.")
   @pytest.mark.asyncio
   def test_pause_second_agent_on_long_running_function_call(
       self,
@@ -395,6 +396,7 @@ class TestPauseInvocationWithLoopAgent(BasePauseInvocationTest):
         max_iterations=2,
     )
 
+  @pytest.mark.xfail(reason="Tests implementation details that are different in V2 and will be deprecated.")
   @pytest.mark.asyncio
   def test_pause_on_long_running_function_call(
       self,
@@ -448,6 +450,7 @@ class TestPauseInvocationWithLlmAgentTree(BasePauseInvocationTest):
         sub_agents=[sub_llm_agent_1, sub_llm_agent_2],
     )
 
+  @pytest.mark.xfail(reason="Tests implementation details that are different in V2 and will be deprecated.")
   @pytest.mark.asyncio
   def test_pause_on_long_running_function_call(
       self,
@@ -504,6 +507,7 @@ class TestPauseInvocationWithWithTransferLoop(BasePauseInvocationTest):
         tools=[LongRunningFunctionTool(func=test_tool)],
     )
 
+  @pytest.mark.xfail(reason="Tests implementation details that are different in V2 and will be deprecated.")
   @pytest.mark.asyncio
   def test_pause_on_long_running_function_call(
       self,

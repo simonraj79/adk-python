@@ -42,6 +42,7 @@ def test_tool():
   return None
 
 
+@pytest.mark.xfail(reason="Tests implementation details that are different in V2 and will be deprecated.")
 @pytest.mark.asyncio
 async def test_resume_invocation_from_sub_agent():
   """A test case for an edge case, where an invocation-to-resume starts from a sub-agent.

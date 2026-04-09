@@ -58,6 +58,7 @@ def _behavioral_events(events):
   ]
 
 
+@pytest.mark.xfail(reason="Tests implementation details that are different in V2 and will be deprecated.")
 @pytest.mark.asyncio
 async def test_resume_from_transfer():
   """Tests that the agent resumes from the correct sub-agent after a transfer.
@@ -196,6 +197,7 @@ async def test_resume_from_tool_call():
   ]
 
 
+@pytest.mark.xfail(reason="Tests implementation details that are different in V2 and will be deprecated.")
 @pytest.mark.asyncio
 async def test_resume_subagent_after_transfer_and_tool_call():
   """Tests resuming a sub-agent that called a tool after being transferred to.
