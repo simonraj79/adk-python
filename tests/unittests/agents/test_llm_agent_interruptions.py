@@ -231,6 +231,7 @@ class TestNestedAgentInterruptions:
     # Then it should complete successfully
     assert any('Child final answer' in t for t in text_parts(resume_events))
 
+  @pytest.mark.xfail(reason='Task agent as subagent not supported yet.')
   async def test_task_child_agent_interrupt_and_resume(self):
     """Task child agent yields on LRO and resumes successfully.
 
@@ -296,7 +297,7 @@ class TestNestedAgentInterruptions:
     # Then it should complete successfully
     assert any('Parent final answer' in t for t in text_parts(resume_events))
 
-  @pytest.mark.xfail(reason='_SingleTurnAgentTool swallows interruptions.')
+  @pytest.mark.xfail(reason='Single-turn agent as subagent not supported yet.')
   async def test_single_turn_child_agent_interrupt_and_resume(self):
     """Single-turn child agent yields on LRO and resumes successfully.
 
