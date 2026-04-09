@@ -1,5 +1,5 @@
 ---
-name: setup-dev-env
+name: adk-setup
 description: Set up a local development environment for the ADK Python project. Use when the user wants to get started developing, set up their environment, install dependencies, or prepare for contributing.
 disable-model-invocation: true
 ---
@@ -30,44 +30,45 @@ Check the following before proceeding:
 Run these commands from the project root:
 
 3. **Create and activate a virtual environment:**
+
    ```bash
    uv venv --python "python3.11" ".venv"
    source .venv/bin/activate
    ```
 
 4. **Install all dependencies for development:**
+
    ```bash
    uv sync --all-extras
    ```
 
 5. **Install development tools:**
+
    ```bash
    uv tool install pre-commit
    uv tool install tox --with tox-uv
    ```
 
 6. **Install addlicense (requires Go):**
+
    ```bash
    go version && go install github.com/google/addlicense@latest
    ```
-   If Go is not installed, tell the user:
-   "Go is required for the addlicense tool. Please install Go from
-   https://go.dev/dl/ and then re-run `/setup-dev-env` to complete
-   the setup."
+
+   > [!NOTE]
+   > If Go is not installed, tell the user:
+   > "Go is required for the addlicense tool. Please install Go from https://go.dev/dl/ and then re-run the `adk-setup` skill to complete the setup."
 
 7. **Set up pre-commit hooks:**
+
    ```bash
    pre-commit install
    ```
 
-8. **Verify everything works by running tests locally (Fast):**
+8. **Verify everything works by running tests locally:**
    ```bash
-   pytest tests/unittests -x -q --no-header 2>&1 | tail -5
+   pytest tests/unittests -n auto
    ```
-
-## Troubleshooting
-
-- If `uv run` fails with `401 Unauthorized` against `us-python.pkg.dev/artifact-foundry-prod/...`, run `gpkg setup` to fix credentials before retrying.
 
 ## Key Commands Reference
 
