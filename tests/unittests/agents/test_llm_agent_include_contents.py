@@ -14,7 +14,7 @@
 
 """Unit tests for LlmAgent include_contents field behavior."""
 
-from google.adk.agents.llm_agent_1x import LlmAgent
+from google.adk.agents.llm_agent import LlmAgent
 from google.adk.agents.sequential_agent import SequentialAgent
 from google.genai import types
 import pytest

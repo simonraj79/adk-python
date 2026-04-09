@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Tests for _V1LlmAgentWrapper.
+"""Tests for _LlmAgentWrapper.
 
-Verifies that _V1LlmAgentWrapper correctly adapts V1 LlmAgent for use as a
+Verifies that _LlmAgentWrapper correctly adapts V1 LlmAgent for use as a
 workflow graph node, covering mode validation, input conversion,
 content isolation, output extraction, and both old/new workflow paths.
 """
@@ -26,14 +26,13 @@ from typing import Any
 from google.adk.agents.context import Context
 from google.adk.agents.llm.task._task_models import TaskResult
 from google.adk.agents.llm_agent import LlmAgent
-from google.adk.agents.llm_agent_1x import LlmAgent as V1LlmAgent
 from google.adk.events.event import Event
 from google.adk.events.event_actions import EventActions
 from google.adk.features import FeatureName
 from google.adk.features import override_feature_enabled
 from google.adk.workflow import START
 from google.adk.workflow import Workflow
-from google.adk.workflow._v1_llm_agent_wrapper import _V1LlmAgentWrapper
+from google.adk.workflow._llm_agent_wrapper import _LlmAgentWrapper
 from google.adk.workflow.utils._workflow_graph_utils import build_node
 from google.genai import types
 from pydantic import BaseModel
@@ -143,44 +142,44 @@ class TestValidation:
 
   def test_task_mode_accepted(self):
     """Wrapping a task-mode agent succeeds."""
-    wrapper = _V1LlmAgentWrapper(agent=_make_agent(mode='task'))
+    wrapper = _LlmAgentWrapper(agent=_make_agent(mode='task'))
     assert wrapper.name == 'test_agent'
 
   def test_single_turn_mode_accepted(self):
     """Wrapping a single_turn-mode agent succeeds."""
-    wrapper = _V1LlmAgentWrapper(agent=_make_agent(mode='single_turn'))
+    wrapper = _LlmAgentWrapper(agent=_make_agent(mode='single_turn'))
     assert wrapper.name == 'test_agent'
 
   def test_chat_mode_accepted(self):
     """Wrapping a chat-mode agent succeeds."""
-    wrapper = _V1LlmAgentWrapper(agent=_make_agent(mode='chat'))
+    wrapper = _LlmAgentWrapper(agent=_make_agent(mode='chat'))
     assert wrapper.name == 'test_agent'
 
   def test_name_defaults_to_agent_name(self):
     """Wrapper name defaults to the inner agent's name."""
-    wrapper = _V1LlmAgentWrapper(agent=_make_agent(name='my_agent'))
+    wrapper = _LlmAgentWrapper(agent=_make_agent(name='my_agent'))
     assert wrapper.name == 'my_agent'
 
   def test_name_can_be_overridden(self):
     """Explicit name overrides the agent's name."""
-    wrapper = _V1LlmAgentWrapper(
+    wrapper = _LlmAgentWrapper(
         agent=_make_agent(name='my_agent'), name='custom'
     )
     assert wrapper.name == 'custom'
 
   def test_task_mode_waits_for_output(self):
     """Task mode sets wait_for_output=True."""
-    wrapper = _V1LlmAgentWrapper(agent=_make_agent(mode='task'))
+    wrapper = _LlmAgentWrapper(agent=_make_agent(mode='task'))
     assert wrapper.wait_for_output is True
 
   def test_single_turn_does_not_wait_for_output(self):
     """Single_turn mode does not set wait_for_output."""
-    wrapper = _V1LlmAgentWrapper(agent=_make_agent(mode='single_turn'))
+    wrapper = _LlmAgentWrapper(agent=_make_agent(mode='single_turn'))
     assert wrapper.wait_for_output is False
 
   def test_rerun_on_resume_defaults_true(self):
     """Wrapper defaults to rerun_on_resume=True."""
-    wrapper = _V1LlmAgentWrapper(agent=_make_agent())
+    wrapper = _LlmAgentWrapper(agent=_make_agent())
     assert wrapper.rerun_on_resume is True
 
 
@@ -193,13 +192,13 @@ class TestBuildNode:
     """build_node wraps a task-mode LlmAgent."""
     agent = _make_agent(mode='task')
     node = build_node(agent)
-    assert isinstance(node, _V1LlmAgentWrapper)
+    assert isinstance(node, _LlmAgentWrapper)
     assert node.agent is agent
 
   def test_single_turn_mode_wrapped(self):
     """build_node wraps a single_turn-mode LlmAgent."""
     node = build_node(_make_agent(mode='single_turn'))
-    assert isinstance(node, _V1LlmAgentWrapper)
+    assert isinstance(node, _LlmAgentWrapper)
 
   @pytest.mark.skip(
       reason=(
@@ -235,7 +234,7 @@ async def test_task_finish_output_reaches_downstream(
   agent = _make_agent(mode='task')
   from . import testing_utils
 
-  wrapper = _V1LlmAgentWrapper(agent=agent)
+  wrapper = _LlmAgentWrapper(agent=agent)
   capture = InputCapturingNode(name='capture')
   wf = Workflow(
       name='wf',
@@ -263,7 +262,7 @@ async def test_single_turn_output_reaches_downstream(
   from . import testing_utils
 
   agent = _make_agent(mode='single_turn')
-  wrapper = _V1LlmAgentWrapper(agent=agent)
+  wrapper = _LlmAgentWrapper(agent=agent)
   capture = InputCapturingNode(name='capture')
   wf = Workflow(
       name='wf',
@@ -285,7 +284,7 @@ async def test_valid_input_schema_accepted(
   from . import testing_utils
 
   agent = _make_agent(mode='task', input_schema=StoryInput)
-  wrapper = _V1LlmAgentWrapper(agent=agent)
+  wrapper = _LlmAgentWrapper(agent=agent)
   capture = InputCapturingNode(name='capture')
   wf = Workflow(
       name='wf',
@@ -299,14 +298,14 @@ async def test_valid_input_schema_accepted(
   assert capture.received_inputs == [{'result': 'ok'}]
 
 
-# Skipping this test as _V1LlmAgentWrapper does not seem to validate input schema
+# Skipping this test as _LlmAgentWrapper does not seem to validate input schema
 # @pytest.mark.asyncio
 # async def test_invalid_input_schema_raises(
 #     request: pytest.FixtureRequest,
 # ):
 #   """Invalid input not matching input_schema raises ValidationError."""
 #   agent = _make_agent(mode='task', input_schema=StoryInput)
-#   wrapper = _V1LlmAgentWrapper(agent=agent)
+#   wrapper = _LlmAgentWrapper(agent=agent)
 #   wf = Workflow(name='wf', edges=[(START, wrapper)])
 #   ctx = await create_parent_invocation_context(request.function.__name__, wf)
 #   ic = ctx.model_copy(update={'branch': None})
@@ -343,7 +342,7 @@ async def test_single_turn_isolates_content_via_branch(
 ):
   """Single_turn wrapper sets a branch for content isolation."""
   agent = _make_agent(mode='single_turn')
-  wrapper = _V1LlmAgentWrapper(agent=agent)
+  wrapper = _LlmAgentWrapper(agent=agent)
   captured_branches = []
 
   async def fake_run(invocation_context):
@@ -373,7 +372,7 @@ async def test_task_mode_does_not_set_branch(
 ):
   """Task mode preserves None branch for HITL visibility."""
   agent = _make_agent(mode='task')
-  wrapper = _V1LlmAgentWrapper(agent=agent)
+  wrapper = _LlmAgentWrapper(agent=agent)
   captured_branches = []
 
   async def fake_run(invocation_context):
@@ -404,7 +403,7 @@ async def test_single_turn_converts_input_to_content(
 ):
   """Single_turn wrapper converts string node_input to types.Content."""
   agent = _make_agent(mode='single_turn')
-  wrapper = _V1LlmAgentWrapper(agent=agent)
+  wrapper = _LlmAgentWrapper(agent=agent)
   captured_inputs = []
 
   async def fake_run(*args, **kwargs):
@@ -477,8 +476,7 @@ async def test_react_path_user_content_visible_to_llm(
 
 @pytest.mark.skip(
     reason=(
-        '_V1LlmAgentWrapper does not fully support new workflow path in this'
-        ' test'
+        '_LlmAgentWrapper does not fully support new workflow path in this test'
     )
 )
 @pytest.mark.asyncio
@@ -511,8 +509,7 @@ async def test_react_path_output_reaches_downstream(
 
 @pytest.mark.skip(
     reason=(
-        '_V1LlmAgentWrapper does not fully support new workflow path in this'
-        ' test'
+        '_LlmAgentWrapper does not fully support new workflow path in this test'
     )
 )
 @pytest.mark.asyncio
@@ -546,8 +543,7 @@ async def test_react_path_output_key_stored_in_state(
 
 @pytest.mark.skip(
     reason=(
-        '_V1LlmAgentWrapper does not fully support new workflow path in this'
-        ' test'
+        '_LlmAgentWrapper does not fully support new workflow path in this test'
     )
 )
 @pytest.mark.asyncio
@@ -586,8 +582,7 @@ async def test_react_path_output_schema_validated(
 
 @pytest.mark.skip(
     reason=(
-        '_V1LlmAgentWrapper does not fully support new workflow path in this'
-        ' test'
+        '_LlmAgentWrapper does not fully support new workflow path in this test'
     )
 )
 @pytest.mark.asyncio
@@ -630,8 +625,7 @@ async def test_react_path_predecessor_input_visible_to_llm(
 
 @pytest.mark.skip(
     reason=(
-        '_V1LlmAgentWrapper does not fully support new workflow path in this'
-        ' test'
+        '_LlmAgentWrapper does not fully support new workflow path in this test'
     )
 )
 @pytest.mark.asyncio
@@ -667,8 +661,7 @@ async def test_long_running_tool_interrupts_workflow(
 
 @pytest.mark.skip(
     reason=(
-        '_V1LlmAgentWrapper does not fully support new workflow path in this'
-        ' test'
+        '_LlmAgentWrapper does not fully support new workflow path in this test'
     )
 )
 @pytest.mark.asyncio
@@ -750,8 +743,7 @@ async def test_resume_after_interrupt_completes_workflow(
 
 @pytest.mark.skip(
     reason=(
-        '_V1LlmAgentWrapper does not fully support new workflow path in this'
-        ' test'
+        '_LlmAgentWrapper does not fully support new workflow path in this test'
     )
 )
 @pytest.mark.asyncio
@@ -857,7 +849,7 @@ async def test_multiple_sequential_interrupts_in_workflow(
 
 
 def _make_v1_agent(mode='task'):
-  return V1LlmAgent(
+  return LlmAgent(
       name='test_v1_agent',
       model='gemini-2.5-flash',
       instruction='Test instruction',
@@ -867,26 +859,26 @@ def _make_v1_agent(mode='task'):
 
 def test_task_mode_sets_wait_for_output():
   agent = _make_v1_agent(mode='task')
-  wrapper = _V1LlmAgentWrapper(agent=agent)
+  wrapper = _LlmAgentWrapper(agent=agent)
   assert wrapper.wait_for_output is True
 
 
 def test_single_turn_does_not_set_wait_for_output():
   agent = _make_v1_agent(mode='single_turn')
-  wrapper = _V1LlmAgentWrapper(agent=agent)
+  wrapper = _LlmAgentWrapper(agent=agent)
   assert wrapper.wait_for_output is False
 
 
 def test_chat_mode_sets_wait_for_output():
   agent = _make_v1_agent(mode='chat')
-  wrapper = _V1LlmAgentWrapper(agent=agent)
+  wrapper = _LlmAgentWrapper(agent=agent)
   assert wrapper.wait_for_output is True
 
 
 @pytest.mark.asyncio
 async def test_task_mode_proceeds_on_finish_task():
   agent = _make_v1_agent(mode='task')
-  wrapper = _V1LlmAgentWrapper(agent=agent)
+  wrapper = _LlmAgentWrapper(agent=agent)
 
   async def mock_run_async(*args, **kwargs):
     yield Event(
@@ -914,7 +906,7 @@ async def test_task_mode_proceeds_on_finish_task():
 @pytest.mark.asyncio
 async def test_task_mode_does_not_proceed_without_finish_task():
   agent = _make_v1_agent(mode='task')
-  wrapper = _V1LlmAgentWrapper(agent=agent)
+  wrapper = _LlmAgentWrapper(agent=agent)
 
   async def mock_run_async(*args, **kwargs):
     yield Event(
@@ -942,7 +934,7 @@ async def test_task_mode_does_not_proceed_without_finish_task():
 @pytest.mark.asyncio
 async def test_chat_mode_yields_events_directly():
   agent = _make_v1_agent(mode='chat')
-  wrapper = _V1LlmAgentWrapper(agent=agent)
+  wrapper = _LlmAgentWrapper(agent=agent)
 
   async def mock_run_async(*args, **kwargs):
     yield Event(

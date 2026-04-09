@@ -21,7 +21,7 @@ from unittest import mock
 
 from google.adk.agents.callback_context import CallbackContext
 from google.adk.agents.invocation_context import InvocationContext
-from google.adk.agents.llm_agent_1x import LlmAgent
+from google.adk.agents.llm_agent import LlmAgent
 from google.adk.agents.readonly_context import ReadonlyContext
 from google.adk.models.anthropic_llm import Claude
 from google.adk.models.google_llm import Gemini

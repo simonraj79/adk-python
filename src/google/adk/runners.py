@@ -803,9 +803,9 @@ class Runner:
     from .workflow._base_node import BaseNode
 
     # TODO: handle when self.agent is BaseAgent, but is not LlmAgent.
-    # Wrap LlmAgent with _V1LlmAgentWrapper if it's the root agent
+    # Wrap LlmAgent with _LlmAgentWrapper if it's the root agent
     if isinstance(self.agent, LlmAgent):
-      from .workflow._v1_llm_agent_wrapper import _V1LlmAgentWrapper
+      from .workflow._llm_agent_wrapper import _LlmAgentWrapper
 
       if self.agent.mode is None:
         # LlmAgent as root agent must have chat mode.
@@ -816,7 +816,7 @@ class Runner:
             user_id=user_id, session_id=session_id
         )
         agent_to_run = self._find_agent_to_run(session, self.agent)
-        wrapped_agent = _V1LlmAgentWrapper(agent=agent_to_run)
+        wrapped_agent = _LlmAgentWrapper(agent=agent_to_run)
       else:
         raise ValueError(
             "LlmAgent as root agent must have mode='chat', but got"

@@ -25,7 +25,7 @@ from pydantic import model_validator
 from typing_extensions import override
 
 from ..agents.context import Context
-from ..agents.llm_agent_1x import LlmAgent as V1LlmAgent
+from ..agents.llm_agent import LlmAgent as V1LlmAgent
 from ..events.event import Event
 from ..utils._schema_utils import validate_schema
 from ._base_node import BaseNode
@@ -47,7 +47,7 @@ def _node_input_to_content(node_input: Any) -> types.Content:
   return types.Content(role='user', parts=[types.Part(text=text)])
 
 
-class _V1LlmAgentWrapper(BaseNode):
+class _LlmAgentWrapper(BaseNode):
   """Adapts a V1 LlmAgent for use as a workflow graph node.
 
   This wrapper handles V1 agents specifically, isolation for single_turn mode,
@@ -66,14 +66,14 @@ class _V1LlmAgentWrapper(BaseNode):
     return data
 
   @model_validator(mode='after')
-  def _validate_mode(self) -> _V1LlmAgentWrapper:
+  def _validate_mode(self) -> _LlmAgentWrapper:
     # As a node in a workflow, agent is by default single_turn.
     if self.agent.mode is None:
       self.agent.mode = 'single_turn'
 
     if self.agent.mode not in ('task', 'single_turn', 'chat'):
       raise ValueError(
-          f'_V1LlmAgentWrapper only supports task, single_turn, and chat mode,'
+          f'_LlmAgentWrapper only supports task, single_turn, and chat mode,'
           f" but agent '{self.agent.name}' has mode='{self.agent.mode}'."
       )
 
@@ -194,14 +194,14 @@ class _V1LlmAgentWrapper(BaseNode):
   @override
   def model_copy(
       self, *, update: dict[str, Any] | None = None, deep: bool = False
-  ) -> _V1LlmAgentWrapper:
+  ) -> _LlmAgentWrapper:
     copied = super().model_copy(update=update, deep=deep)
     if update and 'name' in update:
       copied.agent = copied.agent.model_copy(update={'name': update['name']})
     return copied
 
   def __eq__(self, other: Any) -> bool:
-    if not isinstance(other, _V1LlmAgentWrapper):
+    if not isinstance(other, _LlmAgentWrapper):
       return False
     return (
         self.name == other.name

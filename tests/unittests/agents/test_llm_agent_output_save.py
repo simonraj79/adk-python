@@ -17,7 +17,7 @@
 import logging
 from unittest.mock import patch
 
-from google.adk.agents.llm_agent_1x import LlmAgent
+from google.adk.agents.llm_agent import LlmAgent
 from google.adk.events.event import Event
 from google.adk.events.event_actions import EventActions
 from google.genai import types
@@ -63,7 +63,7 @@ class TestLlmAgentOutputSave:
     """Test that output is not saved when event author differs from agent name."""
     # Set the LlmAgent logger to DEBUG level
     llm_agent_logger = logging.getLogger(
-        "google_adk.google.adk.agents.llm_agent_1x"
+        "google_adk.google.adk.agents.llm_agent"
     )
     original_level = llm_agent_logger.level
     llm_agent_logger.setLevel(logging.DEBUG)
@@ -178,7 +178,7 @@ class TestLlmAgentOutputSave:
 
     # Set the LlmAgent logger to DEBUG level
     llm_agent_logger = logging.getLogger(
-        "google_adk.google.adk.agents.llm_agent_1x"
+        "google_adk.google.adk.agents.llm_agent"
     )
     original_level = llm_agent_logger.level
     llm_agent_logger.setLevel(logging.DEBUG)
@@ -207,7 +207,7 @@ class TestLlmAgentOutputSave:
     """Test that agent name comparison is case-sensitive."""
     # Set the LlmAgent logger to DEBUG level
     llm_agent_logger = logging.getLogger(
-        "google_adk.google.adk.agents.llm_agent_1x"
+        "google_adk.google.adk.agents.llm_agent"
     )
     original_level = llm_agent_logger.level
     llm_agent_logger.setLevel(logging.DEBUG)
@@ -232,7 +232,7 @@ class TestLlmAgentOutputSave:
       # Restore original logger level
       llm_agent_logger.setLevel(original_level)
 
-  @patch("google.adk.agents.llm_agent_1x.logger")
+  @patch("google.adk.agents.llm_agent.logger")
   def test_maybe_save_output_to_state_logging(self, mock_logger):
     """Test that debug logging works correctly."""
     agent = LlmAgent(name="agent1", output_key="result")

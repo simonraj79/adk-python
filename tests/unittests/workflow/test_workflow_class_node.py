@@ -189,9 +189,9 @@ def test_node_no_unnecessary_wrap():
 
   llm_agent = LlmAgent(name="llm")
   llm_node = node(llm_agent, name="overridden_llm")
-  from google.adk.workflow._v1_llm_agent_wrapper import _V1LlmAgentWrapper
+  from google.adk.workflow._llm_agent_wrapper import _LlmAgentWrapper
 
-  assert isinstance(llm_node, _V1LlmAgentWrapper)
+  assert isinstance(llm_node, _LlmAgentWrapper)
   assert llm_node.name == "overridden_llm"
   assert llm_agent.mode == "single_turn"
 

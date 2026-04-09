@@ -39,7 +39,6 @@ class FeatureName(str, Enum):
   DATA_AGENT_TOOLSET = "DATA_AGENT_TOOLSET"
   ENVIRONMENT_SIMULATION = "ENVIRONMENT_SIMULATION"
   GCP_IAM_CONNECTOR_AUTH = "GCP_IAM_CONNECTOR_AUTH"
-  NEW_WORKFLOW = "NEW_WORKFLOW"
   GOOGLE_CREDENTIALS_CONFIG = "GOOGLE_CREDENTIALS_CONFIG"
   GOOGLE_TOOL = "GOOGLE_TOOL"
   JSON_SCHEMA_FOR_FUNC_DECL = "JSON_SCHEMA_FOR_FUNC_DECL"
@@ -56,7 +55,6 @@ class FeatureName(str, Enum):
   PLUGGABLE_AUTH = "PLUGGABLE_AUTH"
   SNAKE_CASE_SKILL_NAME = "SNAKE_CASE_SKILL_NAME"
   IN_MEMORY_SESSION_SERVICE_LIGHT_COPY = "IN_MEMORY_SESSION_SERVICE_LIGHT_COPY"
-  V1_LLM_AGENT = "V1_LLM_AGENT"
 
 
 class FeatureStage(Enum):
@@ -89,9 +87,6 @@ class FeatureConfig:
 
 # Central registry: FeatureName -> FeatureConfig
 _FEATURE_REGISTRY: dict[FeatureName, FeatureConfig] = {
-    FeatureName.V1_LLM_AGENT: FeatureConfig(
-        FeatureStage.EXPERIMENTAL, default_on=True
-    ),
     FeatureName.AGENT_CONFIG: FeatureConfig(
         FeatureStage.EXPERIMENTAL, default_on=True
     ),
@@ -129,9 +124,6 @@ _FEATURE_REGISTRY: dict[FeatureName, FeatureConfig] = {
         FeatureStage.EXPERIMENTAL, default_on=True
     ),
     FeatureName.GOOGLE_CREDENTIALS_CONFIG: FeatureConfig(
-        FeatureStage.EXPERIMENTAL, default_on=True
-    ),
-    FeatureName.NEW_WORKFLOW: FeatureConfig(
         FeatureStage.EXPERIMENTAL, default_on=True
     ),
     FeatureName.GOOGLE_TOOL: FeatureConfig(

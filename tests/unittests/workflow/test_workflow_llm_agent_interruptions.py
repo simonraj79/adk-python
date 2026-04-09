@@ -32,7 +32,7 @@ from google.adk.tools.tool_context import ToolContext
 from google.adk.workflow import Edge
 from google.adk.workflow import START
 from google.adk.workflow import Workflow
-from google.adk.workflow._v1_llm_agent_wrapper import _V1LlmAgentWrapper
+from google.adk.workflow._llm_agent_wrapper import _LlmAgentWrapper
 from google.genai import types
 import pytest
 
@@ -225,7 +225,7 @@ async def test_workflow_pause_and_resume_tool_confirmation(
 
   # Given a tool that requires confirmation and a mock model
   def _simple_tool_func():
-    return {"result": "tool executed"}
+    return {'result': 'tool executed'}
 
   mock_model = testing_utils.MockModel.create(
       responses=[
@@ -263,13 +263,18 @@ async def test_workflow_pause_and_resume_tool_confirmation(
   for e in events1:
     if e.content and e.content.parts:
       for p in e.content.parts:
-        if p.function_call and p.function_call.name == REQUEST_CONFIRMATION_FUNCTION_CALL_NAME:
+        if (
+            p.function_call
+            and p.function_call.name == REQUEST_CONFIRMATION_FUNCTION_CALL_NAME
+        ):
           fc_event = e
           break
 
-  assert fc_event is not None, "Did not find confirmation request event"
+  assert fc_event is not None, 'Did not find confirmation request event'
 
-  ask_for_confirmation_function_call_id = fc_event.content.parts[0].function_call.id
+  ask_for_confirmation_function_call_id = fc_event.content.parts[
+      0
+  ].function_call.id
   invocation_id = events1[0].invocation_id
 
   # When the user confirms the tool call
@@ -278,7 +283,7 @@ async def test_workflow_pause_and_resume_tool_confirmation(
           function_response=types.FunctionResponse(
               id=ask_for_confirmation_function_call_id,
               name=REQUEST_CONFIRMATION_FUNCTION_CALL_NAME,
-              response={"confirmed": True},
+              response={'confirmed': True},
           )
       )
   )
@@ -331,9 +336,12 @@ async def test_workflow_pause_and_resume_auth_node(
     cred = ctx.get_auth_response(auth_config)
     api_key = cred.api_key if cred else 'unknown'
     from google.adk import Event
-    yield Event(message=f"authed with {api_key}")
 
-  node_a = FunctionNode(fetch_weather, auth_config=auth_config, rerun_on_resume=True)
+    yield Event(message=f'authed with {api_key}')
+
+  node_a = FunctionNode(
+      fetch_weather, auth_config=auth_config, rerun_on_resume=True
+  )
 
   wf = Workflow(
       name='test_workflow_auth_node',
@@ -351,11 +359,12 @@ async def test_workflow_pause_and_resume_auth_node(
 
   # Then it should pause and request credentials
   auth_fc_events = [
-      e for e in events1
+      e
+      for e in events1
       if e.content
       and e.content.parts
       and e.content.parts[0].function_call
-      and e.content.parts[0].function_call.name == "adk_request_credential"
+      and e.content.parts[0].function_call.name == 'adk_request_credential'
   ]
   assert len(auth_fc_events) == 1
   auth_fc_id = auth_fc_events[0].content.parts[0].function_call.id
@@ -367,7 +376,7 @@ async def test_workflow_pause_and_resume_auth_node(
       credential_key=auth_config.credential_key,
       exchanged_auth_credential=AuthCredential(
           auth_type=AuthCredentialTypes.API_KEY,
-          api_key="secret_key",
+          api_key='secret_key',
       ),
   )
 
@@ -375,8 +384,10 @@ async def test_workflow_pause_and_resume_auth_node(
       types.Part(
           function_response=types.FunctionResponse(
               id=auth_fc_id,
-              name="adk_request_credential",
-              response=auth_response.model_dump(exclude_none=True, by_alias=True),
+              name='adk_request_credential',
+              response=auth_response.model_dump(
+                  exclude_none=True, by_alias=True
+              ),
           ),
       ),
   )
@@ -575,7 +586,9 @@ async def test_workflow_pause_and_resume_child_interruption(
   assert any('Child done after tool' in t for t in content_texts)
 
 
-def _append_function_response(session, invocation_id, branch, fc_id, func_name, response):
+def _append_function_response(
+    session, invocation_id, branch, fc_id, func_name, response
+):
   """Helper to append a FunctionResponse event to a session."""
   session.events.append(
       Event(
@@ -612,7 +625,7 @@ async def test_workflow_resume_inputs_fallback_branch():
       responses=[types.Part.from_text(text='I am done')]
   )
   agent = LlmAgent(name='test_agent', model=mock_model)
-  wrapper = _V1LlmAgentWrapper(agent=agent)
+  wrapper = _LlmAgentWrapper(agent=agent)
 
   # Create a dummy context and session
 
@@ -710,7 +723,7 @@ async def test_workflow_resume_inputs_multiple_branches():
       responses=[types.Part.from_text(text='I am done')]
   )
   agent = LlmAgent(name='test_agent', model=mock_model)
-  wrapper = _V1LlmAgentWrapper(agent=agent)
+  wrapper = _LlmAgentWrapper(agent=agent)
 
   session = Session(id='test_session', appName='test_app', userId='test_user')
 

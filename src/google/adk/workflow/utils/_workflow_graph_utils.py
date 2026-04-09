@@ -73,10 +73,10 @@ def build_node(
   # Lazy import to avoid circular dependency:
   # workflow_graph_utils -> agents.llm_agent -> ... -> workflow_graph_utils
   from ...agents.llm_agent import LlmAgent
-  from .._v1_llm_agent_wrapper import _V1LlmAgentWrapper
+  from .._llm_agent_wrapper import _LlmAgentWrapper
 
   if isinstance(node_like, LlmAgent):
-    wrapper_class = _V1LlmAgentWrapper
+    wrapper_class = _LlmAgentWrapper
 
     wrapper = wrapper_class(
         agent=node_like,

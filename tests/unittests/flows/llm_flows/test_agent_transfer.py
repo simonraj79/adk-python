@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from google.adk.agents.llm_agent_1x import Agent
+from google.adk.agents.llm_agent import Agent
 from google.adk.agents.loop_agent import LoopAgent
 from google.adk.agents.loop_agent import LoopAgentState
 from google.adk.agents.sequential_agent import SequentialAgent
