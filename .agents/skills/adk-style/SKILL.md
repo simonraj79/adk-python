@@ -26,6 +26,7 @@ description: ADK development style guide — architecture patterns, testing best
 - [Checkpoint and Resume](references/architecture/checkpoint-resume.md) — HITL lifecycle, `rerun_on_resume`, `run_id`
 - [Workflow](references/architecture/workflow.md) — graph orchestration, dynamic nodes (tracking/dedup/resume), transitive dynamic nodes, interrupt propagation, design rules for node authors
 - [Observability](references/architecture/observability.md) — span-on-Context design, NodeRunner integration, correlated logs, metrics
+- [LLM Context Orchestration](references/architecture/llm-context-orchestration.md) — relationship between events and LLM context, task delegation translation, branch isolation. Use when modifying event processing, context preparation for LLMs, or debugging context pollution issues.
 
 ## Testing
 [references/testing.md](references/testing.md) — core principles, 9 rules for writing ADK tests, test structure template
