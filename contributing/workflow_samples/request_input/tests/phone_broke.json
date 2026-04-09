@@ -149,13 +149,13 @@
         }
       },
       "nodeInfo": {
-        "path": "request_input@1/draft_email@1",
+        "path": "request_input@1/draft_email@2",
         "outputFor": [
-          "request_input@1/draft_email@1"
+          "request_input@1/draft_email@2"
         ],
         "messageAsOutput": true
       },
-      "branch": "node:request_input@1/draft_email@1.draft_email",
+      "branch": "node:request_input@1/draft_email@2.draft_email",
       "id": "e-11"
     },
     {
