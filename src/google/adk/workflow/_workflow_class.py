@@ -536,6 +536,7 @@ class Workflow(BaseNode):
       unresolved = child.interrupt_ids - child.resolved_ids
       existing_evt_run_id = child.run_id
 
+      run_counter = int(existing_evt_run_id) if existing_evt_run_id else 0
       if unresolved:
         node = self._get_static_node_by_name(child_name)
         if node.rerun_on_resume and child.resolved_ids:
@@ -547,6 +548,7 @@ class Workflow(BaseNode):
               status=NodeStatus.PENDING,
               resume_inputs=child.resolved_responses,
               run_id=existing_evt_run_id,
+              run_counter=run_counter,
           )
         else:
           # Child can't handle partial resume, or nothing resolved
@@ -555,12 +557,14 @@ class Workflow(BaseNode):
               status=NodeStatus.WAITING,
               interrupts=list(unresolved),
               run_id=existing_evt_run_id,
+              run_counter=run_counter,
           )
       elif child.output is not None:
         # Node's all interrupts are resolved and had output in previous run.
         nodes[child_name] = NodeState(
             status=NodeStatus.COMPLETED,
             run_id=existing_evt_run_id,
+            run_counter=run_counter,
         )
         node_outputs[child_name] = child.output
       elif child.interrupt_ids:
@@ -570,9 +574,9 @@ class Workflow(BaseNode):
           nodes[child_name] = NodeState(
               status=NodeStatus.COMPLETED,
               run_id=existing_evt_run_id,
+              run_counter=run_counter,
           )
           node_outputs[child_name] = self._extract_resume_output(child, ctx)
-
           # Mark that we need to trigger downstream for this node
           nodes_to_trigger.append((child_name, node_outputs[child_name]))
         else:
@@ -580,7 +584,25 @@ class Workflow(BaseNode):
               status=NodeStatus.PENDING,
               resume_inputs=child.resolved_responses,
               run_id=existing_evt_run_id,
+              run_counter=run_counter,
           )
+      if child_name not in nodes:
+        is_wait_for_output = False
+        try:
+          node = self._get_static_node_by_name(child_name)
+          is_wait_for_output = node.wait_for_output
+        except ValueError:
+          pass
+
+        # For nodes with events but no output:
+        # If wait_for_output is True, they are still WAITING for output.
+        # Otherwise, they are considered COMPLETED (e.g., side-effect nodes).
+        status = NodeStatus.WAITING if is_wait_for_output and child.output is None else NodeStatus.COMPLETED
+        nodes[child_name] = NodeState(
+            status=status,
+            run_id=existing_evt_run_id,
+            run_counter=run_counter,
+        )
 
     # wait_for_output nodes that were triggered but produced no output
     self._add_wait_for_output_nodes(nodes, children)
@@ -598,13 +620,6 @@ class Workflow(BaseNode):
         if state.status == NodeStatus.WAITING
         for interrupt_id in state.interrupts
     }
-
-    # Restore run_counter from run_id so resumed nodes continue
-    # sequential ids. When NodeState is persisted (resumability=on),
-    # run_counter will already be correct from deserialization.
-    for state in nodes.values():
-      if state.run_id and state.run_id.isdigit():
-        state.run_counter = int(state.run_id)
 
     logger.info('node %s rehydrate end.', ctx.node_path)
 
@@ -686,7 +701,7 @@ class Workflow(BaseNode):
 
       # New run_id → reset child state (previous run stale).
       # ONLY update run_id from direct child events, not descendants!
-      evt_run_id = event.node_info.run_id
+      evt_run_id = event.node_info.path.rsplit('@', 1)[-1] if '@' in event.node_info.path else ''
       if (
           is_direct_child(event.node_info.path, workflow_path)
           and evt_run_id
@@ -751,6 +766,8 @@ class Workflow(BaseNode):
     """Seed triggers for PENDING nodes and collect interrupt IDs."""
     for node_name, node_state in loop_state.nodes.items():
       if node_state.status == NodeStatus.PENDING:
+        if node_name in loop_state.trigger_buffer:
+          continue
         loop_state.trigger_buffer.setdefault(node_name, []).append(
             Trigger(
                 input=node_state.input,

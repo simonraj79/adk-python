@@ -36,9 +36,9 @@ from google.adk.workflow import Edge
 from google.adk.workflow import START
 from google.adk.workflow._node_status import NodeStatus
 from google.adk.workflow._workflow_class import Workflow
-from google.adk.workflow.utils._workflow_hitl_utils import REQUEST_CREDENTIAL_FUNCTION_CALL_NAME
 from google.adk.workflow.utils._workflow_hitl_utils import create_request_input_response
 from google.adk.workflow.utils._workflow_hitl_utils import get_request_input_interrupt_ids
+from google.adk.workflow.utils._workflow_hitl_utils import REQUEST_CREDENTIAL_FUNCTION_CALL_NAME
 from google.adk.workflow.utils._workflow_hitl_utils import REQUEST_INPUT_FUNCTION_CALL_NAME
 from google.adk.workflow.utils._workflow_hitl_utils import wrap_response
 from google.genai import types
@@ -1378,6 +1378,7 @@ async def test_request_input_rerun_with_same_interrupt_id(
   events1 = await runner.run_async(testing_utils.get_user_content('go'))
   req1 = workflow_testing_utils.get_request_input_events(events1)
   assert len(req1) == 1
+  assert 'review@1' in req1[0].node_info.path
   inv_id = events1[0].invocation_id
 
   # Turn 2: revise → process reruns → review reruns → interrupt again
@@ -1389,6 +1390,7 @@ async def test_request_input_rerun_with_same_interrupt_id(
   )
   req2 = workflow_testing_utils.get_request_input_events(events2)
   assert len(req2) == 1, 'Expected second interrupt after revise'
+  assert 'review@2' in req2[0].node_info.path
   inv_id = events2[0].invocation_id
 
   # Turn 3: approve → should complete, not loop
@@ -1580,3 +1582,107 @@ async def test_second_auth_node_skips_auth_when_credential_exists(
   # Both nodes ran — node_b did NOT pause for a second auth request.
   assert call_log == ['first', 'second']
   assert sink.received_inputs == [{'status': 'done'}]
+
+
+@pytest.mark.asyncio
+async def test_workflow_loop_generates_unique_paths_across_resume(
+    request: pytest.FixtureRequest
+):
+  """Workflow loop generates unique sequential paths across resumes.
+
+  Setup: workflow simulating request_input sample with a loop and a RequestInput node.
+  Act:
+    - Turn 1: trigger RequestInput and interrupt.
+    - Turn 2: provide response triggering a loop back, and trigger RequestInput again.
+  Assert:
+    - Turn 1: node path has @1.
+    - Turn 2: node path has @2.
+  """
+  from google.adk.workflow import node
+  from google.adk.apps import App
+  from google.adk.events.event import Event
+  from google.adk.events.request_input import RequestInput
+
+  from tests.unittests import testing_utils
+  from tests.unittests.workflow import workflow_testing_utils
+
+  # Given a workflow simulating the request_input sample
+  @node
+  def process_input(node_input: Any):
+    yield Event(state={"complaint": node_input, "feedback": ""})
+
+  @node
+  def draft_email(ctx: Context):
+    complaint = ctx.state.get('complaint')
+    feedback = ctx.state.get('feedback')
+    yield Event(output=f"Draft based on {complaint} and feedback {feedback}")
+
+  @node(rerun_on_resume=True)
+  def request_human_review(node_input: Any, ctx: Context):
+    resume = ctx.resume_inputs.get('human_review')
+    if not resume:
+      yield RequestInput(
+          interrupt_id='human_review',
+          message=f"Please review: {node_input}",
+      )
+      return
+    yield Event(output=resume)
+
+  request_human_review.wait_for_output = True
+
+  @node
+  def handle_human_review(node_input: Any):
+    result = node_input.get('result') if isinstance(node_input, dict) else node_input
+    if result == "approve":
+      yield Event(route="approved")
+    else:
+      yield Event(state={"feedback": result}, route="revise")
+
+  @node
+  def end_node(node_input: Any):
+    yield Event(output="done")
+
+  wf = Workflow(
+      name="request_input",
+      edges=[
+          (
+              START,
+              process_input,
+              draft_email,
+              request_human_review,
+              handle_human_review,
+          ),
+          (handle_human_review, {"revise": draft_email, "approved": end_node}),
+      ],
+  )
+
+  app = App(
+      name=request.function.__name__,
+      root_agent=wf,
+  )
+  runner = testing_utils.InMemoryRunner(app=app)
+
+  # When Turn 1 executes (starts and interrupts)
+  events1 = await runner.run_async(
+      testing_utils.get_user_content("my complaint")
+  )
+
+  # Then verify it interrupted at request_human_review@1
+  req1 = workflow_testing_utils.get_request_input_events(events1)
+  assert len(req1) == 1
+  assert 'request_human_review@1' in req1[0].node_info.path
+
+  inv_id = events1[0].invocation_id
+
+  # When Turn 2 executes (provides response and loops back)
+  events2 = await runner.run_async(
+      new_message=testing_utils.UserContent(
+          create_request_input_response('human_review', {'result': 'make it shorter'})
+      ),
+      invocation_id=inv_id,
+  )
+
+  # Then verify it triggered request_human_review again with run_id @2
+  req2 = workflow_testing_utils.get_request_input_events(events2)
+  assert len(req2) == 1
+  assert 'request_human_review@2' in req2[0].node_info.path
