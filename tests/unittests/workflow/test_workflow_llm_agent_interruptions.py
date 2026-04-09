@@ -206,6 +206,100 @@ async def test_workflow_pause_and_resume_task_mode(
 
 
 @pytest.mark.asyncio
+async def test_workflow_pause_and_resume_tool_confirmation(
+    request: pytest.FixtureRequest,
+):
+  """Tests that a workflow can pause and resume with a tool requiring confirmation.
+
+  Setup: Workflow with a single LlmAgent node having a tool requiring confirmation.
+  Act:
+    - Run 1: Start workflow, tool requests confirmation.
+    - Run 2: Send confirmation response.
+  Assert:
+    - Run 1: Workflow pauses and yields confirmation request.
+    - Run 2: Workflow resumes and completes with LLM response.
+  """
+  from google.adk.tools.function_tool import FunctionTool
+  from google.adk.flows.llm_flows.functions import REQUEST_CONFIRMATION_FUNCTION_CALL_NAME
+
+  # Given a tool that requires confirmation and a mock model
+  def _simple_tool_func():
+    return {"result": "tool executed"}
+
+  mock_model = testing_utils.MockModel.create(
+      responses=[
+          types.Part.from_function_call(
+              name='_simple_tool_func',
+              args={},
+          ),
+          types.Part.from_text(text='LLM response after confirmation'),
+      ]
+  )
+
+  node_a = LlmAgent(
+      name='my_agent',
+      model=mock_model,
+      tools=[FunctionTool(func=_simple_tool_func, require_confirmation=True)],
+  )
+
+  wf = Workflow(
+      name='test_workflow_confirmation',
+      edges=[(START, node_a)],
+  )
+
+  app = App(
+      name=request.function.__name__,
+      root_agent=wf,
+  )
+  runner = testing_utils.InMemoryRunner(app=app)
+
+  # When the workflow is started
+  user_event = testing_utils.get_user_content('start workflow')
+  events1 = await runner.run_async(user_event)
+
+  # Then it should request confirmation
+  fc_event = None
+  for e in events1:
+    if e.content and e.content.parts:
+      for p in e.content.parts:
+        if p.function_call and p.function_call.name == REQUEST_CONFIRMATION_FUNCTION_CALL_NAME:
+          fc_event = e
+          break
+
+  assert fc_event is not None, "Did not find confirmation request event"
+
+  ask_for_confirmation_function_call_id = fc_event.content.parts[0].function_call.id
+  invocation_id = events1[0].invocation_id
+
+  # When the user confirms the tool call
+  user_confirmation = testing_utils.UserContent(
+      types.Part(
+          function_response=types.FunctionResponse(
+              id=ask_for_confirmation_function_call_id,
+              name=REQUEST_CONFIRMATION_FUNCTION_CALL_NAME,
+              response={"confirmed": True},
+          )
+      )
+  )
+
+  events2 = await runner.run_async(
+      new_message=user_confirmation,
+      invocation_id=invocation_id,
+  )
+
+  # Then the workflow completes with the LLM response
+  content_texts = [
+      p.text
+      for e in events2
+      if e.content and e.content.parts
+      for p in e.content.parts
+      if p.text
+  ]
+
+  assert any('LLM response after confirmation' in t for t in content_texts)
+
+
+@pytest.mark.asyncio
 async def test_workflow_pause_and_resume_parent_interruption(
     request: pytest.FixtureRequest,
 ):
