@@ -184,6 +184,13 @@ class DynamicNodeScheduler:
         )
 
       # All resolved → re-run or auto-complete.
+      if node.wait_for_output and not node.rerun_on_resume:
+        raise ValueError(
+            f"Node {node_path} is waiting for output but was called again with rerun_on_resume=False. "
+            "This would cause it to auto-complete with empty output, which is likely a configuration error. "
+            "Consider setting rerun_on_resume=True."
+        )
+
       if not node.rerun_on_resume:
         # All resolved, no rerun → auto-complete with resume_inputs.
         output = dict(state.resume_inputs)
