@@ -561,8 +561,14 @@ class Workflow(BaseNode):
     loop_state.nodes = nodes
     loop_state.node_outputs = node_outputs
 
-    # Trigger downstream for nodes that were completed during resume
+    # Trigger downstream for nodes that were completed during resume.
+    # Process in order: if a node was re-triggered (COMPLETED → PENDING)
+    # by an earlier trigger's downstream, skip its stale downstream
+    # because it will re-run and may produce a different route.
     for child_name, output, route in nodes_to_trigger:
+      node_state = loop_state.nodes[child_name]
+      if node_state.status == NodeStatus.PENDING:
+        continue
       self._buffer_downstream_triggers(
           loop_state, child_name, output, route=route
       )
