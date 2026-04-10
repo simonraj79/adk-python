@@ -40,8 +40,6 @@ def plot_workflow_graph(
     root_name = root_agent.get("name", "root_agent")
     sub_agents = root_agent.get("sub_agents", [])
     tools = root_agent.get("tools", [])
-    if not sub_agents and not tools:
-      return "" if format in ("svg", "dot") else b""
 
     nodes = [{"name": root_name, "type": "agent", "tools": tools}]
     edges = []
