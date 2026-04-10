@@ -20,15 +20,6 @@ from google.adk.agents import context as workflow_context
 from google.adk.agents.base_agent import BaseAgent
 from google.adk.agents.invocation_context import InvocationContext
 from google.adk.agents.invocation_context import new_invocation_context_id
-
-
-class _TransferTargetInfo:
-
-  def __init__(self, name: str, description: str = ''):
-    self.name = name
-    self.description = description
-
-
 from google.adk.events.event import Event
 from google.adk.sessions.base_session_service import BaseSessionService
 from google.adk.sessions.session import Session
@@ -129,49 +120,3 @@ def test_actual_session_returns_underlying_session():
   )
   proxy = ctx.session
   assert proxy.actual_session is session
-
-
-def test_transfer_targets_defaults_to_empty_list():
-  """Tests that transfer_targets defaults to an empty list."""
-  session = Session(id='session_id', app_name='test_app', user_id='test_user')
-  invocation_context = InvocationContext(
-      invocation_id=new_invocation_context_id(),
-      agent=mock.create_autospec(BaseAgent),
-      session=session,
-      session_service=mock.create_autospec(BaseSessionService),
-  )
-  ctx = workflow_context.Context(
-      invocation_context,
-      node_path='test_node_path',
-      run_id='test_run_id',
-      local_events=[],
-  )
-  assert ctx.transfer_targets == []
-
-
-def test_transfer_targets_returns_provided_values():
-  """Tests that transfer_targets returns the provided list."""
-  session = Session(id='session_id', app_name='test_app', user_id='test_user')
-  invocation_context = InvocationContext(
-      invocation_id=new_invocation_context_id(),
-      agent=mock.create_autospec(BaseAgent),
-      session=session,
-      session_service=mock.create_autospec(BaseSessionService),
-  )
-  targets = [
-      _TransferTargetInfo(name='agent_a', description='Agent A'),
-      _TransferTargetInfo(name='agent_b'),
-  ]
-  ctx = workflow_context.Context(
-      invocation_context,
-      node_path='test_node_path',
-      run_id='test_run_id',
-      local_events=[],
-      transfer_targets=targets,
-  )
-  assert ctx.transfer_targets == targets
-  assert len(ctx.transfer_targets) == 2
-  assert ctx.transfer_targets[0].name == 'agent_a'
-  assert ctx.transfer_targets[0].description == 'Agent A'
-  assert ctx.transfer_targets[1].name == 'agent_b'
-  assert ctx.transfer_targets[1].description == ''

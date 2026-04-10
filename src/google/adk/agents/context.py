@@ -140,7 +140,7 @@ class Context(ReadonlyContext):
 
   When used in a workflow, additional fields are available:
   ``node_path``, ``run_id``, ``triggered_by``, ``in_nodes``,
-  ``resume_inputs``, ``transfer_targets``, ``retry_count``,
+  ``resume_inputs``, ``retry_count``,
   ``run_node()``, and ``get_next_child_run_id()``.
   """
 
@@ -163,7 +163,6 @@ class Context(ReadonlyContext):
       ) = None,  # TODO: remove after migrating to new Workflow
       schedule_dynamic_node_internal: ScheduleDynamicNodeInternal | None = None,
       node_rerun_on_resume: bool = True,
-      transfer_targets: list[Any] | None = None,
       attempt_count: int = 1,
       output_for_ancestors: list[str] | None = None,
       event_author: str = '',
@@ -187,7 +186,6 @@ class Context(ReadonlyContext):
       resume_inputs: Inputs for resuming node, keyed by interrupt id.
       schedule_dynamic_node: Function to schedule dynamic nodes.
       node_rerun_on_resume: Whether the node reruns on resume.
-      transfer_targets: Valid transfer targets for the current node.
       retry_count: Number of times this node has been retried.
     """
     super().__init__(invocation_context)
@@ -220,7 +218,6 @@ class Context(ReadonlyContext):
     self._child_run_counters: dict[str, int] = {}
     self._child_run_counter = 0
     self._local_events = local_events if local_events is not None else []
-    self._transfer_targets = transfer_targets or []
     self._attempt_count = attempt_count
     self._output_delegated = False
     self._output_value: Any = None
@@ -402,11 +399,6 @@ class Context(ReadonlyContext):
   @event_author.setter
   def event_author(self, value: str) -> None:
     self._event_author = value
-
-  @property
-  def transfer_targets(self) -> list[Any]:
-    """Returns the list of valid transfer targets for the current node."""
-    return self._transfer_targets
 
   @property
   def otel_context(self) -> context_api.Context:

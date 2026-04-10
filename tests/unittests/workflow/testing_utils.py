@@ -110,7 +110,6 @@ async def create_invocation_context(
 async def create_workflow_context(
     agent,
     user_content='',
-    transfer_targets=None,
 ) -> WorkflowContext:
   """Create a WorkflowContext for isolated node testing.
 
@@ -124,7 +123,6 @@ async def create_workflow_context(
       node_path='test',
       run_id='test-execution',
       local_events=[],
-      transfer_targets=transfer_targets,
   )
 
 

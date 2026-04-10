@@ -52,7 +52,6 @@ def my_node(ctx: Context, node_input: str) -> str:
 | `triggered_by` | `str` | Name of node that triggered current node |
 | `in_nodes` | `frozenset[str]` | Names of all predecessor nodes |
 | `resume_inputs` | `dict[str, Any]` | Inputs for resuming (keyed by interrupt_id) |
-| `transfer_targets` | `list` | Valid transfer targets for the current node |
 | `retry_count` | `int` | Number of times this node has been retried |
 
 ### Workflow-Only Methods

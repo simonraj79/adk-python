@@ -97,7 +97,6 @@ workflow metadata, and service methods. See property reference below.
 | State & actions | `state` (mutable `State`), `actions` (EventActions) |
 | Node results | `output`, `route`, `interrupt_ids` (read-only) |
 | Workflow | `node_path`, `run_id`, `triggered_by`, `in_nodes`, `resume_inputs`, `retry_count`, `event_author` |
-| Transfer | `transfer_targets` |
 | Methods | `run_node()`, `get_next_child_run_id()` |
 | Artifacts | `load_artifact()`, `save_artifact()`, `list_artifacts()` |
 | Memory | `search_memory()`, `add_session_to_memory()`, `add_events_to_memory()`, `add_memory()` |
