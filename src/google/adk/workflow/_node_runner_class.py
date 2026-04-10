@@ -29,6 +29,7 @@ import sys
 from types import SimpleNamespace
 from typing import Any
 from typing import TYPE_CHECKING
+
 from ..telemetry import node_tracing
 
 if TYPE_CHECKING:
@@ -63,6 +64,8 @@ class NodeRunner:
       prior_output: Any = None,
       prior_interrupt_ids: set[str] | None = None,
       sub_branch: str | None = None,
+      is_parallel: bool = False,
+      override_branch: str | None = None,
   ) -> None:
     """Initialize a NodeRunner.
 
@@ -82,6 +85,8 @@ class NodeRunner:
       prior_interrupt_ids: Unresolved interrupt IDs (set) from a
         previous run, carried forward on resume.
       sub_branch: Optional sub-branch name to run the node in.
+      is_parallel: Whether the node is running in parallel.
+      override_branch: Optional branch to use instead of parent's branch.
     """
     # Core
     self._node = node
@@ -89,6 +94,8 @@ class NodeRunner:
 
     self._run_id = str(run_id) if run_id else "1"
     self._sub_branch = sub_branch
+    self._is_parallel = is_parallel
+    self._override_branch = override_branch
 
     # Graph context
     self._triggered_by = triggered_by
@@ -119,11 +126,15 @@ class NodeRunner:
     """
     attempt_count = 1
     while True:
-      ctx = self._create_child_context(resume_inputs, attempt_count=attempt_count)
+      ctx = self._create_child_context(
+          resume_inputs, attempt_count=attempt_count
+      )
       logger.info("node %s started.", ctx.node_path)
       try:
         # Start the span within try-except block to record exceptions on the span
-        async with node_tracing.start_as_current_node_span(self._parent_ctx, self._node) as telemetry_context:
+        async with node_tracing.start_as_current_node_span(
+            self._parent_ctx, self._node
+        ) as telemetry_context:
           ctx._otel_context = telemetry_context.otel_context
           await self._execute_node(ctx, node_input)
           await self._flush_output_and_deltas(ctx)
@@ -217,9 +228,18 @@ class NodeRunner:
       scheduler = DynamicNodeScheduler(DynamicNodeState())
 
     ic = self._parent_ctx._invocation_context
-    if self._sub_branch:
-      branch = f"node:{self._build_node_path()}.{self._sub_branch}"
+    base_branch = (
+        self._override_branch
+        if self._override_branch is not None
+        else ic.branch
+    )
+
+    if self._is_parallel:
+      segment = f"{self._node.name}@{self._run_id}"
+      branch = f"{base_branch}.{segment}" if base_branch else segment
       ic = ic.model_copy(update={"branch": branch})
+    elif self._override_branch is not None:
+      ic = ic.model_copy(update={"branch": self._override_branch})
 
     ctx = Context(
         ic,
@@ -405,5 +425,12 @@ class NodeRunner:
     event.author = ctx.event_author or self._node.name
     event.invocation_id = ctx._invocation_context.invocation_id
     event.node_info.path = ctx.node_path
+    if event.branch is None:
+      event.branch = ctx._invocation_context.branch
+    elif event.branch == "":
+      event.branch = None
+      ctx._invocation_context.branch = None
+    else:
+      ctx._invocation_context.branch = event.branch
     if event.output is not None:
       event.node_info.output_for = [ctx.node_path] + ctx._output_for_ancestors

@@ -115,6 +115,7 @@ class DynamicNodeScheduler:
       use_as_output: bool = False,
       run_id: str,
       sub_branch: str | None = None,
+      is_parallel: bool = False,
   ) -> Context:
     """Schedule a dynamic node: dedup, resume, or fresh run.
 
@@ -129,6 +130,8 @@ class DynamicNodeScheduler:
       use_as_output: If True, the child's output replaces the
         calling node's output.
       run_id: Custom run ID for the child node execution.
+      sub_branch: Optional sub-branch name to run the node in.
+      is_parallel: Whether the node is running in parallel.
 
     Returns:
       Child Context with output, route, and interrupt_ids set.
@@ -157,6 +160,7 @@ class DynamicNodeScheduler:
           use_as_output,
           is_fresh=True,
           sub_branch=sub_branch,
+          is_parallel=is_parallel,
       )
 
     # Found an existing run for this node and run_id -> rerun or interrupt or auto-complete.
@@ -206,6 +210,7 @@ class DynamicNodeScheduler:
           use_as_output,
           is_fresh=False,
           sub_branch=sub_branch,
+          is_parallel=is_parallel,
       )
 
     # Running in this invocation — await existing task.
@@ -347,6 +352,7 @@ class DynamicNodeScheduler:
       use_as_output: bool,
       is_fresh: bool,
       sub_branch: str | None = None,
+      is_parallel: bool = False,
   ) -> Context:
     """Unified runner for both fresh and resume executions."""
     if is_fresh:
@@ -377,6 +383,7 @@ class DynamicNodeScheduler:
             ctx.node_path if use_as_output else None
         ),
         sub_branch=sub_branch,
+        is_parallel=is_parallel,
     )
     run.task = asyncio.create_task(
         runner.run(node_input=node_input, resume_inputs=resume_inputs)

@@ -45,7 +45,7 @@
       "content": {
         "parts": [
           {
-            "text": "Subject: Re: Your recent issue with your phone - We're here to help\n\nDear [Customer Name, if known, otherwise \"Dear Valued Customer\"],\n\nI'm very sorry to hear that your phone has broken. I understand how frustrating and inconvenient this can be, and please accept our apologies for the trouble you're experiencing.\n\nTo help us understand the situation better and provide you with the most effective assistance, could you please provide us with a few more details? This will allow us to guide you through the next steps.\n\nPlease let us know:\n*   **What is the make and model of your phone?** (e.g., \"XYZ Phone Model 123\")\n*   **Could you describe what happened and how the phone broke?** For example, did it stop turning on, is the screen damaged, are there charging issues, or something else?\n*   **When did this issue occur?**\n*   **If you purchased the phone from us, could you please provide your order number or the approximate date of purchase?**\n\nOnce we have this information, we'll be able to assess the situation and explore the best possible solutions, whether it involves troubleshooting steps, repair options, or warranty assistance.\n\nPlease reply to this email with the details, or if you prefer to speak with someone directly, feel free to call us at [Your Company Phone Number] during our business hours.\n\nThank you for your patience, and we look forward to helping you resolve this as quickly as possible.\n\nSincerely,\n\nThe [Your Company Name] Support Team"
+            "text": "Subject: Regarding Your Phone Issue - How We Can Help - [Your Company Name]\n\nDear Valued Customer,\n\nThank you for reaching out to us. We're very sorry to hear that you're experiencing an issue with your phone. We understand how frustrating it can be when your device isn't working as expected, and we're here to help.\n\nTo assist you as quickly and effectively as possible, could you please provide a few more details about the situation? This will help us understand the problem and guide you towards the best solution.\n\nPlease tell us:\n\n1.  **What is the model of your phone?** (e.g., iPhone 15, Samsung Galaxy S24, Google Pixel 8, etc.)\n2.  **When did you purchase the phone?** (Rough date or year is fine if you don't have the exact date.)\n3.  **Could you describe what happened and how the phone \"broke\"?** (e.g., \"It fell and the screen cracked,\" \"It won't turn on,\" \"It got wet,\" \"The battery stopped charging,\" \"It's stuck in a loop,\" etc.)\n4.  **Have you already attempted any troubleshooting steps?** (e.g., restarting the phone, checking charging cables, etc.)\n\nOnce we have this information, our support team will be able to assess the situation, discuss potential solutions such as troubleshooting, repair options, or warranty service, and guide you through the next steps.\n\nPlease reply to this email with the requested details, or if you prefer to speak with someone directly, you can call us at [Your Phone Number] during our business hours of [Your Business Hours].\n\nWe look forward to helping you resolve this issue soon.\n\nSincerely,\n\nThe Customer Support Team\n[Your Company Name]\n[Your Company Website (Optional)]"
           }
         ],
         "role": "model"
@@ -55,7 +55,7 @@
       "author": "request_input_rerun",
       "actions": {
         "stateDelta": {
-          "draft": "Subject: Re: Your recent issue with your phone - We're here to help\n\nDear [Customer Name, if known, otherwise \"Dear Valued Customer\"],\n\nI'm very sorry to hear that your phone has broken. I understand how frustrating and inconvenient this can be, and please accept our apologies for the trouble you're experiencing.\n\nTo help us understand the situation better and provide you with the most effective assistance, could you please provide us with a few more details? This will allow us to guide you through the next steps.\n\nPlease let us know:\n*   **What is the make and model of your phone?** (e.g., \"XYZ Phone Model 123\")\n*   **Could you describe what happened and how the phone broke?** For example, did it stop turning on, is the screen damaged, are there charging issues, or something else?\n*   **When did this issue occur?**\n*   **If you purchased the phone from us, could you please provide your order number or the approximate date of purchase?**\n\nOnce we have this information, we'll be able to assess the situation and explore the best possible solutions, whether it involves troubleshooting steps, repair options, or warranty assistance.\n\nPlease reply to this email with the details, or if you prefer to speak with someone directly, feel free to call us at [Your Company Phone Number] during our business hours.\n\nThank you for your patience, and we look forward to helping you resolve this as quickly as possible.\n\nSincerely,\n\nThe [Your Company Name] Support Team"
+          "draft": "Subject: Regarding Your Phone Issue - How We Can Help - [Your Company Name]\n\nDear Valued Customer,\n\nThank you for reaching out to us. We're very sorry to hear that you're experiencing an issue with your phone. We understand how frustrating it can be when your device isn't working as expected, and we're here to help.\n\nTo assist you as quickly and effectively as possible, could you please provide a few more details about the situation? This will help us understand the problem and guide you towards the best solution.\n\nPlease tell us:\n\n1.  **What is the model of your phone?** (e.g., iPhone 15, Samsung Galaxy S24, Google Pixel 8, etc.)\n2.  **When did you purchase the phone?** (Rough date or year is fine if you don't have the exact date.)\n3.  **Could you describe what happened and how the phone \"broke\"?** (e.g., \"It fell and the screen cracked,\" \"It won't turn on,\" \"It got wet,\" \"The battery stopped charging,\" \"It's stuck in a loop,\" etc.)\n4.  **Have you already attempted any troubleshooting steps?** (e.g., restarting the phone, checking charging cables, etc.)\n\nOnce we have this information, our support team will be able to assess the situation, discuss potential solutions such as troubleshooting, repair options, or warranty service, and guide you through the next steps.\n\nPlease reply to this email with the requested details, or if you prefer to speak with someone directly, you can call us at [Your Phone Number] during our business hours of [Your Business Hours].\n\nWe look forward to helping you resolve this issue soon.\n\nSincerely,\n\nThe Customer Support Team\n[Your Company Name]\n[Your Company Website (Optional)]"
         }
       },
       "nodeInfo": {
@@ -65,7 +65,6 @@
         ],
         "messageAsOutput": true
       },
-      "branch": "node:request_input_rerun@1/draft_email@1.draft_email",
       "id": "e-4"
     },
     {
@@ -77,7 +76,7 @@
               "args": {
                 "interrupt_id": "fc-1",
                 "payload": null,
-                "message": "Please review the following draft email and provide 'approve', 'reject', or feedback to revise.\n\n---\nSubject: Re: Your recent issue with your phone - We're here to help\n\nDear [Customer Name, if known, otherwise \"Dear Valued Customer\"],\n\nI'm very sorry to hear that your phone has broken. I understand how frustrating and inconvenient this can be, and please accept our apologies for the trouble you're experiencing.\n\nTo help us understand the situation better and provide you with the most effective assistance, could you please provide us with a few more details? This will allow us to guide you through the next steps.\n\nPlease let us know:\n*   **What is the make and model of your phone?** (e.g., \"XYZ Phone Model 123\")\n*   **Could you describe what happened and how the phone broke?** For example, did it stop turning on, is the screen damaged, are there charging issues, or something else?\n*   **When did this issue occur?**\n*   **If you purchased the phone from us, could you please provide your order number or the approximate date of purchase?**\n\nOnce we have this information, we'll be able to assess the situation and explore the best possible solutions, whether it involves troubleshooting steps, repair options, or warranty assistance.\n\nPlease reply to this email with the details, or if you prefer to speak with someone directly, feel free to call us at [Your Company Phone Number] during our business hours.\n\nThank you for your patience, and we look forward to helping you resolve this as quickly as possible.\n\nSincerely,\n\nThe [Your Company Name] Support Team\n---",
+                "message": "Please review the following draft email and provide 'approve', 'reject', or feedback to revise.\n\n---\nSubject: Regarding Your Phone Issue - How We Can Help - [Your Company Name]\n\nDear Valued Customer,\n\nThank you for reaching out to us. We're very sorry to hear that you're experiencing an issue with your phone. We understand how frustrating it can be when your device isn't working as expected, and we're here to help.\n\nTo assist you as quickly and effectively as possible, could you please provide a few more details about the situation? This will help us understand the problem and guide you towards the best solution.\n\nPlease tell us:\n\n1.  **What is the model of your phone?** (e.g., iPhone 15, Samsung Galaxy S24, Google Pixel 8, etc.)\n2.  **When did you purchase the phone?** (Rough date or year is fine if you don't have the exact date.)\n3.  **Could you describe what happened and how the phone \"broke\"?** (e.g., \"It fell and the screen cracked,\" \"It won't turn on,\" \"It got wet,\" \"The battery stopped charging,\" \"It's stuck in a loop,\" etc.)\n4.  **Have you already attempted any troubleshooting steps?** (e.g., restarting the phone, checking charging cables, etc.)\n\nOnce we have this information, our support team will be able to assess the situation, discuss potential solutions such as troubleshooting, repair options, or warranty service, and guide you through the next steps.\n\nPlease reply to this email with the requested details, or if you prefer to speak with someone directly, you can call us at [Your Phone Number] during our business hours of [Your Business Hours].\n\nWe look forward to helping you resolve this issue soon.\n\nSincerely,\n\nThe Customer Support Team\n[Your Company Name]\n[Your Company Website (Optional)]\n---",
                 "response_schema": null
               },
               "name": "adk_request_input"
@@ -135,7 +134,7 @@
       "content": {
         "parts": [
           {
-            "text": "Subject: Regarding your broken phone - How can we help?\n\nDear [Customer Name],\n\nWe're sorry to hear that your phone has broken. We understand this can be very frustrating.\n\nTo help us assist you quickly, please reply with a few more details:\n*   Your phone model\n*   Where and when it was purchased\n*   A brief description of how it broke\n\nWith this information, we can guide you on the best next steps, whether it's for warranty, repair, or replacement options.\n\nAlternatively, you can visit our dedicated support page at [Link to Support Page] for immediate assistance and resources.\n\nSincerely,\nThe [Your Company Name] Support Team"
+            "text": "Subject: Regarding Your Phone Issue - How We Can Help - [Your Company Name]\n\nDear Valued Customer,\n\nThank you for contacting us. We're sorry to hear about your phone issue and are ready to help.\n\nTo assist you efficiently, please provide the following details:\n\n1.  **What is the model of your phone?** (e.g., iPhone 15, Samsung Galaxy S24)\n2.  **When did you purchase the phone?** (Rough date or year is fine)\n3.  **How did the phone \"break\"?** (e.g., screen cracked, won't turn on, got wet)\n4.  **Have you attempted any troubleshooting steps?** (e.g., restarting, checking cables)\n\nWith this information, our team can better assess the problem and outline next steps (troubleshooting, repair, warranty).\n\nPlease reply to this email with the details. You can also call us at [Your Phone Number] during [Your Business Hours] if you prefer to speak directly.\n\nWe look forward to helping you resolve this soon.\n\nSincerely,\n\nThe Customer Support Team\n[Your Company Name]\n[Your Company Website (Optional)]"
           }
         ],
         "role": "model"
@@ -145,7 +144,7 @@
       "author": "request_input_rerun",
       "actions": {
         "stateDelta": {
-          "draft": "Subject: Regarding your broken phone - How can we help?\n\nDear [Customer Name],\n\nWe're sorry to hear that your phone has broken. We understand this can be very frustrating.\n\nTo help us assist you quickly, please reply with a few more details:\n*   Your phone model\n*   Where and when it was purchased\n*   A brief description of how it broke\n\nWith this information, we can guide you on the best next steps, whether it's for warranty, repair, or replacement options.\n\nAlternatively, you can visit our dedicated support page at [Link to Support Page] for immediate assistance and resources.\n\nSincerely,\nThe [Your Company Name] Support Team"
+          "draft": "Subject: Regarding Your Phone Issue - How We Can Help - [Your Company Name]\n\nDear Valued Customer,\n\nThank you for contacting us. We're sorry to hear about your phone issue and are ready to help.\n\nTo assist you efficiently, please provide the following details:\n\n1.  **What is the model of your phone?** (e.g., iPhone 15, Samsung Galaxy S24)\n2.  **When did you purchase the phone?** (Rough date or year is fine)\n3.  **How did the phone \"break\"?** (e.g., screen cracked, won't turn on, got wet)\n4.  **Have you attempted any troubleshooting steps?** (e.g., restarting, checking cables)\n\nWith this information, our team can better assess the problem and outline next steps (troubleshooting, repair, warranty).\n\nPlease reply to this email with the details. You can also call us at [Your Phone Number] during [Your Business Hours] if you prefer to speak directly.\n\nWe look forward to helping you resolve this soon.\n\nSincerely,\n\nThe Customer Support Team\n[Your Company Name]\n[Your Company Website (Optional)]"
         }
       },
       "nodeInfo": {
@@ -155,8 +154,7 @@
         ],
         "messageAsOutput": true
       },
-      "branch": "node:request_input_rerun@1/draft_email@2.draft_email",
-      "id": "e-10"
+      "id": "e-11"
     },
     {
       "content": {
@@ -167,7 +165,7 @@
               "args": {
                 "interrupt_id": "fc-2",
                 "payload": null,
-                "message": "Please review the following draft email and provide 'approve', 'reject', or feedback to revise.\n\n---\nSubject: Regarding your broken phone - How can we help?\n\nDear [Customer Name],\n\nWe're sorry to hear that your phone has broken. We understand this can be very frustrating.\n\nTo help us assist you quickly, please reply with a few more details:\n*   Your phone model\n*   Where and when it was purchased\n*   A brief description of how it broke\n\nWith this information, we can guide you on the best next steps, whether it's for warranty, repair, or replacement options.\n\nAlternatively, you can visit our dedicated support page at [Link to Support Page] for immediate assistance and resources.\n\nSincerely,\nThe [Your Company Name] Support Team\n---",
+                "message": "Please review the following draft email and provide 'approve', 'reject', or feedback to revise.\n\n---\nSubject: Regarding Your Phone Issue - How We Can Help - [Your Company Name]\n\nDear Valued Customer,\n\nThank you for contacting us. We're sorry to hear about your phone issue and are ready to help.\n\nTo assist you efficiently, please provide the following details:\n\n1.  **What is the model of your phone?** (e.g., iPhone 15, Samsung Galaxy S24)\n2.  **When did you purchase the phone?** (Rough date or year is fine)\n3.  **How did the phone \"break\"?** (e.g., screen cracked, won't turn on, got wet)\n4.  **Have you attempted any troubleshooting steps?** (e.g., restarting, checking cables)\n\nWith this information, our team can better assess the problem and outline next steps (troubleshooting, repair, warranty).\n\nPlease reply to this email with the details. You can also call us at [Your Phone Number] during [Your Business Hours] if you prefer to speak directly.\n\nWe look forward to helping you resolve this soon.\n\nSincerely,\n\nThe Customer Support Team\n[Your Company Name]\n[Your Company Website (Optional)]\n---",
                 "response_schema": null
               },
               "name": "adk_request_input"
@@ -183,7 +181,7 @@
       "longRunningToolIds": [
         "fc-2"
       ],
-      "id": "e-12"
+      "id": "e-13"
     },
     {
       "content": {
@@ -205,7 +203,7 @@
       "nodeInfo": {
         "path": ""
       },
-      "id": "e-13"
+      "id": "e-14"
     },
     {
       "invocationId": "i-1",
@@ -216,7 +214,7 @@
       "nodeInfo": {
         "path": "request_input_rerun@1/human_review@2"
       },
-      "id": "e-15"
+      "id": "e-16"
     },
     {
       "content": {
@@ -232,7 +230,7 @@
       "nodeInfo": {
         "path": "request_input_rerun@1/send_email@1"
       },
-      "id": "e-16"
+      "id": "e-17"
     }
   ]
 }

@@ -33,7 +33,7 @@
       "content": {
         "parts": [
           {
-            "text": "**The Digital Heartbeat**"
+            "text": "Computers: Shaping Our World"
           }
         ],
         "role": "model"
@@ -48,14 +48,13 @@
         ],
         "messageAsOutput": true
       },
-      "branch": "node:root_agent@1/generate_headline@1.generate_headline",
       "id": "e-4"
     },
     {
       "content": {
         "parts": [
           {
-            "text": "{\"grade\": \"tech-related\", \"feedback\": \"The headline 'The Digital Heartbeat' is already tech-focused as 'Digital' directly refers to technology and computing.\"}"
+            "text": "{\"grade\": \"tech-related\", \"feedback\": \"This headline is clearly tech-related as it directly discusses computers.\"}"
           }
         ],
         "role": "model"
@@ -67,7 +66,7 @@
         "stateDelta": {
           "feedback": {
             "grade": "tech-related",
-            "feedback": "The headline 'The Digital Heartbeat' is already tech-focused as 'Digital' directly refers to technology and computing."
+            "feedback": "This headline is clearly tech-related as it directly discusses computers."
           }
         }
       },
@@ -78,7 +77,6 @@
         ],
         "messageAsOutput": true
       },
-      "branch": "node:root_agent@1/evaluate_headline@1.evaluate_headline",
       "id": "e-7"
     },
     {

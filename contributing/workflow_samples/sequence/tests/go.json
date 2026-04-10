@@ -43,14 +43,13 @@
         ],
         "messageAsOutput": true
       },
-      "branch": "node:root_agent@1/generate_fruit_agent@1.generate_fruit_agent",
       "id": "e-4"
     },
     {
       "content": {
         "parts": [
           {
-            "text": "Apples are rich in dietary fiber, which can help promote healthy digestion, prevent constipation, and contribute to a feeling of fullness, aiding in weight management."
+            "text": "Apples are a good source of **dietary fiber**, particularly soluble fiber like pectin. This can help with digestion, promote a feeling of fullness (aiding in weight management), and may contribute to lowering cholesterol levels."
           }
         ],
         "role": "model"
@@ -66,7 +65,6 @@
         ],
         "messageAsOutput": true
       },
-      "branch": "node:root_agent@1/generate_benefit_agent@1.generate_benefit_agent",
       "id": "e-7"
     }
   ]

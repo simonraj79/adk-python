@@ -34,6 +34,7 @@
           "root_agent@1/make_uppercase@1"
         ]
       },
+      "branch": "make_uppercase@1",
       "id": "e-3"
     },
     {
@@ -46,6 +47,7 @@
           "root_agent@1/count_characters@1"
         ]
       },
+      "branch": "count_characters@1",
       "id": "e-4"
     },
     {
@@ -58,6 +60,7 @@
           "root_agent@1/reverse_string@1"
         ]
       },
+      "branch": "reverse_string@1",
       "id": "e-5"
     },
     {
@@ -66,13 +69,17 @@
       "actions": {
         "stateDelta": {
           "root_agent@1/join_for_results@1_join_state": {
-            "make_uppercase": "GO"
+            "make_uppercase": {
+              "input": "GO",
+              "branch": "make_uppercase@1"
+            }
           }
         }
       },
       "nodeInfo": {
         "path": "root_agent@1/join_for_results@1"
       },
+      "branch": "make_uppercase@1",
       "id": "e-6"
     },
     {
@@ -81,14 +88,21 @@
       "actions": {
         "stateDelta": {
           "root_agent@1/join_for_results@1_join_state": {
-            "make_uppercase": "GO",
-            "count_characters": 2
+            "make_uppercase": {
+              "input": "GO",
+              "branch": "make_uppercase@1"
+            },
+            "count_characters": {
+              "input": 2,
+              "branch": "count_characters@1"
+            }
           }
         }
       },
       "nodeInfo": {
         "path": "root_agent@1/join_for_results@1"
       },
+      "branch": "count_characters@1",
       "id": "e-7"
     },
     {

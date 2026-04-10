@@ -52,7 +52,7 @@
       "content": {
         "parts": [
           {
-            "text": "{\"title\": \"The Infinite Impulse of 'Go': Navigating Uncharted Territories\", \"description\": \"Explore the multifaceted concept of 'go' as a catalyst for action, innovation, and discovery, from the first step in a journey to the launch of a revolutionary idea. Delve into its implications across technology, adventure, and personal growth.\", \"category\": \"Innovation & Exploration\"}"
+            "text": "{\"title\": \"The Impulse to Go: Decoding Humanity's Perpetual Motion\", \"description\": \"Investigating the fundamental human drive to 'go' - exploring its manifestations from ancient migrations and pioneering expeditions to the relentless pursuit of progress in science, technology, and personal growth, and what happens when we pause.\", \"category\": \"Human Behavior & Future Studies\"}"
           }
         ],
         "role": "model"
@@ -67,13 +67,12 @@
         ],
         "messageAsOutput": true
       },
-      "branch": "node:root_agent@1/generate_pydantic_output@1.generate_pydantic_output",
       "id": "e-6"
     },
     {
       "invocationId": "i-1",
       "author": "root_agent",
-      "output": "Received Pydantic Model!\nTitle: The Infinite Impulse of 'Go': Navigating Uncharted Territories\nDescription: Explore the multifaceted concept of 'go' as a catalyst for action, innovation, and discovery, from the first step in a journey to the launch of a revolutionary idea. Delve into its implications across technology, adventure, and personal growth.\nCategory: Innovation & Exploration",
+      "output": "Received Pydantic Model!\nTitle: The Impulse to Go: Decoding Humanity's Perpetual Motion\nDescription: Investigating the fundamental human drive to 'go' - exploring its manifestations from ancient migrations and pioneering expeditions to the relentless pursuit of progress in science, technology, and personal growth, and what happens when we pause.\nCategory: Human Behavior & Future Studies",
       "nodeInfo": {
         "path": "root_agent@1/consume_pydantic_output@1",
         "outputFor": [

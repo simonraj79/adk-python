@@ -45,7 +45,7 @@
       "content": {
         "parts": [
           {
-            "text": "{\"category\":\"question\"}"
+            "text": "{\"category\": \"question\"}"
           }
         ],
         "role": "model"
@@ -67,7 +67,6 @@
         ],
         "messageAsOutput": true
       },
-      "branch": "node:root_agent@1/classify_input@1.classify_input",
       "id": "e-4"
     },
     {
@@ -101,8 +100,7 @@
         ],
         "messageAsOutput": true
       },
-      "branch": "node:root_agent@1/answer_question@1.answer_question",
-      "id": "e-7"
+      "id": "e-8"
     }
   ]
 }

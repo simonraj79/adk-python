@@ -46,7 +46,7 @@
       "content": {
         "parts": [
           {
-            "text": "**Bloom & Bliss: A World of Flowers**"
+            "text": "A World of Petals"
           }
         ],
         "role": "model"
@@ -61,14 +61,13 @@
         ],
         "messageAsOutput": true
       },
-      "branch": "node:root_agent@1/orchestrate@1/generate_headline@1.generate_headline",
       "id": "e-4"
     },
     {
       "content": {
         "parts": [
           {
-            "text": "{\"grade\": \"unrelated\", \"feedback\": \"To make this headline more tech-focused, consider adding elements like 'AI-powered floral design,' 'virtual reality garden,' 'e-commerce platform for florists,' or 'sustainable tech in horticulture.'\"}"
+            "text": "{\"grade\": \"unrelated\", \"feedback\": \"This headline sounds like it's about botany, gardening, or a natural theme. To make it more tech-focused, consider incorporating terms like 'AI', 'software', 'virtual reality', 'digital', 'engineering', 'innovation', 'data', or 'development'. For example, 'The AI-Powered World of Digital Petals' or 'Engineering a Virtual Reality of Petals'.\"}"
           }
         ],
         "role": "model"
@@ -80,7 +79,7 @@
         "stateDelta": {
           "feedback": {
             "grade": "unrelated",
-            "feedback": "To make this headline more tech-focused, consider adding elements like 'AI-powered floral design,' 'virtual reality garden,' 'e-commerce platform for florists,' or 'sustainable tech in horticulture.'"
+            "feedback": "This headline sounds like it's about botany, gardening, or a natural theme. To make it more tech-focused, consider incorporating terms like 'AI', 'software', 'virtual reality', 'digital', 'engineering', 'innovation', 'data', or 'development'. For example, 'The AI-Powered World of Digital Petals' or 'Engineering a Virtual Reality of Petals'."
           }
         }
       },
@@ -91,14 +90,13 @@
         ],
         "messageAsOutput": true
       },
-      "branch": "node:root_agent@1/orchestrate@1/evaluate_headline@1.evaluate_headline",
       "id": "e-7"
     },
     {
       "content": {
         "parts": [
           {
-            "text": "AI Blooms: How Tech is Cultivating the Next Generation of Floral Design"
+            "text": "**Digital Petals: Engineering AI-Enhanced Blooms**"
           }
         ],
         "role": "model"
@@ -113,14 +111,13 @@
         ],
         "messageAsOutput": true
       },
-      "branch": "node:root_agent@1/orchestrate@1/generate_headline@2.generate_headline",
-      "id": "e-9"
+      "id": "e-10"
     },
     {
       "content": {
         "parts": [
           {
-            "text": "{\"grade\": \"tech-related\", \"feedback\": \"This headline is strongly tech-related, explicitly mentioning AI and Tech.\"}"
+            "text": "{\"grade\": \"tech-related\", \"feedback\": \"This headline is clearly tech-related, specifically mentioning 'Engineering' and 'AI-Enhanced', which are direct ties to technology and software engineering.\"}"
           }
         ],
         "role": "model"
@@ -132,7 +129,7 @@
         "stateDelta": {
           "feedback": {
             "grade": "tech-related",
-            "feedback": "This headline is strongly tech-related, explicitly mentioning AI and Tech."
+            "feedback": "This headline is clearly tech-related, specifically mentioning 'Engineering' and 'AI-Enhanced', which are direct ties to technology and software engineering."
           }
         }
       },
@@ -143,13 +140,12 @@
         ],
         "messageAsOutput": true
       },
-      "branch": "node:root_agent@1/orchestrate@1/evaluate_headline@2.evaluate_headline",
-      "id": "e-12"
+      "id": "e-13"
     },
     {
       "invocationId": "i-1",
       "author": "root_agent",
-      "output": "AI Blooms: How Tech is Cultivating the Next Generation of Floral Design",
+      "output": "**Digital Petals: Engineering AI-Enhanced Blooms**",
       "nodeInfo": {
         "path": "root_agent@1/orchestrate@1",
         "outputFor": [
@@ -157,7 +153,7 @@
           "root_agent@1"
         ]
       },
-      "id": "e-14"
+      "id": "e-15"
     }
   ]
 }

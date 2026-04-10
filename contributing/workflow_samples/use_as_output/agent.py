@@ -18,7 +18,6 @@ from google.adk.workflow import node
 from google.adk.workflow._base_node import START
 from google.adk.workflow._workflow_class import Workflow
 
-
 summarizer = Agent(
     name='summarizer',
     model='gemini-2.5-flash',

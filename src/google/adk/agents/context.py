@@ -428,6 +428,7 @@ class Context(ReadonlyContext):
       use_as_output: bool = False,
       run_id: str | None = None,
       sub_branch: str | None = None,
+      is_parallel: bool = False,
   ) -> Any:
     """Executes a node dynamically.
 
@@ -510,6 +511,7 @@ class Context(ReadonlyContext):
           use_as_output=use_as_output,
           run_id=run_id,
           sub_branch=sub_branch,
+          is_parallel=is_parallel,
       )
       if child_ctx.error:
         from ..workflow._errors import DynamicNodeFailError

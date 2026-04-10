@@ -245,3 +245,38 @@ async def test_join_node_input_schema_none_trigger_passes(
       'NodeA': None,
       'NodeB': {'key': 'b', 'value': 2},
   }]
+
+
+@pytest.mark.asyncio
+async def test_join_node_computes_common_branch_prefix(
+    request: pytest.FixtureRequest,
+):
+  """Tests JoinNode computes common branch prefix for final output."""
+  node_capture, runner = _build_join_node_workflow(request)
+  events = await runner.run_async(testing_utils.get_user_content('start'))
+
+  # Find the final output event from JoinNode
+  join_events = [
+      e
+      for e in events
+      if 'NodeJoin' in e.node_info.path and e.output is not None
+  ]
+  assert len(join_events) == 1
+  join_event = join_events[0]
+
+  # NodeA and NodeB run in parallel, so they should have branches like 'NodeA@1' and 'NodeB@1'.
+  a_events = [e for e in events if 'NodeA' in e.node_info.path]
+  b_events = [e for e in events if 'NodeB' in e.node_info.path]
+
+  assert any('NodeA@' in e.branch for e in a_events if e.branch)
+  assert any('NodeB@' in e.branch for e in b_events if e.branch)
+
+  # The common prefix of 'NodeA@1' and 'NodeB@1' is empty string.
+  # So JoinNode should set branch to empty string (which is converted to None).
+  assert join_event.branch is None
+
+  # The node after JoinNode (NodeCapture) should also have branch=None
+  capture_events = [e for e in events if 'NodeCapture' in e.node_info.path]
+  assert len(capture_events) > 0
+  for e in capture_events:
+    assert e.branch is None

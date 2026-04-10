@@ -48,11 +48,7 @@ def prepare_llm_agent_context(agent: Any, ctx: Context) -> Context:
   if agent.mode != 'single_turn':
     return ctx
 
-  node_path = ctx.node_path or ''
-  branch = f'node:{node_path}.{agent.name}'
-  ic = ctx._invocation_context.model_copy(
-      update={'branch': branch},
-  )
+  ic = ctx._invocation_context.model_copy()
   ic.event_queue = ctx._invocation_context.event_queue
   agent_ctx = Context(
       invocation_context=ic,

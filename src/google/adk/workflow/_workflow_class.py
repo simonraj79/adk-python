@@ -318,11 +318,16 @@ class Workflow(BaseNode):
       self, loop_state: _LoopState, node_input: Any
   ) -> None:
     """Seed triggers for START's direct successors."""
-    for edge in self.graph.edges:
-      if edge.from_node.name == START.name:
-        loop_state.trigger_buffer.setdefault(edge.to_node.name, []).append(
-            Trigger(input=node_input, triggered_by=START.name)
-        )
+    start_edges = [
+        e for e in self.graph.edges if e.from_node.name == START.name
+    ]
+    is_parallel = len(start_edges) > 1
+    for edge in start_edges:
+      loop_state.trigger_buffer.setdefault(edge.to_node.name, []).append(
+          Trigger(
+              input=node_input, triggered_by=START.name, is_parallel=is_parallel
+          )
+      )
 
   def _schedule_ready_nodes(self, loop_state: _LoopState, ctx: Context) -> None:
     """Pop triggers from buffer and schedule ready nodes."""
@@ -427,6 +432,8 @@ class Workflow(BaseNode):
             if e.to_node.name == node_name
         },
         additional_output_for_ancestor=(ctx.node_path if is_terminal else None),
+        is_parallel=trigger.is_parallel,
+        override_branch=trigger.branch,
     )
     node_state.run_id = runner.run_id
     resume_inputs = (
@@ -471,7 +478,11 @@ class Workflow(BaseNode):
 
     # Buffer downstream triggers.
     self._buffer_downstream_triggers(
-        loop_state, node_name, child_ctx.output, child_ctx.route
+        loop_state,
+        node_name,
+        child_ctx.output,
+        child_ctx.route,
+        child_ctx._invocation_context.branch,
     )
 
   def _buffer_downstream_triggers(
@@ -480,6 +491,7 @@ class Workflow(BaseNode):
       node_name: str,
       output: Any,
       route: Any,
+      branch: str | None = None,
   ) -> None:
     """Find downstream edges and add triggers to the buffer."""
     next_nodes = _get_next_pending_nodes(
@@ -487,9 +499,15 @@ class Workflow(BaseNode):
         routes_to_match=route,
         graph=self.graph,
     )
+    is_parallel = len(next_nodes) > 1
     for target_name in next_nodes:
       loop_state.trigger_buffer.setdefault(target_name, []).append(
-          Trigger(input=output, triggered_by=node_name)
+          Trigger(
+              input=output,
+              triggered_by=node_name,
+              is_parallel=is_parallel,
+              branch=branch,
+          )
       )
       # Re-trigger COMPLETED nodes (loop back-edges)
       node_state = loop_state.nodes.get(target_name)

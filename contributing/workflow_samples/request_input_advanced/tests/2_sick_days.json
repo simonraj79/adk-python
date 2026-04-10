@@ -32,7 +32,7 @@
       "content": {
         "parts": [
           {
-            "text": "{\"days\": 2, \"reason\": \"sick\"}"
+            "text": "{\"days\":2,\"reason\":\"sick\"}"
           }
         ],
         "role": "model"
@@ -55,7 +55,6 @@
         ],
         "messageAsOutput": true
       },
-      "branch": "node:request_input_advanced@1/process_request@1.process_request",
       "id": "e-4"
     },
     {

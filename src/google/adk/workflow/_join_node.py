@@ -27,6 +27,23 @@ from ._base_node import BaseNode
 logger = logging.getLogger('google_adk.' + __name__)
 
 
+def _get_common_branch_prefix(branches: list[str]) -> str:
+  """Find the common prefix of dot-separated branch strings."""
+  if not branches:
+    return ''
+  split_branches = [b.split('.') for b in branches if b]
+  if not split_branches:
+    return ''
+
+  common = []
+  for segments in zip(*split_branches):
+    if len(set(segments)) == 1:
+      common.append(segments[0])
+    else:
+      break
+  return '.'.join(common)
+
+
 class JoinNode(BaseNode):
   """A node that waits for all specified predecessors to trigger it before outputting."""
 
@@ -66,12 +83,30 @@ class JoinNode(BaseNode):
       )
       return
 
-    # Recording the output from previous node.
-    join_state[triggering_node] = node_input
+    # Recording the output and branch from previous node.
+    join_state[triggering_node] = {
+        'input': node_input,
+        'branch': ctx._invocation_context.branch,
+    }
 
     if set(join_state.keys()) == ctx.in_nodes:
+      # Extract outputs and branches
+      outputs = {}
+      branches = []
+      for k, v in join_state.items():
+        if isinstance(v, dict) and 'input' in v:
+          outputs[k] = v['input']
+          if v.get('branch'):
+            branches.append(v['branch'])
+        else:
+          # Fallback for old state structure
+          outputs[k] = v
+
+      common_branch = _get_common_branch_prefix(branches)
+
       yield Event(
-          output=dict(join_state),
+          output=outputs,
+          branch=common_branch,
           # Clear state for future runs
           state={state_key: None},
       )

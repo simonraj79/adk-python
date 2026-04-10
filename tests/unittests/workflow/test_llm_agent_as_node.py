@@ -298,6 +298,7 @@ async def test_valid_input_schema_accepted(
   ctx._invocation_context = ic
   ctx.resume_inputs = {}
   ctx._output_for_ancestors = []
+  ic.branch = None
   ic.model_copy.return_value = ic
   ic.enqueue_event = AsyncMock(return_value=None)
   ic.plugin_manager.run_before_agent_callback = AsyncMock(return_value=None)
@@ -378,8 +379,7 @@ async def test_single_turn_isolates_content_via_branch(
     object.__setattr__(agent_clone, 'run_async', original)
 
   assert len(captured_branches) == 1
-  assert captured_branches[0].startswith('node:')
-  assert agent.name in captured_branches[0]
+  assert captured_branches[0] is None
 
 
 @pytest.mark.asyncio

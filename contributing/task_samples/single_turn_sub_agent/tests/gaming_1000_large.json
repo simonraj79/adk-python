@@ -23,9 +23,9 @@
             "functionCall": {
               "id": "fc-1",
               "args": {
-                "primary_use": "gaming",
                 "preferred_size": "large",
-                "budget": 1000
+                "budget": 1000,
+                "primary_use": "gaming"
               },
               "name": "phone_recommender"
             }
@@ -64,7 +64,6 @@
         "path": "phone_recommender@1"
       },
       "longRunningToolIds": [],
-      "branch": "node:phone_recommender@1.phone_recommender",
       "id": "e-6"
     },
     {
@@ -87,7 +86,6 @@
       "nodeInfo": {
         "path": "phone_recommender@1"
       },
-      "branch": "node:phone_recommender@1.phone_recommender",
       "id": "e-8"
     },
     {
@@ -97,9 +95,9 @@
             "functionCall": {
               "id": "fc-3",
               "args": {
-                "price": 799,
-                "reason": "The Pixel 10 Pro XL is an excellent choice for gaming due to its powerful performance and large display, all within your budget.",
-                "model_name": "Pixel 10 Pro XL"
+                "model_name": "Pixel 10 Pro XL",
+                "reason": "The Pixel 10 Pro XL is an excellent choice for gaming due to its powerful performance and large display, perfect for an immersive experience. At $799, it also comfortably fits within your budget of $1000.",
+                "price": 799
               },
               "name": "set_model_response"
             }
@@ -114,7 +112,6 @@
         "path": "phone_recommender@1"
       },
       "longRunningToolIds": [],
-      "branch": "node:phone_recommender@1.phone_recommender",
       "id": "e-10"
     },
     {
@@ -127,7 +124,7 @@
               "response": {
                 "model_name": "Pixel 10 Pro XL",
                 "price": 799.0,
-                "reason": "The Pixel 10 Pro XL is an excellent choice for gaming due to its powerful performance and large display, all within your budget."
+                "reason": "The Pixel 10 Pro XL is an excellent choice for gaming due to its powerful performance and large display, perfect for an immersive experience. At $799, it also comfortably fits within your budget of $1000."
               }
             }
           }
@@ -140,20 +137,19 @@
         "setModelResponse": {
           "model_name": "Pixel 10 Pro XL",
           "price": 799.0,
-          "reason": "The Pixel 10 Pro XL is an excellent choice for gaming due to its powerful performance and large display, all within your budget."
+          "reason": "The Pixel 10 Pro XL is an excellent choice for gaming due to its powerful performance and large display, perfect for an immersive experience. At $799, it also comfortably fits within your budget of $1000."
         }
       },
       "nodeInfo": {
         "path": "phone_recommender@1"
       },
-      "branch": "node:phone_recommender@1.phone_recommender",
       "id": "e-12"
     },
     {
       "content": {
         "parts": [
           {
-            "text": "{\"model_name\": \"Pixel 10 Pro XL\", \"price\": 799.0, \"reason\": \"The Pixel 10 Pro XL is an excellent choice for gaming due to its powerful performance and large display, all within your budget.\"}"
+            "text": "{\"model_name\": \"Pixel 10 Pro XL\", \"price\": 799.0, \"reason\": \"The Pixel 10 Pro XL is an excellent choice for gaming due to its powerful performance and large display, perfect for an immersive experience. At $799, it also comfortably fits within your budget of $1000.\"}"
           }
         ],
         "role": "model"
@@ -167,7 +163,6 @@
         ],
         "messageAsOutput": true
       },
-      "branch": "node:phone_recommender@1.phone_recommender",
       "id": "e-14"
     },
     {
@@ -180,7 +175,7 @@
               "response": {
                 "model_name": "Pixel 10 Pro XL",
                 "price": 799.0,
-                "reason": "The Pixel 10 Pro XL is an excellent choice for gaming due to its powerful performance and large display, all within your budget."
+                "reason": "The Pixel 10 Pro XL is an excellent choice for gaming due to its powerful performance and large display, perfect for an immersive experience. At $799, it also comfortably fits within your budget of $1000."
               }
             }
           }
@@ -198,7 +193,7 @@
       "content": {
         "parts": [
           {
-            "text": "Absolutely! Based on your preferences for gaming, a large phone, and a budget of $1000, I recommend the **Pixel 10 Pro XL**. It's priced at **$799** and is an excellent choice for gaming due to its powerful performance and large display, all well within your budget."
+            "text": "Great news! Based on your preferences, I recommend the **Pixel 10 Pro XL**.\n\nIt's priced at **$799**, and it's an excellent choice for gaming because of its powerful performance and large display, which will give you a super immersive experience. Plus, it fits perfectly within your $1000 budget!"
           }
         ],
         "role": "model"

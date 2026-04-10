@@ -32,3 +32,9 @@ class Trigger(BaseModel):
 
   triggered_by: str = ''
   """Name of the predecessor node that produced this trigger."""
+
+  is_parallel: bool = False
+  """Whether this trigger is part of a parallel execution."""
+
+  branch: str | None = None
+  """The branch inherited from the predecessor node."""

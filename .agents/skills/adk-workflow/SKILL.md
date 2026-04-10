@@ -360,6 +360,17 @@ analyze_topic = Agent(
 
 **Do NOT use `parallel_worker=True` on fan-out nodes.** Fan-out edges already run nodes in parallel. Adding `parallel_worker=True` makes the node expect a list input and iterate over it — if it receives a single value or None, it produces no output and the JoinNode gets nothing.
 
+## Workflow Branching
+
+ADK tracks execution branches in workflows to manage context and history separation, especially during parallel execution.
+
+**Key Rules:**
+1. **Sequential Propagation**: When node A completes and triggers node B, node B inherits node A's branch.
+2. **Conditional Parallel Segments**: A segment `.node_name@run_id` is appended to the branch ONLY when parallelism occurs (i.e., when a node triggers multiple downstream nodes in parallel).
+3. **JoinNode Common Prefix**: When a `JoinNode` aggregates multiple parallel paths, its final output event uses a branch that is the common dot-separated prefix of all incoming nodes' branches. If there is no common prefix, it uses an empty string `""`.
+
+This ensures that events are tagged with the correct branch, allowing UI and logs to separate parallel execution paths.
+
 ## Human-in-the-Loop
 
 Pause execution and request user input:

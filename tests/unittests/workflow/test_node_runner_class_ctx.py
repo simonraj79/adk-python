@@ -523,3 +523,68 @@ async def test_event_author_overrides_preset_author():
   await NodeRunner(node=_Node(name='my_node'), parent_ctx=parent_ctx).run()
 
   assert events[0].author == 'my_workflow'
+
+
+# =========================================================================
+# Branch propagation tests
+# =========================================================================
+
+
+@pytest.mark.asyncio
+async def test_override_branch_used_in_node_runner():
+  """NodeRunner uses override_branch if provided."""
+
+  class _Node(BaseNode):
+
+    async def _run_impl(self, *, ctx, node_input):
+      yield Event(output='result')
+
+  parent_ctx, events = _make_ctx()
+  await NodeRunner(
+      node=_Node(name='n'),
+      parent_ctx=parent_ctx,
+      override_branch='custom_branch',
+  ).run()
+
+  assert events[0].branch == 'custom_branch'
+
+
+@pytest.mark.asyncio
+async def test_is_parallel_appends_segment_to_branch():
+  """NodeRunner appends node_name@run_id to branch when is_parallel is True."""
+
+  class _Node(BaseNode):
+
+    async def _run_impl(self, *, ctx, node_input):
+      yield Event(output='result')
+
+  parent_ctx, events = _make_ctx()
+  parent_ctx._invocation_context.branch = 'parent_branch'
+  await NodeRunner(
+      node=_Node(name='n'),
+      parent_ctx=parent_ctx,
+      is_parallel=True,
+      run_id='1',
+  ).run()
+
+  assert events[0].branch == 'parent_branch.n@1'
+
+
+@pytest.mark.asyncio
+async def test_sequential_branch_propagation():
+  """NodeRunner inherits parent branch when is_parallel is False."""
+
+  class _Node(BaseNode):
+
+    async def _run_impl(self, *, ctx, node_input):
+      yield Event(output='result')
+
+  parent_ctx, events = _make_ctx()
+  parent_ctx._invocation_context.branch = 'parent_branch'
+  await NodeRunner(
+      node=_Node(name='n'),
+      parent_ctx=parent_ctx,
+      is_parallel=False,
+  ).run()
+
+  assert events[0].branch == 'parent_branch'

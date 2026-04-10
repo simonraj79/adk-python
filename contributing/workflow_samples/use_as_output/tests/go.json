@@ -28,7 +28,7 @@
       "content": {
         "parts": [
           {
-            "text": "Please provide the text you would like me to summarize."
+            "text": "Please provide the text you would like me to summarize!"
           }
         ],
         "role": "model"
@@ -44,13 +44,12 @@
         ],
         "messageAsOutput": true
       },
-      "branch": "node:root_agent@1/orchestrate@1/summarizer@1.summarizer",
       "id": "e-4"
     },
     {
       "invocationId": "i-1",
       "author": "root_agent",
-      "output": "final: Please provide the text you would like me to summarize.",
+      "output": "final: Please provide the text you would like me to summarize!",
       "nodeInfo": {
         "path": "root_agent@1/finalize@1",
         "outputFor": [

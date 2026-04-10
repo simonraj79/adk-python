@@ -42,7 +42,7 @@
       "content": {
         "parts": [
           {
-            "text": "[\"Botany\", \"Gardening\", \"Pollination\"]"
+            "text": "[\"gardening\", \"plants\", \"botany\"]"
           }
         ],
         "role": "model"
@@ -57,52 +57,54 @@
         ],
         "messageAsOutput": true
       },
-      "branch": "node:root_agent@1/find_related_topics@1.find_related_topics",
       "id": "e-4"
-    },
-    {
-      "invocationId": "i-1",
-      "author": "root_agent",
-      "output": "BOTANY",
-      "nodeInfo": {
-        "path": "root_agent@1/make_upper_case@1/make_upper_case@1",
-        "outputFor": [
-          "root_agent@1/make_upper_case@1/make_upper_case@1"
-        ]
-      },
-      "id": "e-6"
     },
     {
       "invocationId": "i-1",
       "author": "root_agent",
       "output": "GARDENING",
       "nodeInfo": {
+        "path": "root_agent@1/make_upper_case@1/make_upper_case@1",
+        "outputFor": [
+          "root_agent@1/make_upper_case@1/make_upper_case@1"
+        ]
+      },
+      "branch": "make_upper_case@1",
+      "id": "e-6"
+    },
+    {
+      "invocationId": "i-1",
+      "author": "root_agent",
+      "output": "PLANTS",
+      "nodeInfo": {
         "path": "root_agent@1/make_upper_case@1/make_upper_case@2",
         "outputFor": [
           "root_agent@1/make_upper_case@1/make_upper_case@2"
         ]
       },
+      "branch": "make_upper_case@2",
       "id": "e-7"
     },
     {
       "invocationId": "i-1",
       "author": "root_agent",
-      "output": "POLLINATION",
+      "output": "BOTANY",
       "nodeInfo": {
         "path": "root_agent@1/make_upper_case@1/make_upper_case@3",
         "outputFor": [
           "root_agent@1/make_upper_case@1/make_upper_case@3"
         ]
       },
+      "branch": "make_upper_case@3",
       "id": "e-8"
     },
     {
       "invocationId": "i-1",
       "author": "root_agent",
       "output": [
-        "BOTANY",
         "GARDENING",
-        "POLLINATION"
+        "PLANTS",
+        "BOTANY"
       ],
       "nodeInfo": {
         "path": "root_agent@1/make_upper_case@1",
@@ -116,7 +118,7 @@
       "content": {
         "parts": [
           {
-            "text": "{\"topic\": \"BOTANY\", \"explanation\": \"BOTANY is the scientific study of plants. Flowers are a primary reproductive structure of many plants, particularly angiosperms, and as such, they are a fundamental subject of study within BOTANY. This includes their morphology, physiology, genetics, evolution, and ecological roles, such as pollination.\"}"
+            "text": "{\"topic\": \"GARDENING\", \"explanation\": \"Gardening is the practice of growing and cultivating plants, and flowers are a central element in many gardening practices. Gardeners often plant, nurture, and arrange flowers for their aesthetic beauty, fragrance, or to attract pollinators, making flowers an integral part of the gardening world.\"}"
           }
         ],
         "role": "model"
@@ -131,14 +133,14 @@
         ],
         "messageAsOutput": true
       },
-      "branch": "node:root_agent@1/explain_topic@1/explain_topic@1.explain_topic",
+      "branch": "explain_topic@1",
       "id": "e-11"
     },
     {
       "content": {
         "parts": [
           {
-            "text": "{\"topic\": \"GARDENING\", \"explanation\": \"GARDENING is directly related to 'flower' as it is the activity of cultivating and caring for plants, which frequently includes growing various types of flowers for their beauty, scent, or other purposes. Flowers are a common and central element within gardening practices, whether in a flower bed, a pot, or a larger landscape.\"}"
+            "text": "{\"topic\": \"PLANTS\", \"explanation\": \"A flower is a reproductive part of many types of plants. Plants are the larger biological kingdom to which flowers belong, as flowers grow on and are integral components of flowering plants (angiosperms).\"}"
           }
         ],
         "role": "model"
@@ -153,14 +155,14 @@
         ],
         "messageAsOutput": true
       },
-      "branch": "node:root_agent@1/explain_topic@1/explain_topic@2.explain_topic",
+      "branch": "explain_topic@2",
       "id": "e-14"
     },
     {
       "content": {
         "parts": [
           {
-            "text": "{\"topic\": \"POLLINATION\", \"explanation\": \"Pollination is the process by which pollen is transferred from the anther (male part) to the stigma (female part) of a flower, or from flower to flower. It is a crucial step in the life cycle of flowering plants, enabling fertilization and the production of seeds and fruits. Therefore, flowers are the primary structures involved in and facilitating the process of pollination.\"}"
+            "text": "{\"topic\": \"BOTANY\", \"explanation\": \"Botany is the scientific study of plants, including their structure, growth, reproduction, metabolism, development, diseases, and chemical properties. Flowers are the reproductive organs of many plants, specifically angiosperms, and are therefore a primary subject of study within botany, with botanists analyzing their morphology, physiology, ecology, and evolutionary significance.\"}"
           }
         ],
         "role": "model"
@@ -175,7 +177,7 @@
         ],
         "messageAsOutput": true
       },
-      "branch": "node:root_agent@1/explain_topic@1/explain_topic@3.explain_topic",
+      "branch": "explain_topic@3",
       "id": "e-17"
     },
     {
@@ -183,16 +185,16 @@
       "author": "root_agent",
       "output": [
         {
-          "topic": "BOTANY",
-          "explanation": "BOTANY is the scientific study of plants. Flowers are a primary reproductive structure of many plants, particularly angiosperms, and as such, they are a fundamental subject of study within BOTANY. This includes their morphology, physiology, genetics, evolution, and ecological roles, such as pollination."
-        },
-        {
           "topic": "GARDENING",
-          "explanation": "GARDENING is directly related to 'flower' as it is the activity of cultivating and caring for plants, which frequently includes growing various types of flowers for their beauty, scent, or other purposes. Flowers are a common and central element within gardening practices, whether in a flower bed, a pot, or a larger landscape."
+          "explanation": "Gardening is the practice of growing and cultivating plants, and flowers are a central element in many gardening practices. Gardeners often plant, nurture, and arrange flowers for their aesthetic beauty, fragrance, or to attract pollinators, making flowers an integral part of the gardening world."
         },
         {
-          "topic": "POLLINATION",
-          "explanation": "Pollination is the process by which pollen is transferred from the anther (male part) to the stigma (female part) of a flower, or from flower to flower. It is a crucial step in the life cycle of flowering plants, enabling fertilization and the production of seeds and fruits. Therefore, flowers are the primary structures involved in and facilitating the process of pollination."
+          "topic": "PLANTS",
+          "explanation": "A flower is a reproductive part of many types of plants. Plants are the larger biological kingdom to which flowers belong, as flowers grow on and are integral components of flowering plants (angiosperms)."
+        },
+        {
+          "topic": "BOTANY",
+          "explanation": "Botany is the scientific study of plants, including their structure, growth, reproduction, metabolism, development, diseases, and chemical properties. Flowers are the reproductive organs of many plants, specifically angiosperms, and are therefore a primary subject of study within botany, with botanists analyzing their morphology, physiology, ecology, and evolutionary significance."
         }
       ],
       "nodeInfo": {
@@ -207,7 +209,7 @@
       "content": {
         "parts": [
           {
-            "text": "BOTANY: BOTANY is the scientific study of plants. Flowers are a primary reproductive structure of many plants, particularly angiosperms, and as such, they are a fundamental subject of study within BOTANY. This includes their morphology, physiology, genetics, evolution, and ecological roles, such as pollination.\n\n---\n\nGARDENING: GARDENING is directly related to 'flower' as it is the activity of cultivating and caring for plants, which frequently includes growing various types of flowers for their beauty, scent, or other purposes. Flowers are a common and central element within gardening practices, whether in a flower bed, a pot, or a larger landscape.\n\n---\n\nPOLLINATION: Pollination is the process by which pollen is transferred from the anther (male part) to the stigma (female part) of a flower, or from flower to flower. It is a crucial step in the life cycle of flowering plants, enabling fertilization and the production of seeds and fruits. Therefore, flowers are the primary structures involved in and facilitating the process of pollination."
+            "text": "GARDENING: Gardening is the practice of growing and cultivating plants, and flowers are a central element in many gardening practices. Gardeners often plant, nurture, and arrange flowers for their aesthetic beauty, fragrance, or to attract pollinators, making flowers an integral part of the gardening world.\n\n---\n\nPLANTS: A flower is a reproductive part of many types of plants. Plants are the larger biological kingdom to which flowers belong, as flowers grow on and are integral components of flowering plants (angiosperms).\n\n---\n\nBOTANY: Botany is the scientific study of plants, including their structure, growth, reproduction, metabolism, development, diseases, and chemical properties. Flowers are the reproductive organs of many plants, specifically angiosperms, and are therefore a primary subject of study within botany, with botanists analyzing their morphology, physiology, ecology, and evolutionary significance."
           }
         ],
         "role": "user"
