@@ -63,7 +63,6 @@ class NodeRunner:
       # Resume state from a previous run
       prior_output: Any = None,
       prior_interrupt_ids: set[str] | None = None,
-      sub_branch: str | None = None,
       is_parallel: bool = False,
       override_branch: str | None = None,
   ) -> None:
@@ -84,7 +83,6 @@ class NodeRunner:
         interrupts.
       prior_interrupt_ids: Unresolved interrupt IDs (set) from a
         previous run, carried forward on resume.
-      sub_branch: Optional sub-branch name to run the node in.
       is_parallel: Whether the node is running in parallel.
       override_branch: Optional branch to use instead of parent's branch.
     """
@@ -93,7 +91,6 @@ class NodeRunner:
     self._parent_ctx = parent_ctx
 
     self._run_id = str(run_id) if run_id else "1"
-    self._sub_branch = sub_branch
     self._is_parallel = is_parallel
     self._override_branch = override_branch
 

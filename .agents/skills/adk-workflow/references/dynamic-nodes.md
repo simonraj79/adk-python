@@ -49,7 +49,7 @@ root_agent = Workflow(
 - **Node-Like Acceptable**: `ctx.run_node()` accepts any node-like object (function, Agent, BaseNode).
 - **Explicit `run_id` Constraint**: If you provide an explicit `run_id`, it **must contain non-numeric characters** (e.g., `"run_a"` instead of `"1"`) to prevent collision with auto-generated numeric IDs.
 - **`use_as_output=True`**: Suppresses the parent node's own output and uses the child's output as the parent's output. This is achieved via `outputFor` annotation in events. This can only be called ONCE per parent node execution.
-- **`sub_branch`**: (Optional) Allows running the dynamic node in a specific event sub-branch for isolation.
+- **`is_parallel`**: (Optional) If set to `True`, attaches a branch segment (`node_name@run_id`) to the current execution branch to ensure event isolation for parallel or sub-agent runs.
 
 ## Best Practices
 

@@ -15,8 +15,8 @@
 """Dynamic node scheduler for Workflow.
 
 Handles ctx.run_node() calls by tracking dynamic nodes in the
-Workflow's _LoopState or a local DynamicNodeState. Supports dedup (cached output), resume
-(lazy event scan + re-run), and fresh execution.
+Workflow's _LoopState or a local DynamicNodeState. Supports dedup
+(cached output), resume (lazy event scan + re-run), and fresh execution.
 """
 
 from __future__ import annotations
@@ -52,7 +52,7 @@ class DynamicNodeRun:
   output: Any = None
   """The final output of the node once it completes."""
 
-  task: Optional[asyncio.Task] = None
+  task: asyncio.Task | None = None
   """The running asyncio Task for this node execution."""
 
 
@@ -114,7 +114,6 @@ class DynamicNodeScheduler:
       node_name: str | None = None,
       use_as_output: bool = False,
       run_id: str,
-      sub_branch: str | None = None,
       is_parallel: bool = False,
   ) -> Context:
     """Schedule a dynamic node: dedup, resume, or fresh run.
@@ -130,7 +129,6 @@ class DynamicNodeScheduler:
       use_as_output: If True, the child's output replaces the
         calling node's output.
       run_id: Custom run ID for the child node execution.
-      sub_branch: Optional sub-branch name to run the node in.
       is_parallel: Whether the node is running in parallel.
 
     Returns:
@@ -159,11 +157,11 @@ class DynamicNodeScheduler:
           node_input,
           use_as_output,
           is_fresh=True,
-          sub_branch=sub_branch,
           is_parallel=is_parallel,
       )
 
-    # Found an existing run for this node and run_id -> rerun or interrupt or auto-complete.
+    # Found an existing run for this node and run_id -> rerun, interrupt,
+    # or auto-complete.
     run = self._state.runs[node_path]
     state = run.state
     if state.status == NodeStatus.COMPLETED:
@@ -209,7 +207,6 @@ class DynamicNodeScheduler:
           node_input,
           use_as_output,
           is_fresh=False,
-          sub_branch=sub_branch,
           is_parallel=is_parallel,
       )
 
@@ -351,7 +348,6 @@ class DynamicNodeScheduler:
       node_input: Any,
       use_as_output: bool,
       is_fresh: bool,
-      sub_branch: str | None = None,
       is_parallel: bool = False,
   ) -> Context:
     """Unified runner for both fresh and resume executions."""
@@ -382,7 +378,6 @@ class DynamicNodeScheduler:
         additional_output_for_ancestor=(
             ctx.node_path if use_as_output else None
         ),
-        sub_branch=sub_branch,
         is_parallel=is_parallel,
     )
     run.task = asyncio.create_task(

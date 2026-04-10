@@ -338,7 +338,7 @@ class _SingleTurnAgentTool(AgentTool):
 
     try:
       return await tool_context.run_node(
-          self.agent, node_input=node_input, sub_branch=self.agent.name
+          self.agent, node_input=node_input, is_parallel=True
       )
     except Exception as e:
       return f'Error running sub-agent: {e}'
