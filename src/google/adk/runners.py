@@ -15,9 +15,9 @@
 from __future__ import annotations
 
 import asyncio
+from contextlib import aclosing
 import inspect
 import logging
-from contextlib import aclosing
 from pathlib import Path
 import queue
 import sys
@@ -728,7 +728,7 @@ class Runner:
 
     async def _invoke_run_async():
       try:
-        async with Aclosing(
+        async with aclosing(
             self.run_async(
                 user_id=user_id,
                 session_id=session_id,
@@ -918,11 +918,11 @@ class Runner:
               return
 
         async def execute(ctx: InvocationContext) -> AsyncGenerator[Event]:
-          async with Aclosing(ctx.agent.run_async(ctx)) as agen:
+          async with aclosing(ctx.agent.run_async(ctx)) as agen:
             async for event in agen:
               yield event
 
-        async with Aclosing(
+        async with aclosing(
             self._exec_with_plugin(
                 invocation_context=invocation_context,
                 session=session,
@@ -944,7 +944,7 @@ class Runner:
               skip_token_compaction=invocation_context.token_compaction_checked,
           )
 
-    async with Aclosing(_run_with_trace(new_message, invocation_id)) as agen:
+    async with aclosing(_run_with_trace(new_message, invocation_id)) as agen:
       async for event in agen:
         yield event
 
@@ -1163,7 +1163,7 @@ class Runner:
       buffered_events: list[Event] = []
       is_transcribing: bool = False
 
-      async with Aclosing(execute_fn(invocation_context)) as agen:
+      async with aclosing(execute_fn(invocation_context)) as agen:
         async for event in agen:
           _apply_run_config_custom_metadata(
               event, invocation_context.run_config
