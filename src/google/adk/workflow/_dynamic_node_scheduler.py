@@ -381,7 +381,12 @@ class DynamicNodeScheduler:
     run.task = asyncio.create_task(
         runner.run(node_input=node_input, resume_inputs=resume_inputs)
     )
-    child_ctx = await run.task
+    try:
+      child_ctx = await run.task
+    except asyncio.CancelledError:
+      if node_path in self._state.runs:
+        del self._state.runs[node_path]
+      raise
     self._record_result(run, child_ctx, node)
     return child_ctx
 
