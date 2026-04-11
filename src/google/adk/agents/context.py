@@ -85,7 +85,6 @@ class Context(ReadonlyContext):
       node_path: str = '',
       run_id: str = '',
       triggered_by: str = '',
-      in_nodes: set[str] | None = None,
       resume_inputs: dict[str, Any] | None = None,
       schedule_dynamic_node_internal: ScheduleDynamicNodeInternal | None = None,
       node_rerun_on_resume: bool = True,
@@ -107,7 +106,6 @@ class Context(ReadonlyContext):
       node_path: The path of the current node in the workflow graph.
       run_id: The execution ID of the current node.
       triggered_by: The name of the node that triggered the current node.
-      in_nodes: Names of predecessor nodes.
       resume_inputs: Inputs for resuming node, keyed by interrupt id.
       node_rerun_on_resume: Whether the node reruns on resume.
       retry_count: Number of times this node has been retried.
@@ -134,9 +132,6 @@ class Context(ReadonlyContext):
     self._node_path = node_path
     self._run_id = run_id
     self._triggered_by = triggered_by
-    self._in_nodes = (
-        frozenset(in_nodes) if in_nodes is not None else frozenset()
-    )
     self._resume_inputs = resume_inputs or {}
     self._workflow_scheduler = schedule_dynamic_node_internal
     self._node_rerun_on_resume = node_rerun_on_resume
@@ -226,11 +221,6 @@ class Context(ReadonlyContext):
   def attempt_count(self) -> int:
     """Returns the current attempt number (1-based)."""
     return self._attempt_count
-
-  @property
-  def in_nodes(self) -> frozenset[str]:
-    """Returns names of nodes that are predecessors of the current node."""
-    return self._in_nodes
 
   @property
   def resume_inputs(self) -> dict[str, Any]:

@@ -36,7 +36,7 @@
       "content": {
         "parts": [
           {
-            "text": "LeBron James"
+            "text": "Scarlett Johansson"
           }
         ],
         "role": "model"
@@ -58,7 +58,7 @@
       "content": {
         "parts": [
           {
-            "text": "LeBron James, often hailed as \"King James,\" is a legendary basketball player widely considered one of the greatest of all time. With four NBA championships, four MVP awards, and the league's all-time scoring record, he has consistently shattered expectations and redefined player longevity. Beyond the court, James is a powerful voice for social justice and a successful entrepreneur and philanthropist through initiatives like the I PROMISE program."
+            "text": "Scarlett Johansson is an acclaimed actress renowned for her distinctive voice and versatile performances across a wide range of genres. From her captivating early roles in films like \"Lost in Translation\" to her iconic portrayal of Black Widow in the Marvel Cinematic Universe, she has consistently delivered powerful performances. A four-time Golden Globe nominee and two-time Academy Award nominee, she remains one of Hollywood's most bankable and respected stars."
           }
         ],
         "role": "model"
@@ -81,7 +81,7 @@
       "content": {
         "parts": [
           {
-            "text": "The Bhopal disaster occurred in December when a deadly leak of methyl isocyanate gas from a Union Carbide pesticide plant instantly killed thousands and sickened hundreds of thousands more. This catastrophic industrial accident remains one of the world's worst, profoundly influencing international environmental regulations and corporate accountability."
+            "text": "In December 1984, the Union Carbide chemical plant in Bhopal, India, experienced a catastrophic gas leak, releasing deadly methyl isocyanate. This disaster killed thousands instantly and caused hundreds of thousands of injuries, becoming one of the world's worst industrial accidents and a lasting symbol of corporate negligence."
           }
         ],
         "role": "model"
@@ -98,32 +98,8 @@
       }
     },
     {
-      "actions": {
-        "stateDelta": {
-          "root_agent@1/join_for_aggregation@1_join_state": {
-            "find_famous_person": {
-              "branch": "find_famous_person@1",
-              "input": "LeBron James, often hailed as \"King James,\" is a legendary basketball player widely considered one of the greatest of all time. With four NBA championships, four MVP awards, and the league's all-time scoring record, he has consistently shattered expectations and redefined player longevity. Beyond the court, James is a powerful voice for social justice and a successful entrepreneur and philanthropist through initiatives like the I PROMISE program."
-            }
-          }
-        }
-      },
       "author": "root_agent",
-      "branch": "find_famous_person@1",
       "id": "e-6",
-      "invocationId": "i-1",
-      "nodeInfo": {
-        "path": "root_agent@1/join_for_aggregation@1"
-      }
-    },
-    {
-      "actions": {
-        "stateDelta": {
-          "root_agent@1/join_for_aggregation@1_join_state": null
-        }
-      },
-      "author": "root_agent",
-      "id": "e-7",
       "invocationId": "i-1",
       "nodeInfo": {
         "outputFor": [
@@ -132,8 +108,8 @@
         "path": "root_agent@1/join_for_aggregation@1"
       },
       "output": {
-        "find_famous_person": "LeBron James, often hailed as \"King James,\" is a legendary basketball player widely considered one of the greatest of all time. With four NBA championships, four MVP awards, and the league's all-time scoring record, he has consistently shattered expectations and redefined player longevity. Beyond the court, James is a powerful voice for social justice and a successful entrepreneur and philanthropist through initiatives like the I PROMISE program.",
-        "find_historical_event": "The Bhopal disaster occurred in December when a deadly leak of methyl isocyanate gas from a Union Carbide pesticide plant instantly killed thousands and sickened hundreds of thousands more. This catastrophic industrial accident remains one of the world's worst, profoundly influencing international environmental regulations and corporate accountability."
+        "find_famous_person": "Scarlett Johansson is an acclaimed actress renowned for her distinctive voice and versatile performances across a wide range of genres. From her captivating early roles in films like \"Lost in Translation\" to her iconic portrayal of Black Widow in the Marvel Cinematic Universe, she has consistently delivered powerful performances. A four-time Golden Globe nominee and two-time Academy Award nominee, she remains one of Hollywood's most bankable and respected stars.",
+        "find_historical_event": "In December 1984, the Union Carbide chemical plant in Bhopal, India, experienced a catastrophic gas leak, releasing deadly methyl isocyanate. This disaster killed thousands instantly and caused hundreds of thousands of injuries, becoming one of the world's worst industrial accidents and a lasting symbol of corporate negligence."
       }
     },
     {
@@ -141,12 +117,12 @@
       "content": {
         "parts": [
           {
-            "text": "# Year: 1984\n\n## Famous Person Bio:\n\nLeBron James, often hailed as \"King James,\" is a legendary basketball player widely considered one of the greatest of all time. With four NBA championships, four MVP awards, and the league's all-time scoring record, he has consistently shattered expectations and redefined player longevity. Beyond the court, James is a powerful voice for social justice and a successful entrepreneur and philanthropist through initiatives like the I PROMISE program.\n\n## Historical Event:\n\nThe Bhopal disaster occurred in December when a deadly leak of methyl isocyanate gas from a Union Carbide pesticide plant instantly killed thousands and sickened hundreds of thousands more. This catastrophic industrial accident remains one of the world's worst, profoundly influencing international environmental regulations and corporate accountability."
+            "text": "# Year: 1984\n\n## Famous Person Bio:\n\nScarlett Johansson is an acclaimed actress renowned for her distinctive voice and versatile performances across a wide range of genres. From her captivating early roles in films like \"Lost in Translation\" to her iconic portrayal of Black Widow in the Marvel Cinematic Universe, she has consistently delivered powerful performances. A four-time Golden Globe nominee and two-time Academy Award nominee, she remains one of Hollywood's most bankable and respected stars.\n\n## Historical Event:\n\nIn December 1984, the Union Carbide chemical plant in Bhopal, India, experienced a catastrophic gas leak, releasing deadly methyl isocyanate. This disaster killed thousands instantly and caused hundreds of thousands of injuries, becoming one of the world's worst industrial accidents and a lasting symbol of corporate negligence."
           }
         ],
         "role": "user"
       },
-      "id": "e-8",
+      "id": "e-7",
       "invocationId": "i-1",
       "nodeInfo": {
         "path": "root_agent@1/aggregate_results@1"

@@ -57,12 +57,6 @@ def _build_join_node_workflow(
   return node_capture, testing_utils.InMemoryRunner(app=app_instance)
 
 
-def test_get_state_key():
-  """Tests _get_state_key."""
-  node = join_node.JoinNode(name='NodeJoin')
-  assert node._get_state_key('path/to/node') == 'path/to/node_join_state'
-
-
 def test_get_common_branch_prefix():
   """Tests _get_common_branch_prefix."""
   assert join_node._get_common_branch_prefix(['A@1', 'A@2']) == ''
@@ -83,15 +77,6 @@ async def test_join_node_waits_for_all_inputs(request: pytest.FixtureRequest):
       'NodeA': {'a': 1, 'b': 1},
       'NodeB': {'b': 2},
   }]
-
-  # assert that there is a state event to save the state with agent path as key
-  assert any(
-      e.actions.state_delta
-      and any(
-          'NodeJoin' in k and '_join_state' in k for k in e.actions.state_delta
-      )
-      for e in events
-  )
 
 
 @pytest.mark.asyncio

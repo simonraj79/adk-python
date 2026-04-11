@@ -243,6 +243,11 @@ class BaseNode(BaseModel):
     )
     yield  # AsyncGenerator requires at least one yield statement
 
+  @property
+  def _requires_all_predecessors(self) -> bool:
+    """If True, the node waits for all predecessors to complete before running."""
+    return False
+
 
 START = BaseNode(name='__START__')
 """Sentinel node marking the entry point of a workflow graph.

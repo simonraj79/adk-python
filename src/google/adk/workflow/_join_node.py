@@ -16,8 +16,8 @@
 
 from __future__ import annotations
 
-import logging
 from collections.abc import AsyncGenerator
+import logging
 from typing import Any
 
 from typing_extensions import override
@@ -48,10 +48,20 @@ class JoinNode(BaseNode):
   """A node that waits for all specified predecessors to trigger it before
   outputting."""
 
-  wait_for_output: bool = True
+  @property
+  @override
+  def _requires_all_predecessors(self) -> bool:
+    return True
 
-  def _get_state_key(self, node_path: str) -> str:
-    return f'{node_path}_join_state'
+  @override
+  def _validate_input_data(self, data: Any) -> Any:
+    """Validates individual trigger inputs against input_schema."""
+    if self.input_schema and isinstance(data, dict):
+      return {
+          k: self._validate_schema(v, self.input_schema)
+          for k, v in data.items()
+      }
+    return super()._validate_input_data(data)
 
   @override
   async def _run_impl(
@@ -60,59 +70,8 @@ class JoinNode(BaseNode):
       ctx: Context,
       node_input: Any,
   ) -> AsyncGenerator[Any, None]:
-    if not ctx.in_nodes:
-      raise ValueError(
-          f'JoinNode {self.name} has no predecessors defined in graph.'
-      )
-
-    state_key = self._get_state_key(ctx.node_path)
-    join_state = (ctx.state.get(state_key) or {}).copy()
-
-    triggering_node = ctx.triggered_by
-    if not triggering_node:
-      logger.warning(
-          'JoinNode %s received trigger from node with no name. Ignoring.',
-          self.name,
-      )
-      return
-
-    if triggering_node not in ctx.in_nodes:
-      logger.warning(
-          'JoinNode %s received trigger from unexpected node %s. Ignoring.',
-          self.name,
-          triggering_node,
-      )
-      return
-
-    # Recording the output and branch from previous node.
-    join_state[triggering_node] = {
-        'input': node_input,
-        'branch': ctx._invocation_context.branch,
-    }
-
-    if set(join_state.keys()) == ctx.in_nodes:
-      # Extract outputs and branches
-      outputs = {}
-      branches = []
-      for k, v in join_state.items():
-        if isinstance(v, dict) and 'input' in v:
-          outputs[k] = v['input']
-          branches.append(v.get('branch') or '')
-        else:
-          # Fallback for old state structure
-          outputs[k] = v
-
-      common_branch = _get_common_branch_prefix(branches)
-
-      yield Event(
-          output=outputs,
-          branch=common_branch,
-          # Clear state for future runs
-          state={state_key: None},
-      )
-    else:
-      # Update state with recorded outputs from previous nodes and wait for
-      # more triggers.
-      yield Event(
-          state={state_key: join_state},
-      )
+    """JoinNode simply passes through the aggregated inputs provided by the orchestrator."""
+    yield Event(
+        output=node_input,
+        branch=ctx._invocation_context.branch,
+    )

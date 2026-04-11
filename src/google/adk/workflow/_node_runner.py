@@ -57,7 +57,6 @@ class NodeRunner:
       run_id: str | None = None,
       # Graph context
       triggered_by: str = "",
-      in_nodes: set[str] | None = None,
       # Output delegation (use_as_output)
       additional_output_for_ancestor: str | None = None,
       # Resume state from a previous run
@@ -75,7 +74,6 @@ class NodeRunner:
         counter string ("1", "2", …) unique per node path.
         Falls back to "1" if not provided.
       triggered_by: Name of the node that triggered this run.
-      in_nodes: Names of predecessor nodes in the graph.
       additional_output_for_ancestor: Ancestor node path whose
         output this node's output also represents (use_as_output).
       prior_output: Output from a previous run, carried
@@ -96,7 +94,6 @@ class NodeRunner:
 
     # Graph context
     self._triggered_by = triggered_by
-    self._in_nodes = in_nodes
 
     # Output delegation
     self._additional_output_for_ancestor = additional_output_for_ancestor
@@ -246,7 +243,6 @@ class NodeRunner:
         schedule_dynamic_node_internal=scheduler,
         node_rerun_on_resume=self._node.rerun_on_resume,
         triggered_by=self._triggered_by,
-        in_nodes=self._in_nodes,
         output_for_ancestors=ancestors,
         event_author=self._parent_ctx.event_author,
         state_schema=self._node.state_schema

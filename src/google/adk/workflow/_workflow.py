@@ -21,10 +21,10 @@ Workflow(BaseNode) with _run_impl() as the orchestration loop.
 from __future__ import annotations
 
 import asyncio
+from collections.abc import AsyncGenerator
 from dataclasses import dataclass
 from dataclasses import field
 import logging
-from collections.abc import AsyncGenerator
 from typing import Any
 from typing import TYPE_CHECKING
 
@@ -32,25 +32,40 @@ from pydantic import Field
 
 from ._base_node import BaseNode
 from ._base_node import START
-from ._graph_definitions import RouteValue
 from ._dynamic_node_scheduler import DynamicNodeScheduler
 from ._dynamic_node_scheduler import DynamicNodeState
+from ._graph_definitions import EdgeItem
+from ._graph_definitions import RouteValue
 from ._node_runner import NodeRunner
 from ._node_state import NodeState
 from ._node_status import NodeStatus
 from ._trigger import Trigger
-from ._graph_definitions import EdgeItem
 from ._workflow_graph import WorkflowGraph
 from .utils._rehydration_utils import _ChildScanState
 from .utils._rehydration_utils import _reconstruct_node_states
 from .utils._rehydration_utils import _unwrap_response
-
 
 if TYPE_CHECKING:
   from ..agents.context import Context
   from ._schedule_dynamic_node import ScheduleDynamicNode
 
 logger = logging.getLogger('google_adk.' + __name__)
+
+
+def get_common_branch_prefix(branches: list[str]) -> str:
+  """Find the common prefix of dot-separated branch strings."""
+  if not branches:
+    return ''
+  split_branches = [b.split('.') if b else [] for b in branches]
+
+  common = []
+  for segments in zip(*split_branches):
+    if len(set(segments)) == 1:
+      common.append(segments[0])
+    else:
+      break
+  return '.'.join(common)
+
 
 # ---------------------------------------------------------------------------
 # Loop state (mutable, not persisted)
@@ -81,6 +96,9 @@ class _LoopState(DynamicNodeState):
 
   node_outputs: dict[str, Any] = field(default_factory=dict)
   """Cached static node outputs."""
+
+  node_branches: dict[str, str] = field(default_factory=dict)
+  """Cached static node branches."""
 
   pending_tasks: dict[str, asyncio.Task[Context]] = field(default_factory=dict)
   """Running static node tasks."""
@@ -405,11 +423,6 @@ class Workflow(BaseNode):
         parent_ctx=ctx,
         run_id=run_id,
         triggered_by=trigger.triggered_by,
-        in_nodes={
-            e.from_node.name
-            for e in self.graph.edges
-            if e.to_node.name == node_name
-        },
         additional_output_for_ancestor=(ctx.node_path if is_terminal else None),
         is_parallel=trigger.is_parallel,
         override_branch=trigger.branch,
@@ -454,6 +467,9 @@ class Workflow(BaseNode):
     node_state.resume_inputs.clear()
     if child_ctx.output is not None:
       loop_state.node_outputs[node_name] = child_ctx.output
+    loop_state.node_branches[node_name] = (
+        child_ctx._invocation_context.branch or ''
+    )
 
     # Buffer downstream triggers.
     self._buffer_downstream_triggers(
@@ -480,14 +496,44 @@ class Workflow(BaseNode):
     )
     is_parallel = len(next_nodes) > 1
     for target_name in next_nodes:
-      loop_state.trigger_buffer.setdefault(target_name, []).append(
-          Trigger(
-              input=output,
-              triggered_by=node_name,
-              is_parallel=is_parallel,
-              branch=branch,
+      target_node = self._get_static_node_by_name(target_name)
+      target_state = loop_state.nodes.get(target_name)
+
+      if target_node._requires_all_predecessors:
+        # Wait for all predecessors
+        predecessors = {
+            e.from_node.name
+            for e in self.graph.edges
+            if e.to_node.name == target_name
+        }
+        if all(
+            loop_state.nodes.get(p)
+            and loop_state.nodes[p].status == NodeStatus.COMPLETED
+            for p in predecessors
+        ):
+          # All predecessors have completed!
+          outputs = {p: loop_state.node_outputs.get(p) for p in predecessors}
+          branches = [loop_state.node_branches.get(p, '') for p in predecessors]
+          common_branch = get_common_branch_prefix(branches)
+
+          loop_state.trigger_buffer.setdefault(target_name, []).append(
+              Trigger(
+                  input=outputs,
+                  triggered_by=node_name,
+                  is_parallel=False,
+                  branch=common_branch,
+              )
           )
-      )
+      else:
+        # Normal node logic
+        loop_state.trigger_buffer.setdefault(target_name, []).append(
+            Trigger(
+                input=output,
+                triggered_by=node_name,
+                is_parallel=is_parallel,
+                branch=branch,
+            )
+        )
       # Re-trigger COMPLETED nodes (loop back-edges)
       node_state = loop_state.nodes.get(target_name)
       if node_state and node_state.status == NodeStatus.COMPLETED:
@@ -558,12 +604,16 @@ class Workflow(BaseNode):
     nodes_to_trigger: list[tuple[str, Any, RouteValue | None]] = []
 
     for child_name, child in children.items():
-      node_state, output, trigger = self._infer_node_state(child_name, child, ctx)
+      node_state, output, trigger, branch = self._infer_node_state(
+          child_name, child, ctx
+      )
       nodes[child_name] = node_state
       if output is not None:
         node_outputs[child_name] = output
       if trigger is not None:
         nodes_to_trigger.append(trigger)
+      if branch is not None:
+        loop_state.node_branches[child_name] = branch
 
     # wait_for_output nodes that were triggered but produced no output
     self._add_wait_for_output_nodes(nodes, children)
@@ -589,6 +639,38 @@ class Workflow(BaseNode):
       node_state = loop_state.nodes[child_name]
       if node_state.status == NodeStatus.PENDING:
         continue
+
+      # Skip triggering if all targets are already processed (completed or waiting).
+      # This prevents re-triggering loop iterations that were already executed.
+      next_nodes = self.graph.get_next_pending_nodes(
+          node_name=child_name,
+          routes_to_match=route,
+      )
+      all_targets_processed = True
+      for target_name in next_nodes:
+        target_state = loop_state.nodes.get(target_name)
+        if not target_state:
+          all_targets_processed = False
+          break
+        # If target node has a state from a previous run, it is stale and we shouldn't skip
+        if target_state.run_counter < node_state.run_counter:
+          all_targets_processed = False
+          break
+        if target_state.status not in (
+            NodeStatus.COMPLETED,
+            NodeStatus.WAITING,
+        ):
+          all_targets_processed = False
+          break
+
+      if all_targets_processed and next_nodes:
+        logger.info(
+            'Skipping triggers from %s because all targets are already'
+            ' processed',
+            child_name,
+        )
+        continue
+
       self._buffer_downstream_triggers(
           loop_state, child_name, output, route=route
       )
@@ -608,7 +690,12 @@ class Workflow(BaseNode):
       child_name: str,
       child: _ChildScanState,
       ctx: Context,
-  ) -> tuple[NodeState, Any | None, tuple[str, Any, RouteValue | None] | None]:
+  ) -> tuple[
+      NodeState,
+      Any | None,
+      tuple[str, Any, RouteValue | None] | None,
+      str | None,
+  ]:
     """Infer NodeState for a child node based on its scanned events.
 
     Status priority:
@@ -710,7 +797,7 @@ class Workflow(BaseNode):
           run_counter=run_counter,
       )
 
-    return node_state, node_output, trigger
+    return node_state, node_output, trigger, child.branch
 
   def _extract_resume_output(self, child: _ChildScanState, ctx: Context) -> Any:
     """Extracts output from resume_inputs for a node that is not re-run."""

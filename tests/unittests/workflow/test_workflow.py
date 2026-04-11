@@ -42,15 +42,14 @@ import pytest
 # Shared helper nodes (used by multiple tests)
 # ---------------------------------------------------------------------------
 
+
 def _make_function_call_interrupt(fc_id: str, name: str = 'approve') -> Event:
   """Helper to create a raw function call interruption event."""
   return Event(
       content=types.Content(
           parts=[
               types.Part(
-                  function_call=types.FunctionCall(
-                      name=name, args={}, id=fc_id
-                  )
+                  function_call=types.FunctionCall(name=name, args={}, id=fc_id)
               )
           ]
       ),
@@ -108,13 +107,11 @@ class _ContextCapturingNode(BaseNode):
 
   model_config = ConfigDict(arbitrary_types_allowed=True)
   captured_triggered_by: list[str] = Field(default_factory=list)
-  captured_in_nodes: list[set] = Field(default_factory=list)
 
   async def _run_impl(
       self, *, ctx: Context, node_input: Any
   ) -> AsyncGenerator[Any, None]:
     self.captured_triggered_by.append(ctx.triggered_by)
-    self.captured_in_nodes.append(set(ctx.in_nodes))
     yield node_input
 
 
@@ -729,7 +726,6 @@ async def test_state_update_via_event_persisted():
   assert updated.state.get('key1') == 'value1'
 
 
-
 # 11. test_run_async_with_raw_output_node
 @pytest.mark.asyncio
 async def test_raw_output_auto_wrapped():
@@ -856,35 +852,9 @@ async def test_triggered_by_set_correctly():
   assert Counter(x.captured_triggered_by) == Counter(['NodeA', 'NodeC'])
 
 
-# 17. test_in_nodes_fan_in_sequential
-@pytest.mark.asyncio
-async def test_in_nodes_lists_predecessors():
-  """ctx.in_nodes lists all predecessor node names (asymmetric fan-in).
-
-  Maps to: test_in_nodes_fan_in_sequential in test_workflow_agent.py.
-  """
-  a = _OutputNode(name='NodeA', value='from_a')
-  b = _OutputNode(name='NodeB', value='from_b')
-  b2 = _PassthroughNode(name='NodeB2')
-  b3 = _PassthroughNode(name='NodeB3')
-  c = _ContextCapturingNode(name='NodeC')
-  wf = Workflow(
-      name='wf',
-      edges=[
-          (START, a),
-          (START, b, b2, b3),
-          (a, c),
-          (b3, c),
-      ],
-  )
-
-  events, _, _ = await _run_workflow(wf)
-
-  for in_nodes in c.captured_in_nodes:
-    assert in_nodes == {'NodeA', 'NodeB3'}
-
-
 # 18. test_wait_for_output_suppresses_trigger
+
+
 @pytest.mark.asyncio
 async def test_wait_for_output_suppresses_downstream():
   """wait_for_output=True with no output prevents downstream from running.
@@ -962,8 +932,6 @@ async def test_wait_for_output_completes_after_all():
   assert first_two == {'NodeA', 'NodeB'}
   assert by_node[2] == ('Gate', 'gate_open')
   assert by_node[3] == ('Downstream', 'done')
-
-
 
 
 # 25. test_run_async_with_implicit_graph_chain
@@ -1294,7 +1262,6 @@ async def test_multiple_outputs_rejected():
     await _run_workflow(wf)
 
 
-
 # 38. test_run_async_streaming_behavior
 @pytest.mark.asyncio
 async def test_streaming_partial_events():
@@ -1349,8 +1316,6 @@ async def test_node_path_correct():
   assert any(p.endswith('NodeA@1') for p in paths)
   assert any(p.endswith('NodeB@1') for p in paths)
   assert all('None' not in p for p in paths)
-
-
 
 
 # --- Additional: function node auto-wrap ---
@@ -1707,8 +1672,6 @@ async def test_terminal_node_output_dedup_nested():
   assert len(wf_output_events) == 0
 
 
-
-
 # --- wait_for_output + HITL resume ---
 
 
@@ -1819,7 +1782,6 @@ async def test_wait_for_output_node_in_loop_generates_unique_paths():
     - JoinNode runs with path ending in `Join@2` in the second iteration.
   """
 
-
   class _InterruptOnce(BaseNode):
     rerun_on_resume: bool = True
 
@@ -1918,7 +1880,7 @@ async def test_wait_for_output_node_in_loop_generates_unique_paths():
   join_events3 = [
       e for e in events3 if e.node_info and 'Join@2' in e.node_info.path
   ]
-  assert len(join_events3) > 0, "JoinNode should run again in loop with @2"
+  assert len(join_events3) > 0, 'JoinNode should run again in loop with @2'
 
 
 # --- run_id reuse on resume ---
