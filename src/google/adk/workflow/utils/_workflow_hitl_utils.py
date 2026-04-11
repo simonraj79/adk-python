@@ -17,6 +17,8 @@ from __future__ import annotations
 """Utilities for ADK workflows."""
 
 from collections.abc import Mapping
+from dataclasses import dataclass
+from dataclasses import field
 import json
 from typing import Any
 from typing import TYPE_CHECKING
@@ -32,6 +34,9 @@ from ...auth.auth_tool import AuthToolArguments
 from ...events.event import Event
 from ...events.request_input import RequestInput
 from ...utils._schema_utils import schema_to_json_schema
+from ._node_path_utils import direct_child_name
+from ._node_path_utils import is_descendant
+from ._node_path_utils import is_direct_child
 
 if TYPE_CHECKING:
   from ...sessions.state import State
@@ -378,3 +383,153 @@ def validate_resume_response(response_data: Any, schema: Any) -> Any:
     return TypeAdapter(schema).validate_python(response_data)
   except Exception as e:
     raise ValueError(f'Validation failed against schema: {e}') from e
+
+
+@dataclass
+class _ChildScanState:
+  """Per-child state accumulated during event scanning for resume."""
+
+  run_id: str | None = None
+  output: Any = None
+  route: str | None = None
+  interrupt_ids: set[str] = field(default_factory=set)
+  resolved_ids: set[str] = field(default_factory=set)
+  resolved_responses: dict[str, Any] = field(default_factory=dict)
+
+
+def _scan_node_events(
+    events: list[Event],
+    base_path: str,
+    group_by_direct_child: bool = False,
+) -> dict[str, _ChildScanState]:
+  """Scans session events to reconstruct node states for resume.
+
+  Args:
+    events: List of session events.
+    base_path: The path of the workflow or node to scan under.
+    group_by_direct_child: If True, groups events by the direct child name under
+      base_path (stripping @run_id). If False, returns state for the base_path
+      itself.
+
+  Returns:
+    A dict mapping node identifiers to _ChildScanState.
+    If group_by_direct_child is True, keys are child names.
+    If group_by_direct_child is False, the key is base_path itself.
+  """
+  results: dict[str, _ChildScanState] = {}
+  interrupt_owner: dict[str, str] = {}
+  schemas_by_id: dict[str, Any] = {}
+
+  def get_owner_key(event_path: str) -> str | None:
+    if group_by_direct_child:
+      if not is_descendant(base_path, event_path):
+        return None
+      child_name = direct_child_name(base_path, event_path)
+      if not child_name:
+        return None
+      return child_name.rsplit('@', 1)[0]
+    else:
+      if event_path == base_path or is_descendant(base_path, event_path):
+        return base_path
+      return None
+
+  for event in events:
+    # 1. Handle FR events (User responses)
+    if event.author == 'user' and event.content and event.content.parts:
+      for part in event.content.parts:
+        fr = part.function_response
+        if fr and fr.id and fr.id in interrupt_owner:
+          owner = interrupt_owner[fr.id]
+          if owner not in results:
+            results[owner] = _ChildScanState()
+          results[owner].resolved_ids.add(fr.id)
+          response_data = unwrap_response(fr.response)
+
+          schema = schemas_by_id.get(fr.id)
+          if schema:
+            try:
+              response_data = validate_resume_response(response_data, schema)
+            except Exception as e:
+              raise ValueError(
+                  f'Validation failed for interrupt {fr.id}: {e}'
+              ) from e
+
+          results[owner].resolved_responses[fr.id] = response_data
+      continue
+
+    # 2. Match events under base_path
+    event_node_path = event.node_info.path or ''
+    owner_key = get_owner_key(event_node_path)
+
+    if not owner_key:
+      continue
+
+    if owner_key not in results:
+      results[owner_key] = _ChildScanState()
+
+    child = results[owner_key]
+
+    # 3. Handle run_id reset (only for group_by_direct_child and direct child events)
+    evt_run_id = (
+        event_node_path.rsplit('@', 1)[-1] if '@' in event_node_path else ''
+    )
+
+    if group_by_direct_child:
+      # Workflow's is_direct_child has reversed args!
+      # def is_direct_child(child_path: str | None, parent_path: str | None)
+      if (
+          is_direct_child(event_node_path, base_path)
+          and evt_run_id
+          and child.run_id != evt_run_id
+      ):
+        child.run_id = evt_run_id
+        child.output = None
+        child.route = None
+        child.interrupt_ids.clear()
+        child.resolved_ids.clear()
+    else:
+      if not child.run_id and evt_run_id:
+        child.run_id = evt_run_id
+
+    # 4. Extract output and route
+    is_direct = False
+    if group_by_direct_child:
+      is_direct = is_direct_child(event_node_path, base_path)
+    else:
+      is_direct = event_node_path == base_path
+
+    has_output = event.output is not None
+    use_message_as_output = False
+    if (
+        not has_output
+        and event.node_info
+        and event.node_info.message_as_output
+        and event.content is not None
+    ):
+      has_output = True
+      use_message_as_output = True
+
+    is_delegated = False
+    if has_output and event.node_info.output_for:
+      if not group_by_direct_child:
+        is_delegated = base_path in event.node_info.output_for
+
+    if is_direct or is_delegated:
+      if event.output is not None:
+        child.output = event.output
+      elif use_message_as_output:
+        child.output = event.content
+      if event.actions and event.actions.route is not None:
+        child.route = event.actions.route
+
+    # 5. Extract interrupts
+    if event.long_running_tool_ids:
+      for interrupt_id in event.long_running_tool_ids:
+        child.interrupt_ids.add(interrupt_id)
+        interrupt_owner[interrupt_id] = owner_key
+
+        schema_json = extract_schema_from_event(event, interrupt_id)
+        if schema_json:
+          schemas_by_id[interrupt_id] = schema_json
+
+  return results

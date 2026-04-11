@@ -15,13 +15,17 @@
 from __future__ import annotations
 
 from google.adk.events.event import Event
+from google.adk.events.event import NodeInfo
 from google.adk.events.request_input import RequestInput
+from google.genai import types
+from google.adk.workflow.utils._workflow_hitl_utils import _ChildScanState
 from google.adk.workflow.utils._workflow_hitl_utils import create_auth_request_event
 from google.adk.workflow.utils._workflow_hitl_utils import create_request_input_event
 from google.adk.workflow.utils._workflow_hitl_utils import create_request_input_response
 from google.adk.workflow.utils._workflow_hitl_utils import get_request_input_interrupt_ids
 from google.adk.workflow.utils._workflow_hitl_utils import has_request_input_function_call
 from google.adk.workflow.utils._workflow_hitl_utils import REQUEST_CREDENTIAL_FUNCTION_CALL_NAME
+from google.adk.workflow.utils._workflow_hitl_utils import _scan_node_events
 from google.adk.workflow.utils._workflow_hitl_utils import unwrap_response
 from google.adk.workflow.utils._workflow_hitl_utils import validate_resume_response
 from google.adk.workflow.utils._workflow_hitl_utils import wrap_response
@@ -306,3 +310,138 @@ class TestValidateResumeResponse:
     assert validate_resume_response({"name": "Alice", "age": 30}, User) == User(
         name="Alice", age=30
     )
+
+
+# --- scan_node_events ---
+
+
+class TestScanNodeEvents:
+
+  def test_scan_empty_events(self):
+    results = _scan_node_events([], "/wf@1")
+    assert results == {}
+
+  def test_scan_direct_child_output(self):
+    event = Event(
+        node_info=NodeInfo(path="/wf@1/node_a@1"), output="node_a output"
+    )
+    results = _scan_node_events([event], "/wf@1", group_by_direct_child=True)
+
+    assert "node_a" in results
+    assert results["node_a"].output == "node_a output"
+    assert results["node_a"].run_id == "1"
+
+  def test_scan_message_as_output(self):
+    content = types.Content(parts=[types.Part(text="hello")])
+    event = Event(
+        node_info=NodeInfo(path="/wf@1/node_a@1"),
+        content=content,
+    )
+    event.node_info.message_as_output = True
+
+    results = _scan_node_events([event], "/wf@1", group_by_direct_child=True)
+
+    assert "node_a" in results
+    assert results["node_a"].output == content
+
+  def test_scan_descendant_interrupts(self):
+    event = Event(
+        node_info=NodeInfo(path="/wf@1/node_a@1/sub_node@1"),
+        long_running_tool_ids={"interrupt-1"},
+    )
+    results = _scan_node_events([event], "/wf@1", group_by_direct_child=True)
+
+    assert "node_a" in results
+    assert "interrupt-1" in results["node_a"].interrupt_ids
+
+  def test_scan_resolve_interrupts(self):
+    event_int = Event(
+        node_info=NodeInfo(path="/wf@1/node_a@1"),
+        long_running_tool_ids={"interrupt-1"},
+    )
+    event_fr = Event(
+        author="user",
+        content=types.Content(
+            parts=[
+                types.Part(
+                    function_response=types.FunctionResponse(
+                        id="interrupt-1",
+                        name="adk_request_input",
+                        response={"result": "user answer"},
+                    )
+                )
+            ]
+        ),
+    )
+
+    # Act
+    results = _scan_node_events(
+        [event_int, event_fr], "/wf@1", group_by_direct_child=True
+    )
+
+    # Assert
+    assert "node_a" in results
+    assert "interrupt-1" in results["node_a"].resolved_ids
+    assert results["node_a"].resolved_responses["interrupt-1"] == "user answer"
+
+  def test_scan_matches_specific_node_path_without_child_grouping(self):
+    """Scanning matches events for a specific node path when not grouping by direct child."""
+    from google.adk.events.event import Event
+    from google.adk.events.event import NodeInfo
+
+    # Arrange
+    event = Event(
+        node_info=NodeInfo(path="/wf@1/node_a@1"), output="node_a output"
+    )
+
+    # Act
+    results = _scan_node_events(
+        [event], "/wf@1/node_a@1", group_by_direct_child=False
+    )
+
+    # Assert
+    assert "/wf@1/node_a@1" in results
+    assert results["/wf@1/node_a@1"].output == "node_a output"
+
+  def test_scan_validates_and_coerces_response_against_schema(self):
+    """Scanning validates and coerces user response data against the provided schema."""
+    from google.adk.events.event import Event
+    from google.adk.events.event import NodeInfo
+    from google.adk.events.request_input import RequestInput
+    from google.genai import types
+    from pydantic import BaseModel
+
+    # Arrange
+    class MySchema(BaseModel):
+      count: int
+
+    ri = RequestInput(
+        interrupt_id="interrupt-1",
+        response_schema=MySchema,
+    )
+    event_int = create_request_input_event(ri)
+    event_int.node_info = NodeInfo(path="/wf@1/node_a@1")
+
+    event_fr = Event(
+        author="user",
+        content=types.Content(
+            parts=[
+                types.Part(
+                    function_response=types.FunctionResponse(
+                        id="interrupt-1",
+                        name="adk_request_input",
+                        response={"result": '{"count": "42"}'},
+                    )
+                )
+            ]
+        ),
+    )
+
+    # Act
+    results = _scan_node_events(
+        [event_int, event_fr], "/wf@1", group_by_direct_child=True
+    )
+
+    # Assert
+    assert "node_a" in results
+    assert results["node_a"].resolved_responses["interrupt-1"] == {"count": 42}

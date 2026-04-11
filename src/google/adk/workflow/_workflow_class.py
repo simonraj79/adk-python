@@ -44,10 +44,9 @@ from ._workflow_graph import WorkflowGraph
 from .utils._node_path_utils import direct_child_name
 from .utils._node_path_utils import is_descendant
 from .utils._node_path_utils import is_direct_child
-from .utils._workflow_hitl_utils import extract_schema_from_event
-from .utils._workflow_hitl_utils import REQUEST_INPUT_FUNCTION_CALL_NAME
+from .utils._workflow_hitl_utils import _ChildScanState
+from .utils._workflow_hitl_utils import _scan_node_events
 from .utils._workflow_hitl_utils import unwrap_response as _unwrap_fr_response
-from .utils._workflow_hitl_utils import validate_resume_response
 
 if TYPE_CHECKING:
   from ..agents.context import Context
@@ -60,27 +59,7 @@ logger = logging.getLogger('google_adk.' + __name__)
 # ---------------------------------------------------------------------------
 
 
-@dataclass
-class _ChildScanState:
-  """Per-child state accumulated during event scanning for resume."""
 
-  run_id: str | None = None
-  """Latest run_id seen for this child."""
-
-  output: Any = None
-  """Output value from the latest run, if any."""
-
-  route: str | None = None
-  """Route value from the latest run, if any."""
-
-  interrupt_ids: set[str] = field(default_factory=set)
-  """Interrupt IDs emitted during the latest run."""
-
-  resolved_ids: set[str] = field(default_factory=set)
-  """Interrupt IDs resolved by FR events in the session."""
-
-  resolved_responses: dict[str, Any] = field(default_factory=dict)
-  """FR response data keyed by interrupt ID."""
 
 
 @dataclass
@@ -721,92 +700,11 @@ class Workflow(BaseNode):
       interrupts (nothing to resume).
     """
     ic = ctx._invocation_context
-    workflow_path = ctx.node_path
-    invocation_id = ic.invocation_id
-
-    # Keyed by direct child name (first path component after workflow).
-    # Events from nested descendants are attributed to their direct child.
-    children: dict[str, _ChildScanState] = {}
-    # interrupt_id → direct child name, for resolving FRs to children
-    interrupt_owner: dict[str, str] = {}
-    # interrupt_id → schema
-    schemas_by_id: dict[str, Any] = {}
-
-    for event in ic.session.events:
-      # Read all events in session to find interrupts from past turns.
-      # We do not filter by invocation_id because rehydration needs history.
-
-      # FR events resolve interrupts.
-      if event.author == 'user' and event.content and event.content.parts:
-        for part in event.content.parts:
-          fr = part.function_response
-          if fr and fr.id and fr.id in interrupt_owner:
-            owner = interrupt_owner[fr.id]
-            children[owner].resolved_ids.add(fr.id)
-            response_data = _unwrap_fr_response(fr.response)
-
-            # Validate against schema if found
-            schema = schemas_by_id.get(fr.id)
-            if schema:
-              try:
-                response_data = validate_resume_response(response_data, schema)
-              except Exception as e:
-                raise ValueError(
-                    f'Validation failed for interrupt {fr.id}: {e}'
-                ) from e
-
-            children[owner].resolved_responses[fr.id] = response_data
-        continue
-
-      if not is_descendant(workflow_path, event.node_info.path):
-        continue
-
-      child_name = direct_child_name(workflow_path, event.node_info.path)
-      child_name = child_name.rsplit('@', 1)[0]
-
-      if not child_name:
-        continue
-
-      child = children.setdefault(child_name, _ChildScanState())
-
-      # New run_id → reset child state (previous run stale).
-      # ONLY update run_id from direct child events, not descendants!
-      evt_run_id = (
-          event.node_info.path.rsplit('@', 1)[-1]
-          if '@' in event.node_info.path
-          else ''
-      )
-      if (
-          is_direct_child(event.node_info.path, workflow_path)
-          and evt_run_id
-          and child.run_id != evt_run_id
-      ):
-        child.run_id = evt_run_id
-        child.output = None
-        child.route = None
-        child.interrupt_ids.clear()
-        child.resolved_ids.clear()
-
-      # Output and route only from direct children (not nested descendants)
-      if is_direct_child(event.node_info.path, workflow_path):
-        if event.output is not None:
-          child.output = event.output
-
-        if event.actions and event.actions.route is not None:
-          child.route = event.actions.route
-
-      # Interrupt from any descendant → attributed to direct child.
-      if event.long_running_tool_ids:
-        for interrupt_id in event.long_running_tool_ids:
-          child.interrupt_ids.add(interrupt_id)
-          interrupt_owner[interrupt_id] = child_name
-
-          # Extract schema if it's a RequestInput call
-          schema_json = extract_schema_from_event(event, interrupt_id)
-          if schema_json:
-            schemas_by_id[interrupt_id] = schema_json
-
-    return children
+    return _scan_node_events(
+        events=ic.session.events,
+        base_path=ctx.node_path,
+        group_by_direct_child=True,
+    )
 
   def _add_wait_for_output_nodes(
       self,

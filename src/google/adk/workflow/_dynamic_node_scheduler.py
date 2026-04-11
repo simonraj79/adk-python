@@ -32,7 +32,8 @@ from ._node_state import NodeState
 from ._node_status import NodeStatus
 from .utils._node_path_utils import is_descendant
 from .utils._node_path_utils import join_paths
-from .utils._workflow_hitl_utils import unwrap_response as _unwrap_fr_response
+from .utils._workflow_hitl_utils import _ChildScanState
+from .utils._workflow_hitl_utils import _scan_node_events
 
 if TYPE_CHECKING:
   from ..agents.context import Context
@@ -227,64 +228,18 @@ class DynamicNodeScheduler:
   def _rehydrate_from_events(self, ctx: Context, node_path: str) -> None:
     """Scan session events for a dynamic node's prior state."""
     logger.info('node %s rehydrate start.', node_path)
-    from ._workflow_class import _ChildScanState
-
     ic = ctx._invocation_context
 
-    extracted_run_id = node_path.rsplit('@', 1)[-1]
-    target_state = _ChildScanState(run_id=extracted_run_id)
-    # Interrupt IDs belonging to target_run_id.
-    interrupt_ids_for_target: set[str] = set()
+    results = _scan_node_events(
+        events=ic.session.events,
+        base_path=node_path,
+        group_by_direct_child=False,
+    )
 
-    for event in ic.session.events:
-      # Read all events in session to find interrupts from past turns
-
-      # FR events resolve interrupts.
-      if event.author == 'user' and event.content and event.content.parts:
-        for part in event.content.parts:
-          fr = part.function_response
-          if fr and fr.id and fr.id in interrupt_ids_for_target:
-            target_state.resolved_ids.add(fr.id)
-            target_state.resolved_responses[fr.id] = _unwrap_fr_response(
-                fr.response
-            )
-        continue
-
-      # Match events under this dynamic node's path.
-      event_node_path = event.node_info.path or ''
-      is_direct_match = event_node_path == node_path
-      is_descendant_match = is_descendant(node_path, event_node_path)
-
-      if not is_direct_match and not is_descendant_match:
-        continue
-
-      is_delegated = False
-      if event.output is not None and event.node_info.output_for:
-        is_delegated = node_path in event.node_info.output_for
-
-      has_interrupts = bool(event.long_running_tool_ids)
-
-      if (
-          not is_direct_match
-          and not is_delegated
-          and not (is_descendant_match and has_interrupts)
-      ):
-        continue
-
-      # Output: direct path or output_for delegation.
-      if event.output is not None:
-        if is_direct_match or is_delegated:
-          target_state.output = event.output
-      elif event.node_info and event.node_info.message_as_output:
-        if is_direct_match or is_delegated:
-          target_state.output = event.content
-
-      # Interrupts from any descendant.
-      if event.long_running_tool_ids:
-        if is_direct_match or is_descendant_match:
-          for interrupt_id in event.long_running_tool_ids:
-            target_state.interrupt_ids.add(interrupt_id)
-            interrupt_ids_for_target.add(interrupt_id)
+    target_state = results.get(node_path)
+    if not target_state:
+      extracted_run_id = node_path.rsplit('@', 1)[-1]
+      target_state = _ChildScanState(run_id=extracted_run_id)
 
     unresolved = target_state.interrupt_ids - target_state.resolved_ids
     state = None

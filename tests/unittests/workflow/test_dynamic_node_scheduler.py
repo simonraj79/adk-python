@@ -81,6 +81,7 @@ def _make_event(
   event.node_info = MagicMock(spec=NodeInfo)
   event.node_info.path = path
   event.node_info.output_for = output_for
+  event.node_info.message_as_output = None
   event.long_running_tool_ids = set(interrupt_ids) if interrupt_ids else None
   event.content = None
   event.actions = None
@@ -95,6 +96,7 @@ def _make_fr_event(fc_id, response, invocation_id='inv-1'):
   event.output = None
   event.node_info = MagicMock(spec=NodeInfo)
   event.node_info.path = ''
+  event.node_info.message_as_output = None
   event.long_running_tool_ids = None
 
   fr = MagicMock()
