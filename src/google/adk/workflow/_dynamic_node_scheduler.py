@@ -275,6 +275,9 @@ class DynamicNodeScheduler:
       if event.output is not None:
         if is_direct_match or is_delegated:
           target_state.output = event.output
+      elif event.node_info and event.node_info.message_as_output:
+        if is_direct_match or is_delegated:
+          target_state.output = event.content
 
       # Interrupts from any descendant.
       if event.long_running_tool_ids:

@@ -82,7 +82,7 @@ def process_llm_agent_output(agent: Any, ctx: Context, event: Event) -> None:
   ):
     return
 
-  event.node_info._message_as_output = True
+  event.node_info.message_as_output = True
 
   output = None
   text = (

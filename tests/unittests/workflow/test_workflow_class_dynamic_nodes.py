@@ -1149,6 +1149,91 @@ async def test_dynamic_node_failure_handling():
   assert 'Success: Processed work' in results
 
 
+@pytest.mark.asyncio
+async def test_workflow_resume_does_not_rerun_completed_llm_agent():
+  """Completed LlmAgent node is not rerun upon workflow resumption.
+
+  Setup: Workflow with LlmAgent node and an interrupting node.
+  Act:
+    - Run 1: Start workflow, LlmAgent completes, workflow interrupts.
+    - Run 2: Resume workflow by resolving interrupt.
+  Assert:
+    - LlmAgent does not run again in Run 2.
+  """
+  from google.adk.agents.llm_agent import LlmAgent
+
+  from tests.unittests import testing_utils
+
+  # Given a workflow with an LlmAgent and a mock model
+  mock_model = testing_utils.MockModel.create(
+      responses=['LLM output content', 'Duplicate run output']
+  )
+
+  agent = LlmAgent(name='my_agent', model=mock_model)
+
+  class _InterruptNode(BaseNode):
+
+    async def _run_impl(self, *, ctx, node_input):
+      event = Event(
+          content=types.Content(
+              parts=[
+                  types.Part(
+                      function_call=types.FunctionCall(
+                          name='tool', id='interrupt_1', args={}
+                      )
+                  )
+              ]
+          )
+      )
+      event.long_running_tool_ids = {'interrupt_1'}
+      yield event
+      yield f'Resumed with {node_input}'
+
+  class _Parent(BaseNode):
+    rerun_on_resume: bool = True
+
+    async def _run_impl(self, *, ctx, node_input):
+      res = await ctx.run_node(agent, node_input='go')
+      res2 = await ctx.run_node(
+          _InterruptNode(name='interrupter'), node_input=res
+      )
+      yield res2
+
+  wf = Workflow(name='wf', edges=[(START, _Parent(name='parent'))])
+  ss = InMemorySessionService()
+  runner = Runner(app_name='test', node=wf, session_service=ss)
+  session = await ss.create_session(app_name='test', user_id='u')
+
+  # When the workflow is run until it interrupts
+  await _run(runner, ss, session, 'go')
+
+  session = await ss.get_session(
+      app_name='test', user_id='u', session_id=session.id
+  )
+
+  agent_events = [
+      e for e in session.events if e.node_info.name == 'my_agent' and e.content
+  ]
+  assert len(agent_events) > 0
+  agent_event = agent_events[-1]
+
+  # Verify that runners.py cleared the output
+  assert agent_event.output is None
+
+  # When the workflow is resumed by resolving the interrupt
+  resume_events = await _resume(
+      runner, ss, session, fc_id='interrupt_1', response='done'
+  )
+
+  # Then the LlmAgent should not run again
+  agent_runs_again = [
+      e for e in resume_events if e.node_info.name == 'my_agent' and e.content
+  ]
+  assert (
+      len(agent_runs_again) == 0
+  ), 'Expected LlmAgent to NOT run again, but it did!'
+
+
 # =========================================================================
 # Parallel execution of dynamic nodes
 # =========================================================================

@@ -614,7 +614,7 @@ class Runner:
         break
       event: Event = event_or_done
       if not event.partial:
-        if event.node_info._message_as_output and event.content is not None:
+        if event.node_info.message_as_output and event.content is not None:
           event = event.model_copy()
           event.output = None
         await self.session_service.append_event(session=ic.session, event=event)

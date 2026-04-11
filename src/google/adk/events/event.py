@@ -57,8 +57,8 @@ class NodeInfo(BaseModel):
   this event's output counts as the output for both.
   """
 
-  _message_as_output: bool | None = PrivateAttr(default=None)
-  """Internal only: When True, this event's content is the node's output.
+  message_as_output: bool | None = None
+  """When True, this event's content is the node's output.
 
   No separate output event is needed — the content event already
   carries the output value.
