@@ -140,6 +140,16 @@ class DynamicNodeScheduler:
     name = node_name or node.name
     node_path = join_paths(ctx.node_path, f'{name}@{run_id}')
 
+    # Runtime schema validation.
+    if node_input is not None:
+      try:
+        node_input = node._validate_input_data(node_input)
+      except Exception as e:
+        raise ValueError(
+            f"Runtime schema validation failed for dynamic node '{name}'."
+            f' Input does not match input_schema: {e}'
+        ) from e
+
     logger.info('node %s schedule start.', node_path)
 
     # Phase 1: Lazy rehydration from session events.
@@ -187,9 +197,10 @@ class DynamicNodeScheduler:
       # All resolved → re-run or auto-complete.
       if node.wait_for_output and not node.rerun_on_resume:
         raise ValueError(
-            f"Node {node_path} is waiting for output but was called again with rerun_on_resume=False. "
-            "This would cause it to auto-complete with empty output, which is likely a configuration error. "
-            "Consider setting rerun_on_resume=True."
+            f'Node {node_path} is waiting for output but was called again with'
+            ' rerun_on_resume=False. This would cause it to auto-complete with'
+            ' empty output, which is likely a configuration error. Consider'
+            ' setting rerun_on_resume=True.'
         )
 
       if not node.rerun_on_resume:

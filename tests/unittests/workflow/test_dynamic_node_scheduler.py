@@ -31,6 +31,7 @@ from google.adk.workflow._dynamic_node_scheduler import DynamicNodeState
 from google.adk.workflow._node_state import NodeState
 from google.adk.workflow._node_status import NodeStatus
 from google.adk.workflow._workflow_class import _LoopState
+from pydantic import BaseModel
 import pytest
 
 # --- Fixtures ---
@@ -321,10 +322,6 @@ async def test_rehydrate_output_for_delegation():
   assert ls.runs['wf/parent/child@r-1'].output == 'delegated'
 
 
-# Obsolete isolation test removed.
-
-
-# Obsolete test removed.
 
 
 # =========================================================================
@@ -332,116 +329,6 @@ async def test_rehydrate_output_for_delegation():
 # =========================================================================
 
 
-@pytest.mark.asyncio
-async def test_fresh_execution_runs_node():
-  """No prior state → node executes and output is returned."""
-
-  class _Child(BaseNode):
-
-    async def _run_impl(self, *, ctx, node_input):
-      yield f'hello: {node_input}'
-
-  ctx, events = _make_parent_ctx()
-  ls = _LoopState()
-  scheduler = DynamicNodeScheduler(ls)
-
-  child_ctx = await scheduler(
-      ctx,
-      _Child(name='child'),
-      'input',
-      node_name='child',
-      run_id='1',
-  )
-
-  assert child_ctx.output == 'hello: input'
-  assert 'wf/parent/child@1' in ls.runs
-
-
-@pytest.mark.asyncio
-async def test_completed_dedup_returns_cached():
-  """Pre-populated COMPLETED state → returns cached output."""
-
-  ctx, _ = _make_parent_ctx()
-  ls = _LoopState()
-  ls.runs['wf/parent/child@r-1'] = DynamicNodeRun(
-      state=NodeState(status=NodeStatus.COMPLETED, run_id='r-1'),
-      output='cached',
-  )
-
-  scheduler = DynamicNodeScheduler(ls)
-
-  child_ctx = await scheduler(
-      ctx,
-      BaseNode(name='child'),
-      'input',
-      node_name='child',
-      run_id='r-1',
-  )
-
-  assert child_ctx.output == 'cached'
-
-
-@pytest.mark.asyncio
-async def test_waiting_unresolved_propagates_interrupts():
-  """WAITING with unresolved interrupts → propagated to loop_state."""
-
-  ctx, _ = _make_parent_ctx()
-  ls = _LoopState()
-  ls.runs['wf/parent/child@r-1'] = DynamicNodeRun(
-      state=NodeState(
-          status=NodeStatus.WAITING, interrupts=['fc-1'], run_id='r-1'
-      )
-  )
-
-  scheduler = DynamicNodeScheduler(ls)
-
-  child_ctx = await scheduler(
-      ctx,
-      BaseNode(name='child'),
-      'input',
-      node_name='child',
-      run_id='r-1',
-  )
-
-  assert child_ctx.interrupt_ids == {'fc-1'}
-  assert 'fc-1' in ls.interrupt_ids
-
-
-@pytest.mark.asyncio
-async def test_waiting_resolved_resumes_node():
-  """WAITING with all resolved → node re-runs with resume_inputs."""
-
-  class _Resumable(BaseNode):
-    rerun_on_resume: bool = True
-
-    async def _run_impl(self, *, ctx, node_input):
-      if ctx.resume_inputs and 'fc-1' in ctx.resume_inputs:
-        yield f'resumed: {ctx.resume_inputs["fc-1"]}'
-        return
-      yield 'should not reach here'
-
-  ctx, _ = _make_parent_ctx()
-  ls = _LoopState()
-  ls.runs['wf/parent/child@r-1'] = DynamicNodeRun(
-      state=NodeState(
-          status=NodeStatus.WAITING,
-          interrupts=[],
-          run_id='r-1',
-          resume_inputs={'fc-1': 'response'},
-      )
-  )
-
-  scheduler = DynamicNodeScheduler(ls)
-
-  child_ctx = await scheduler(
-      ctx,
-      _Resumable(name='child'),
-      'input',
-      node_name='child',
-      run_id='r-1',
-  )
-
-  assert child_ctx.output == 'resumed: response'
 
 
 # =========================================================================
@@ -450,7 +337,7 @@ async def test_waiting_resolved_resumes_node():
 
 
 @pytest.mark.asyncio
-async def test_default_scheduler_fresh_execution():
+async def test_fresh_execution_runs_node():
   """DefaultNodeScheduler runs a fresh node just like DynamicNodeScheduler."""
 
   class _Child(BaseNode):
@@ -473,7 +360,7 @@ async def test_default_scheduler_fresh_execution():
 
 
 @pytest.mark.asyncio
-async def test_default_scheduler_dedup_returns_cached():
+async def test_completed_dedup_returns_cached():
   """DefaultNodeScheduler returns cached output for completed nodes."""
   ctx, _ = _make_parent_ctx()
   tracker = DynamicNodeScheduler(DynamicNodeState())
@@ -496,7 +383,7 @@ async def test_default_scheduler_dedup_returns_cached():
 
 
 @pytest.mark.asyncio
-async def test_default_scheduler_resume_with_resolved_interrupts():
+async def test_waiting_resolved_resumes_node():
   """DefaultNodeScheduler re-runs nodes with resolved interrupts."""
 
   class _Resumable(BaseNode):
@@ -533,7 +420,7 @@ async def test_default_scheduler_resume_with_resolved_interrupts():
 
 
 @pytest.mark.asyncio
-async def test_default_scheduler_propagates_unresolved_interrupts():
+async def test_waiting_unresolved_propagates_interrupts():
   """DefaultNodeScheduler propagates unresolved interrupts."""
   ctx, _ = _make_parent_ctx()
   tracker = DynamicNodeScheduler(DynamicNodeState())
@@ -559,6 +446,7 @@ async def test_default_scheduler_propagates_unresolved_interrupts():
 @pytest.mark.asyncio
 async def test_calling_waiting_node_without_rerun_raises_value_error():
   """Calling a dynamic node that is waiting for output with rerun_on_resume=False raises ValueError."""
+
   # Given a dynamic node waiting for output with rerun_on_resume=False
   class _WaitingNode(BaseNode):
     wait_for_output: bool = True
@@ -585,3 +473,97 @@ async def test_calling_waiting_node_without_rerun_raises_value_error():
         node_name='child',
         run_id='r-1',
     )
+
+
+class _ModelA(BaseModel):
+  x: int
+
+
+@pytest.mark.asyncio
+async def test_runtime_schema_validation_passes():
+  """Tests that runtime schema validation passes when input matches schema."""
+  ctx, _ = _make_parent_ctx()
+  ls = _LoopState()
+  scheduler = DynamicNodeScheduler(ls)
+
+  node = BaseNode(name='child', input_schema=_ModelA)
+
+  # We mock _run_node_internal to avoid full execution, we only care about validation in __call__
+  scheduler._run_node_internal = AsyncMock(return_value=MagicMock(spec=Context))
+
+  await scheduler(
+      ctx,
+      node,
+      {'x': 1},
+      node_name='child',
+      run_id='1',
+  )
+  # Should not raise
+
+
+@pytest.mark.asyncio
+async def test_runtime_schema_validation_raises():
+  """Tests that runtime schema validation raises when input mismatches schema."""
+  ctx, _ = _make_parent_ctx()
+  ls = _LoopState()
+  scheduler = DynamicNodeScheduler(ls)
+
+  node = BaseNode(name='child', input_schema=_ModelA)
+
+  with pytest.raises(
+      ValueError,
+      match=r"Runtime schema validation failed for dynamic node 'child'",
+  ):
+    await scheduler(
+        ctx,
+        node,
+        {'x': 'string'},  # Invalid type for x
+        node_name='child',
+        run_id='1',
+    )
+
+
+@pytest.mark.asyncio
+async def test_runtime_schema_validation_missing_schema_passes():
+  """Tests that runtime schema validation passes when no schema is defined."""
+  ctx, _ = _make_parent_ctx()
+  ls = _LoopState()
+  scheduler = DynamicNodeScheduler(ls)
+
+  node = BaseNode(name='child')  # No input schema
+
+  scheduler._run_node_internal = AsyncMock(return_value=MagicMock(spec=Context))
+
+  await scheduler(
+      ctx,
+      node,
+      {'x': 1},
+      node_name='child',
+      run_id='1',
+  )
+  # Should not raise
+
+
+@pytest.mark.asyncio
+async def test_runtime_schema_validation_content_fallback():
+  """Tests that runtime schema validation handles Content objects by extraction."""
+  ctx, _ = _make_parent_ctx()
+  ls = _LoopState()
+  scheduler = DynamicNodeScheduler(ls)
+
+  node = BaseNode(name='child', input_schema=_ModelA)
+
+  scheduler._run_node_internal = AsyncMock(return_value=MagicMock(spec=Context))
+
+  from google.genai import types
+
+  msg = types.Content(parts=[types.Part(text='{"x": 1}')], role='user')
+
+  await scheduler(
+      ctx,
+      node,
+      msg,
+      node_name='child',
+      run_id='1',
+  )
+  # Should not raise
