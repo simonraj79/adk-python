@@ -81,11 +81,9 @@ class GeminiLlmConnection(BaseLlmConnection):
 
     if contents:
       logger.debug('Sending history to live connection: %s', contents)
-      await self._gemini_session.send(
-          input=types.LiveClientContent(
-              turns=contents,
-              turn_complete=contents[-1].role == 'user',
-          ),
+      await self._gemini_session.send_client_content(
+          turns=contents,
+          turn_complete=contents[-1].role == 'user',
       )
     else:
       logger.info('no content is sent')
