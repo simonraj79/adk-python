@@ -105,10 +105,8 @@ class GeminiLlmConnection(BaseLlmConnection):
       # All parts have to be function responses.
       function_responses = [part.function_response for part in content.parts]
       logger.debug('Sending LLM function response: %s', function_responses)
-      await self._gemini_session.send(
-          input=types.LiveClientToolResponse(
-              function_responses=function_responses
-          ),
+      await self._gemini_session.send_tool_response(
+          function_responses=function_responses
       )
     else:
       logger.debug('Sending LLM new content %s', content)
