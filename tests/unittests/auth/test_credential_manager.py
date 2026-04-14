@@ -58,11 +58,6 @@ class TestCredentialManager:
   """Test suite for CredentialManager."""
 
   @pytest.fixture(autouse=True)
-  def enable_gcp_iam_connector_auth(self):
-    with temporary_feature_override(FeatureName.GCP_IAM_CONNECTOR_AUTH, True):
-      yield
-
-  @pytest.fixture(autouse=True)
   def _clear_registry(self):
     """Clear the global auth provider registry before each test."""
     CredentialManager._auth_provider_registry._providers.clear()

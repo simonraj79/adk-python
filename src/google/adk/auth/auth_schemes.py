@@ -54,9 +54,9 @@ class CustomAuthScheme(BaseModelWithConfig):
 
 
 # AuthSchemes contains SecuritySchemes from OpenAPI 3.0, an extra flattened
-# OpenIdConnectWithConfig, GCP managed auth, and supports external schemes
+# OpenIdConnectWithConfig, and supports external schemes
 # that subclass CustomAuthScheme.
-AuthScheme = Union[SecurityScheme, OpenIdConnectWithConfig, GcpIamConnectorAuth, CustomAuthScheme]
+AuthScheme = Union[SecurityScheme, OpenIdConnectWithConfig, CustomAuthScheme]
 
 
 class OAuthGrantType(str, Enum):
