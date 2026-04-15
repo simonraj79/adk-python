@@ -31,6 +31,8 @@ from google.adk.workflow._workflow_class import Workflow
 from google.genai import types
 from pydantic import ConfigDict
 import pytest
+import asyncio
+from google.adk.workflow import node
 from typing_extensions import override
 
 from .. import testing_utils
@@ -417,3 +419,171 @@ async def test_use_as_output_workflow_with_hitl(
   outputs2 = _get_outputs(events2)
   assert 'final:hello' in outputs2
   assert outputs2.count('final:hello') == 1
+
+
+@pytest.mark.asyncio
+async def test_use_as_output_static_node_not_rerun_on_resume(
+    request: pytest.FixtureRequest,
+):
+  """Static node delegating output to dynamic child is not re-run on resume.
+
+  Setup:
+    - wf with node_a (FunctionNode) and hitl_step.
+    - node_a calls ctx.run_node(node_b, use_as_output=True).
+    - hitl_step yields RequestInput to pause.
+  Act:
+    - Run 1: Run workflow, node_a executes, hitl_step pauses.
+    - Run 2: Resume with user response for hitl_step.
+  Assert:
+    - Run 1: node_b output is emitted as node_a's output.
+    - Run 2: node_a is NOT re-run (run_count remains 1).
+  """
+
+  run_count = 0
+
+  @node
+  def node_b() -> str:
+    return 'from_b'
+
+  @node(rerun_on_resume=True)
+  async def node_a(ctx: Context):
+    nonlocal run_count
+    run_count += 1
+    return await ctx.run_node(node_b, use_as_output=True)
+
+  node_a.wait_for_output = True
+
+  @node
+  async def hitl_step():
+    yield RequestInput(
+        interrupt_id='pause_req',
+        message='pause',
+    )
+
+  @node
+  def final_step(node_input: Any) -> None:
+    return None
+
+  wf_name = request.node.name.replace('[', '_').replace(']', '')
+  agent = Workflow(
+      name=wf_name,
+      edges=[
+          (START, node_a),
+          (START, hitl_step),
+          (hitl_step, final_step),
+      ],
+  )
+
+  runner = testing_utils.InMemoryRunner(root_agent=agent)
+
+  events1 = await runner.run_async(testing_utils.get_user_content('start'))
+
+  assert run_count == 1
+  outputs1 = [e.output for e in events1 if e.output]
+  assert 'from_b' in outputs1
+
+  invocation_id = events1[0].invocation_id
+  resume_payload = testing_utils.UserContent(
+      types.Part(
+          function_response=types.FunctionResponse(
+              id='pause_req',
+              name='user_input',
+              response={'text': 'continue'},
+          )
+      )
+  )
+
+  events2 = await runner.run_async(
+      new_message=resume_payload, invocation_id=invocation_id
+  )
+
+  assert run_count == 1
+
+
+@pytest.mark.asyncio
+async def test_use_as_output_instance_isolation(request: pytest.FixtureRequest):
+  """Output delegation is isolated to specific dynamic instances.
+
+  Setup:
+    - wf with node_a calling node_b twice in parallel with different run_ids ('b1', 'b2').
+    - node_b yields RequestInput to pause.
+  Act:
+    - Run 1: Run workflow, both node_b instances pause.
+    - Run 2: Resume only the 'b1' instance.
+  Assert:
+    - Run 1: Both instances run (run_count_b is 2).
+    - Run 2: Only instance 'b1' completes and delegates output.
+      Instance 'b2' remains paused and does not emit output.
+  """
+  run_count_b = 0
+
+  @node
+  def node_c() -> str:
+    return 'from_c'
+
+  @node(rerun_on_resume=True)
+  async def node_b(ctx: Context):
+    nonlocal run_count_b
+
+    interrupt_id = f'pause_{ctx.node_path}'
+    if ctx.resume_inputs and interrupt_id in ctx.resume_inputs:
+      response = ctx.resume_inputs[interrupt_id]
+      if response and isinstance(response, dict) and response.get('text') == 'continue':
+        await ctx.run_node(node_c, use_as_output=True)
+        return
+
+    run_count_b += 1
+    yield RequestInput(
+        interrupt_id=interrupt_id,
+        message='pause',
+    )
+
+  @node(rerun_on_resume=True)
+  async def node_a(ctx: Context):
+    task1 = ctx.run_node(node_b, run_id='b1')
+    task2 = ctx.run_node(node_b, run_id='b2')
+    await asyncio.gather(task1, task2)
+
+  wf_name = request.node.name.replace('[', '_').replace(']', '')
+  agent = Workflow(name=wf_name, edges=[(START, node_a)])
+
+  runner = testing_utils.InMemoryRunner(root_agent=agent)
+
+  # Given the workflow is started with parallel instances of node_b
+  events1 = await runner.run_async(testing_utils.get_user_content('start'))
+
+  # Then both instances execute and pause
+  assert run_count_b == 2
+
+  # Find the interrupt ID for instance b1
+  interrupt_id_b1 = None
+  for event in events1:
+    if event.long_running_tool_ids:
+      for interrupt_id in event.long_running_tool_ids:
+        if 'b1' in interrupt_id:
+          interrupt_id_b1 = interrupt_id
+          break
+
+  assert interrupt_id_b1 is not None
+
+  # When resuming only instance b1
+  invocation_id = events1[0].invocation_id
+  resume_payload = testing_utils.UserContent(
+      types.Part(
+          function_response=types.FunctionResponse(
+              id=interrupt_id_b1,
+              name='user_input',
+              response={'text': 'continue'},
+          )
+      )
+  )
+
+  events2 = await runner.run_async(
+      new_message=resume_payload, invocation_id=invocation_id
+  )
+
+  # Then node_b is not re-run, and only one output is emitted from node_c
+  assert run_count_b == 2
+
+  outputs2 = [e.output for e in events2 if e.output]
+  assert outputs2.count('from_c') == 1

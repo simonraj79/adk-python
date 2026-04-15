@@ -741,11 +741,19 @@ class Workflow(BaseNode):
       interrupts (nothing to resume).
     """
     ic = ctx._invocation_context
-    return _scan_node_events(
+    raw_results = _scan_node_events(
         events=ic.session.events,
         base_path=ctx.node_path,
         group_by_direct_child=True,
     )
+
+    # Group by logical name, letting later instances override earlier ones.
+    results: dict[str, _ChildScanState] = {}
+    for key, state in raw_results.items():
+      logical_name = key.split('@')[0]
+      results[logical_name] = state
+
+    return results
 
   def _add_wait_for_output_nodes(
       self,

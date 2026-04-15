@@ -327,9 +327,9 @@ class TestScanNodeEvents:
     )
     results = _scan_node_events([event], "/wf@1", group_by_direct_child=True)
 
-    assert "node_a" in results
-    assert results["node_a"].output == "node_a output"
-    assert results["node_a"].run_id == "1"
+    assert "node_a@1" in results
+    assert results["node_a@1"].output == "node_a output"
+    assert results["node_a@1"].run_id == "1"
 
   def test_scan_message_as_output(self):
     content = types.Content(parts=[types.Part(text="hello")])
@@ -341,8 +341,8 @@ class TestScanNodeEvents:
 
     results = _scan_node_events([event], "/wf@1", group_by_direct_child=True)
 
-    assert "node_a" in results
-    assert results["node_a"].output == content
+    assert "node_a@1" in results
+    assert results["node_a@1"].output == content
 
   def test_scan_descendant_interrupts(self):
     event = Event(
@@ -351,8 +351,8 @@ class TestScanNodeEvents:
     )
     results = _scan_node_events([event], "/wf@1", group_by_direct_child=True)
 
-    assert "node_a" in results
-    assert "interrupt-1" in results["node_a"].interrupt_ids
+    assert "node_a@1" in results
+    assert "interrupt-1" in results["node_a@1"].interrupt_ids
 
   def test_scan_resolve_interrupts(self):
     event_int = Event(
@@ -380,9 +380,9 @@ class TestScanNodeEvents:
     )
 
     # Assert
-    assert "node_a" in results
-    assert "interrupt-1" in results["node_a"].resolved_ids
-    assert results["node_a"].resolved_responses["interrupt-1"] == "user answer"
+    assert "node_a@1" in results
+    assert "interrupt-1" in results["node_a@1"].resolved_ids
+    assert results["node_a@1"].resolved_responses["interrupt-1"] == "user answer"
 
   def test_scan_matches_specific_node_path_without_child_grouping(self):
     """Scanning matches events for a specific node path when not grouping by direct child."""
@@ -443,5 +443,5 @@ class TestScanNodeEvents:
     )
 
     # Assert
-    assert "node_a" in results
-    assert results["node_a"].resolved_responses["interrupt-1"] == {"count": 42}
+    assert "node_a@1" in results
+    assert results["node_a@1"].resolved_responses["interrupt-1"] == {"count": 42}

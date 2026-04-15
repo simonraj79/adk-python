@@ -413,13 +413,14 @@ def _scan_node_events(
   Args:
     events: List of session events.
     base_path: The path of the workflow or node to scan under.
-    group_by_direct_child: If True, groups events by the direct child name under
-      base_path (stripping @run_id). If False, returns state for the base_path
-      itself.
+    group_by_direct_child: If True, groups events by the direct child segment
+      under base_path (preserving @run_id to isolate instances). If False,
+      returns state for the base_path itself.
 
   Returns:
     A dict mapping node identifiers to _ChildScanState.
-    If group_by_direct_child is True, keys are child names.
+    If group_by_direct_child is True, keys are direct child segments (e.g.,
+    "node_a@1").
     If group_by_direct_child is False, the key is base_path itself.
   """
   results: dict[str, _ChildScanState] = {}
@@ -433,7 +434,7 @@ def _scan_node_events(
       if not event_path_builder.is_descendant_of(base_path_builder):
         return None
       child_path = base_path_builder.get_direct_child(event_path_builder)
-      return child_path.node_name
+      return child_path._segments[-1]  # Return raw segment with @run_id
     else:
       if event_path_builder == base_path_builder or event_path_builder.is_descendant_of(
           base_path_builder
@@ -474,29 +475,12 @@ def _scan_node_events(
       continue
 
     if owner_key not in results:
-      results[owner_key] = _ChildScanState()
+      owner_path_builder = _NodePathBuilder.from_string(owner_key)
+      results[owner_key] = _ChildScanState(run_id=owner_path_builder.run_id)
 
     child = results[owner_key]
 
-    # 3. Handle run_id reset (only for group_by_direct_child and direct child events)
-    evt_run_id = event_path_builder.run_id or ''
-
-    if group_by_direct_child:
-      if (
-          event_path_builder.is_direct_child_of(base_path_builder)
-          and evt_run_id
-          and child.run_id != evt_run_id
-      ):
-        child.run_id = evt_run_id
-        child.output = None
-        child.route = None
-        child.interrupt_ids.clear()
-        child.resolved_ids.clear()
-    else:
-      if not child.run_id and evt_run_id:
-        child.run_id = evt_run_id
-
-    # 4. Extract output and route
+    # 3. Extract output and route
     is_direct = False
     if group_by_direct_child:
       is_direct = event_path_builder.is_direct_child_of(base_path_builder)
