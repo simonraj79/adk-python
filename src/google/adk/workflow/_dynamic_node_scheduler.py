@@ -32,7 +32,7 @@ from ._node_state import NodeState
 from ._node_status import NodeStatus
 from ._node_path_builder import _NodePathBuilder
 from .utils._rehydration_utils import _ChildScanState
-from .utils._rehydration_utils import _scan_node_events
+from .utils._rehydration_utils import _reconstruct_node_states
 
 if TYPE_CHECKING:
   from ..agents.context import Context
@@ -249,7 +249,7 @@ class DynamicNodeScheduler:
     logger.info('node %s rehydrate start.', node_path)
     ic = ctx._invocation_context
 
-    results = _scan_node_events(
+    results = _reconstruct_node_states(
         events=ic.session.events,
         base_path=node_path,
         group_by_direct_child=False,

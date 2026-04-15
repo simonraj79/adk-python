@@ -42,7 +42,7 @@ from ._trigger import Trigger
 from ._graph_definitions import EdgeItem
 from ._workflow_graph import WorkflowGraph
 from .utils._rehydration_utils import _ChildScanState
-from .utils._rehydration_utils import _scan_node_events
+from .utils._rehydration_utils import _reconstruct_node_states
 from .utils._rehydration_utils import _unwrap_response
 
 
@@ -740,7 +740,7 @@ class Workflow(BaseNode):
       interrupts (nothing to resume).
     """
     ic = ctx._invocation_context
-    raw_results = _scan_node_events(
+    raw_results = _reconstruct_node_states(
         events=ic.session.events,
         base_path=ctx.node_path,
         group_by_direct_child=True,

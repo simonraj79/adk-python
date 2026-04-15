@@ -167,13 +167,13 @@ def _validate_resume_response(response_data: Any, schema: Any) -> Any:
     raise ValueError(f'Validation failed against schema: {e}') from e
 
 
-def _scan_node_events(
+def _reconstruct_node_states(
     events: list[Event],
     base_path: str,
     group_by_direct_child: bool = False,
 ) -> dict[str, _ChildScanState]:
   """Scans session events to reconstruct node states for resume."""
-  results: dict[str, _ChildScanState] = {}
+  scan_states: dict[str, _ChildScanState] = {}
   interrupt_owner: dict[str, str] = {}
   schemas_by_id: dict[str, Any] = {}
 
@@ -193,14 +193,15 @@ def _scan_node_events(
       return None
 
   for event in events:
+    # 1. Handle FunctionResponse (User responses to interrupts)
     if event.author == 'user' and event.content and event.content.parts:
       for part in event.content.parts:
         fr = part.function_response
         if fr and fr.id and fr.id in interrupt_owner:
           owner = interrupt_owner[fr.id]
-          if owner not in results:
-            results[owner] = _ChildScanState()
-          results[owner].resolved_ids.add(fr.id)
+          if owner not in scan_states:
+            scan_states[owner] = _ChildScanState()
+          scan_states[owner].resolved_ids.add(fr.id)
           response_data = _unwrap_response(fr.response)
 
           schema = schemas_by_id.get(fr.id)
@@ -212,9 +213,10 @@ def _scan_node_events(
                   f'Validation failed for interrupt {fr.id}: {e}'
               ) from e
 
-          results[owner].resolved_responses[fr.id] = response_data
+          scan_states[owner].resolved_responses[fr.id] = response_data
       continue
 
+    # 2. Match events under base_path
     event_node_path = event.node_info.path or ''
     event_path_builder = _NodePathBuilder.from_string(event_node_path)
     owner_key = get_owner_key(event_path_builder)
@@ -222,12 +224,14 @@ def _scan_node_events(
     if not owner_key:
       continue
 
-    if owner_key not in results:
+    # 3. Initialize state for the owner if needed
+    if owner_key not in scan_states:
       owner_path_builder = _NodePathBuilder.from_string(owner_key)
-      results[owner_key] = _ChildScanState(run_id=owner_path_builder.run_id)
+      scan_states[owner_key] = _ChildScanState(run_id=owner_path_builder.run_id)
 
-    child = results[owner_key]
+    child = scan_states[owner_key]
 
+    # 4. Determine if event is direct child or delegated output
     is_direct = False
     if group_by_direct_child:
       is_direct = event_path_builder.is_direct_child_of(base_path_builder)
@@ -250,6 +254,7 @@ def _scan_node_events(
       if not group_by_direct_child:
         is_delegated = base_path in event.node_info.output_for
 
+    # 5. Extract output and route
     if is_direct or is_delegated:
       if event.output is not None:
         child.output = event.output
@@ -259,6 +264,7 @@ def _scan_node_events(
       if event.actions and event.actions.route is not None:
         child.route = event.actions.route
 
+    # 6. Extract interrupts and their schemas
     if event.long_running_tool_ids:
       for interrupt_id in event.long_running_tool_ids:
         child.interrupt_ids.add(interrupt_id)
@@ -268,4 +274,4 @@ def _scan_node_events(
         if schema_json:
           schemas_by_id[interrupt_id] = schema_json
 
-  return results
+  return scan_states

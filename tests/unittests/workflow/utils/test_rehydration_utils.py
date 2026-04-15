@@ -21,7 +21,7 @@ from google.adk.events.event import Event
 from google.adk.events.event import NodeInfo
 from google.adk.events.request_input import RequestInput
 from google.adk.workflow.utils._rehydration_utils import _ChildScanState
-from google.adk.workflow.utils._rehydration_utils import _scan_node_events
+from google.adk.workflow.utils._rehydration_utils import _reconstruct_node_states
 from google.adk.workflow.utils._rehydration_utils import _unwrap_response
 from google.adk.workflow.utils._rehydration_utils import _validate_resume_response
 from google.adk.workflow.utils._rehydration_utils import _wrap_response
@@ -157,20 +157,20 @@ class TestValidateResumeResponse:
     )
 
 
-# --- _scan_node_events ---
+# --- _reconstruct_node_states ---
 
 
 class TestScanNodeEvents:
 
   def test_scan_empty_events(self):
-    results = _scan_node_events([], "/wf@1")
+    results = _reconstruct_node_states([], "/wf@1")
     assert results == {}
 
   def test_scan_direct_child_output(self):
     event = Event(
         node_info=NodeInfo(path="/wf@1/node_a@1"), output="node_a output"
     )
-    results = _scan_node_events([event], "/wf@1", group_by_direct_child=True)
+    results = _reconstruct_node_states([event], "/wf@1", group_by_direct_child=True)
 
     assert "node_a@1" in results
     assert results["node_a@1"].output == "node_a output"
@@ -184,7 +184,7 @@ class TestScanNodeEvents:
     )
     event.node_info.message_as_output = True
 
-    results = _scan_node_events([event], "/wf@1", group_by_direct_child=True)
+    results = _reconstruct_node_states([event], "/wf@1", group_by_direct_child=True)
 
     assert "node_a@1" in results
     assert results["node_a@1"].output == content
@@ -194,7 +194,7 @@ class TestScanNodeEvents:
         node_info=NodeInfo(path="/wf@1/node_a@1/sub_node@1"),
         long_running_tool_ids={"interrupt-1"},
     )
-    results = _scan_node_events([event], "/wf@1", group_by_direct_child=True)
+    results = _reconstruct_node_states([event], "/wf@1", group_by_direct_child=True)
 
     assert "node_a@1" in results
     assert "interrupt-1" in results["node_a@1"].interrupt_ids
@@ -220,7 +220,7 @@ class TestScanNodeEvents:
     )
 
     # Act
-    results = _scan_node_events(
+    results = _reconstruct_node_states(
         [event_int, event_fr], "/wf@1", group_by_direct_child=True
     )
 
@@ -236,7 +236,7 @@ class TestScanNodeEvents:
     )
 
     # Act
-    results = _scan_node_events(
+    results = _reconstruct_node_states(
         [event], "/wf@1/node_a@1", group_by_direct_child=False
     )
 
@@ -272,7 +272,7 @@ class TestScanNodeEvents:
     )
 
     # Act
-    results = _scan_node_events(
+    results = _reconstruct_node_states(
         [event_int, event_fr], "/wf@1", group_by_direct_child=True
     )
 
