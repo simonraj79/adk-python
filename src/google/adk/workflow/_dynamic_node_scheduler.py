@@ -31,8 +31,8 @@ from typing import TYPE_CHECKING
 from ._node_state import NodeState
 from ._node_status import NodeStatus
 from ._node_path_builder import _NodePathBuilder
-from .utils._workflow_hitl_utils import _ChildScanState
-from .utils._workflow_hitl_utils import _scan_node_events
+from .utils._rehydration_utils import _ChildScanState
+from .utils._rehydration_utils import _scan_node_events
 
 if TYPE_CHECKING:
   from ..agents.context import Context

@@ -42,9 +42,10 @@ from ._trigger import Trigger
 from ._trigger_processor import _get_next_pending_nodes
 from ._graph_definitions import EdgeItem
 from ._workflow_graph import WorkflowGraph
-from .utils._workflow_hitl_utils import _ChildScanState
-from .utils._workflow_hitl_utils import _scan_node_events
-from .utils._workflow_hitl_utils import unwrap_response as _unwrap_fr_response
+from .utils._rehydration_utils import _ChildScanState
+from .utils._rehydration_utils import _scan_node_events
+from .utils._rehydration_utils import _unwrap_response
+
 
 if TYPE_CHECKING:
   from ..agents.context import Context
@@ -720,7 +721,7 @@ class Workflow(BaseNode):
     # RequestInput behavior.
     # Only forward responses from the current turn (in ctx.resume_inputs).
     child_resume_inputs = {
-        k: _unwrap_fr_response(v)
+        k: _unwrap_response(v)
         for k, v in ctx.resume_inputs.items()
         if k in child.interrupt_ids
     }

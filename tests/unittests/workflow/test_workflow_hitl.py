@@ -41,7 +41,7 @@ from google.adk.workflow.utils._workflow_hitl_utils import create_request_input_
 from google.adk.workflow.utils._workflow_hitl_utils import get_request_input_interrupt_ids
 from google.adk.workflow.utils._workflow_hitl_utils import REQUEST_CREDENTIAL_FUNCTION_CALL_NAME
 from google.adk.workflow.utils._workflow_hitl_utils import REQUEST_INPUT_FUNCTION_CALL_NAME
-from google.adk.workflow.utils._workflow_hitl_utils import wrap_response
+from google.adk.workflow.utils._rehydration_utils import _wrap_response
 from google.genai import types
 from pydantic import BaseModel
 from pydantic import ConfigDict
@@ -1230,7 +1230,7 @@ async def test_wrapped_response_unwrapped_for_node(
       new_message=testing_utils.UserContent(
           create_request_input_response(
               interrupt_id,
-              wrap_response('hello world'),
+              _wrap_response('hello world'),
           )
       ),
       invocation_id=invocation_id,
