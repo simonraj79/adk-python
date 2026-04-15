@@ -275,7 +275,12 @@ class WorkflowGraph(BaseModel):
             self.nodes = list(nodes.values())
 
     def _detect_unconditional_cycles(self, node_names: Set[str]) -> None:
-        """Detects unconditional cycles in the graph."""
+        """Detects unconditional cycles in the graph.
+
+        Edges with route=None are always followed, so a cycle consisting
+        entirely of such edges would loop forever. Conditional edges
+        (with a route) are allowed to form cycles (loop patterns).
+        """
         unconditional_adj: dict[str, list[str]] = {name: [] for name in node_names}
         for edge in self.edges:
             if edge.route is None:
@@ -307,8 +312,8 @@ class WorkflowGraph(BaseModel):
             if name not in done:
                 _dfs(name, [])
 
-    def validate_graph(self) -> None:
-        """Validates the workflow graph."""
+    def _validate_duplicate_node_names(self) -> set[str]:
+        """Checks for duplicate node names."""
         names = [node.name for node in self.nodes]
         duplicates = sorted(name for name, count in Counter(names).items() if count > 1)
 
@@ -320,16 +325,18 @@ class WorkflowGraph(BaseModel):
                 " you pass the exact same object instance. If you intended to have"
                 " distinct nodes, ensure they have unique names."
             )
-        node_names = set(names)
+        return set(names)
 
-        # 1. Existence of START node.
+    def _validate_start_node(self, node_names: set[str]) -> None:
+        """Checks for existence of START node."""
         if START.name not in node_names:
             raise ValueError(
                 "Graph validation failed. START node (name: "
                 f"'{START.name}') not found in graph nodes."
             )
 
-        # 2. Connectivity check — true reachability from START via DFS.
+    def _validate_connectivity(self, node_names: set[str]) -> None:
+        """Checks connectivity and reachability from START."""
         to_nodes: set[str] = set()
         adj: dict[str, set[str]] = {name: set() for name in node_names}
         for edge in self.edges:
@@ -356,7 +363,8 @@ class WorkflowGraph(BaseModel):
                 "Graph validation failed. START node must not have incoming edges."
             )
 
-        # 3. No duplicate edges.
+    def _validate_duplicate_edges(self) -> None:
+        """Checks for duplicate edges."""
         seen_edges = set()
         for edge in self.edges:
             edge_tuple = (edge.from_node.name, edge.to_node.name)
@@ -367,7 +375,9 @@ class WorkflowGraph(BaseModel):
                 )
             seen_edges.add(edge_tuple)
 
-        # 4. DEFAULT_ROUTE must not appear inside a list of routes.
+    def _validate_default_routes(self) -> None:
+        """Checks constraints on DEFAULT_ROUTE."""
+        default_route_edges: dict[str, str] = {}
         for edge in self.edges:
             if isinstance(edge.route, list) and DEFAULT_ROUTE in edge.route:
                 raise ValueError(
@@ -376,10 +386,6 @@ class WorkflowGraph(BaseModel):
                     f"{edge.from_node.name}, to={edge.to_node.name})."
                     " Use a separate edge for DEFAULT_ROUTE."
                 )
-
-        # 5. At most one DEFAULT_ROUTE edge from any node.
-        default_route_edges: dict[str, str] = {}
-        for edge in self.edges:
             if edge.route == DEFAULT_ROUTE:
                 from_node_name = edge.from_node.name
                 if from_node_name in default_route_edges:
@@ -391,13 +397,8 @@ class WorkflowGraph(BaseModel):
                     )
                 default_route_edges[from_node_name] = edge.to_node.name
 
-        # 6. Unconditional cycle detection (DFS).
-        # Edges with route=None are always followed, so a cycle consisting
-        # entirely of such edges would loop forever. Conditional edges
-        # (with a route) are allowed to form cycles (loop patterns).
-        self._detect_unconditional_cycles(node_names)
-
-        # 7. Static schema validation.
+    def _validate_static_schemas(self) -> None:
+        """Validates static schemas on edges."""
         for edge in self.edges:
             from_node = edge.from_node
             to_node = edge.to_node
@@ -410,10 +411,22 @@ class WorkflowGraph(BaseModel):
                         f" input schema {to_node.input_schema}."
                     )
 
-        # Compute terminal nodes (no outgoing edges).
+    def _compute_terminal_nodes(self) -> None:
+        """Computes terminal nodes (no outgoing edges)."""
         from_names = {edge.from_node.name for edge in self.edges}
         self._terminal_node_names = {
             n.name
             for n in self.nodes
             if n.name != START.name and n.name not in from_names
         }
+
+    def validate_graph(self) -> None:
+        """Validates the workflow graph."""
+        node_names = self._validate_duplicate_node_names()
+        self._validate_start_node(node_names)
+        self._validate_connectivity(node_names)
+        self._validate_duplicate_edges()
+        self._validate_default_routes()
+        self._detect_unconditional_cycles(node_names)
+        self._validate_static_schemas()
+        self._compute_terminal_nodes()
