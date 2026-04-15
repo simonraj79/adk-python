@@ -17,14 +17,12 @@
 from typing import AsyncGenerator
 
 from google.adk.agents.base_agent import BaseAgent
-from google.adk.agents.context import Context
 from google.adk.agents.invocation_context import InvocationContext
 from google.adk.agents.sequential_agent import SequentialAgent
 from google.adk.agents.sequential_agent import SequentialAgentState
 from google.adk.apps import ResumabilityConfig
 from google.adk.events.event import Event
 from google.adk.sessions.in_memory_session_service import InMemorySessionService
-from google.adk.sessions.session import Session
 from google.genai import types
 import pytest
 from typing_extensions import override
@@ -203,40 +201,3 @@ async def test_run_live(request: pytest.FixtureRequest):
   assert events[1].author == agent_2.name
   assert events[0].content.parts[0].text == f'Hello, live {agent_1.name}!'
   assert events[1].content.parts[0].text == f'Hello, live {agent_2.name}!'
-
-
-@pytest.mark.asyncio
-async def test_sequential_agent_as_node():
-  """Tests that SequentialAgent runs as a node and uses ctx.run_node."""
-  sub_agent1 = _TestingAgent(name="sub1")
-  sub_agent2 = _TestingAgent(name="sub2")
-  seq_agent = SequentialAgent(name="seq_agent", sub_agents=[sub_agent1, sub_agent2])
-
-  # Setup minimal context
-  session = Session(app_name="test", user_id="user", id="session")
-  session_service = InMemorySessionService()
-  ic = InvocationContext(
-      invocation_id="inv",
-      session=session,
-      session_service=session_service,
-  )
-  ctx = Context(ic, node_path="wf")
-
-  # Mock run_node
-  run_node_calls = []
-  async def mock_run_node(node, node_input=None, **kwargs):
-    run_node_calls.append((node, node_input))
-    return f"output_from_{node.name}"
-
-  ctx.run_node = mock_run_node
-
-  events = []
-  async for event in seq_agent.run(ctx=ctx, node_input="initial_input"):
-    events.append(event)
-
-  assert len(run_node_calls) == 2
-  assert run_node_calls[0] == (sub_agent1, "initial_input")
-  assert run_node_calls[1] == (sub_agent2, None)
-
-  assert len(events) == 1
-  assert events[0].output == "output_from_sub2"

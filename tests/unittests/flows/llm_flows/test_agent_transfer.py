@@ -263,11 +263,23 @@ def test_auto_to_sequential(is_resumable: bool):
     assert testing_utils.simplify_resumable_app_events(runner.run('test1')) == [
         ('root_agent', transfer_call_part('sub_agent_1')),
         ('root_agent', TRANSFER_RESPONSE_PART),
+        (
+            'sub_agent_1',
+            SequentialAgentState(current_sub_agent='sub_agent_1_1').model_dump(
+                mode='json'
+            ),
+        ),
         ('sub_agent_1_1', 'response1'),
         ('sub_agent_1_1', END_OF_AGENT),
+        (
+            'sub_agent_1',
+            SequentialAgentState(current_sub_agent='sub_agent_1_2').model_dump(
+                mode='json'
+            ),
+        ),
         ('sub_agent_1_2', 'response2'),
         ('sub_agent_1_2', END_OF_AGENT),
-        ('sub_agent_1', 'response2'),
+        ('sub_agent_1', END_OF_AGENT),
         ('root_agent', END_OF_AGENT),
     ]
     # Same session, different invocation.
@@ -334,7 +346,7 @@ def test_auto_to_sequential_to_auto(is_resumable: bool):
         ('sub_agent_1_1', 'response1'),
         ('sub_agent_1_2', transfer_call_part('sub_agent_1_2_1')),
         ('sub_agent_1_2', TRANSFER_RESPONSE_PART),
-        ('sub_agent_1_2', 'response2'),
+        ('sub_agent_1_2_1', 'response2'),
         ('sub_agent_1_3', 'response3'),
     ]
 
@@ -347,16 +359,34 @@ def test_auto_to_sequential_to_auto(is_resumable: bool):
     assert testing_utils.simplify_resumable_app_events(runner.run('test1')) == [
         ('root_agent', transfer_call_part('sub_agent_1')),
         ('root_agent', TRANSFER_RESPONSE_PART),
+        (
+            'sub_agent_1',
+            SequentialAgentState(current_sub_agent='sub_agent_1_1').model_dump(
+                mode='json'
+            ),
+        ),
         ('sub_agent_1_1', 'response1'),
         ('sub_agent_1_1', END_OF_AGENT),
+        (
+            'sub_agent_1',
+            SequentialAgentState(current_sub_agent='sub_agent_1_2').model_dump(
+                mode='json'
+            ),
+        ),
         ('sub_agent_1_2', transfer_call_part('sub_agent_1_2_1')),
         ('sub_agent_1_2', TRANSFER_RESPONSE_PART),
-        ('sub_agent_1_2', 'response2'),
+        ('sub_agent_1_2_1', 'response2'),
+        ('sub_agent_1_2_1', END_OF_AGENT),
         ('sub_agent_1_2', END_OF_AGENT),
-        ('sub_agent_1_2', END_OF_AGENT),
+        (
+            'sub_agent_1',
+            SequentialAgentState(current_sub_agent='sub_agent_1_3').model_dump(
+                mode='json'
+            ),
+        ),
         ('sub_agent_1_3', 'response3'),
         ('sub_agent_1_3', END_OF_AGENT),
-        ('sub_agent_1', 'response3'),
+        ('sub_agent_1', END_OF_AGENT),
         ('root_agent', END_OF_AGENT),
     ]
     # Same session, different invocation.

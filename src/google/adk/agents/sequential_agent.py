@@ -30,7 +30,6 @@ from ..utils.context_utils import Aclosing
 from .base_agent import BaseAgent
 from .base_agent import BaseAgentState
 from .base_agent_config import BaseAgentConfig
-from .context import Context
 from .invocation_context import InvocationContext
 from .llm_agent import LlmAgent
 from .sequential_agent_config import SequentialAgentConfig
@@ -51,9 +50,6 @@ class SequentialAgent(BaseAgent):
 
   config_type: ClassVar[Type[BaseAgentConfig]] = SequentialAgentConfig
   """The config type for this agent."""
-
-  rerun_on_resume: bool = True
-  """SequentialAgent needs to rerun on resume to drive its sub-agents."""
 
   @override
   async def _run_async_impl(
@@ -161,23 +157,3 @@ class SequentialAgent(BaseAgent):
       async with Aclosing(sub_agent.run_live(ctx)) as agen:
         async for event in agen:
           yield event
-
-  @override
-  async def _run_impl(
-      self,
-      *,
-      ctx: Context,
-      node_input: Any,
-  ) -> AsyncGenerator[Any, None]:
-    """Runs the sequential agent as a node."""
-    if not self.sub_agents:
-      return
-
-    output = None
-    for i, sub_agent in enumerate(self.sub_agents):
-      # Pass initial input to the first agent, and None to the rest to avoid
-      # duplicate messages in session for agents that rely on session history.
-      inp = node_input if i == 0 else None
-      output = await ctx.run_node(sub_agent, node_input=inp)
-
-    yield output
