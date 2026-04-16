@@ -463,7 +463,7 @@ class Context(ReadonlyContext):
       is_parallel: bool = False,
   ) -> Context:
     """Run a node directly via NodeRunner without an orchestrator."""
-    from ..workflow._node_runner_class import NodeRunner
+    from ..workflow._node_runner import NodeRunner
 
     runner = NodeRunner(
         node=node,

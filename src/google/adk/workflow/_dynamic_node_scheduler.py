@@ -359,7 +359,7 @@ class DynamicNodeScheduler:
           dict(run.state.resume_inputs) if run.state.resume_inputs else None
       )
 
-    from ._node_runner_class import NodeRunner
+    from ._node_runner import NodeRunner
 
     runner = NodeRunner(
         node=node.model_copy(update={'name': name}),

@@ -426,7 +426,7 @@ class Runner:
 
     TODO: Add tracing and plugin lifecycle for the node runtime path.
     """
-    from .workflow._node_runner_class import NodeRunner
+    from .workflow._node_runner import NodeRunner
 
     # 1. Setup
     session = await self._get_or_create_session(

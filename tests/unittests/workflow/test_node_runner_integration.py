@@ -31,7 +31,7 @@ from google.adk.events.event import Event
 from google.adk.sessions.in_memory_session_service import InMemorySessionService
 from google.adk.sessions.session import Session
 from google.adk.workflow._base_node import BaseNode
-from google.adk.workflow._node_runner_class import NodeRunner
+from google.adk.workflow._node_runner import NodeRunner
 from google.genai import types
 import pytest
 

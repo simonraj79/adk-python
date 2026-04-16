@@ -35,7 +35,7 @@ from ._base_node import START
 from ._graph_definitions import RouteValue
 from ._dynamic_node_scheduler import DynamicNodeScheduler
 from ._dynamic_node_scheduler import DynamicNodeState
-from ._node_runner_class import NodeRunner
+from ._node_runner import NodeRunner
 from ._node_state import NodeState
 from ._node_status import NodeStatus
 from ._trigger import Trigger
