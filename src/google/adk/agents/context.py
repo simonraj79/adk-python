@@ -72,12 +72,14 @@ def _derive_node_path(
     node_path: str | None,
     parent_path: str | None,
 ) -> tuple[str, str]:
-  """Derives the node path and run ID."""
-  # The derivation works by using a path builder initialized with the parent path.
-  # It first respects any explicitly provided `node_path`. If derivation is needed,
-  # it establishes the base path, sets a default run ID of '1', and (unless it is a
-  # root context with no name or parent) appends the current node and run ID to the
-  # base path to generate the new hierarchical path.
+  """Derives the node path and run ID.
+
+  The derivation works by using a path builder initialized with the parent path.
+  It first respects any explicitly provided `node_path`. If derivation is needed,
+  it establishes the base path, sets a default run ID of '1', and (unless it is a
+  root context with no name or parent) appends the current node and run ID to the
+  base path to generate the new hierarchical path.
+  """
   if node_path:
     return node_path, run_id
 
