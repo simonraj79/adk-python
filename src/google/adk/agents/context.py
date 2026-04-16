@@ -115,10 +115,14 @@ class Context(ReadonlyContext):
       self,
       invocation_context: InvocationContext,
       *,
+      # Core State & Actions
       event_actions: EventActions | None = None,
+
+      # Tool Execution
       function_call_id: str | None = None,
       tool_confirmation: ToolConfirmation | None = None,
-      # Workflow-specific fields (optional)
+
+      # Workflow Execution
       parent_ctx: Context | None = None,
       node: BaseNode | None = None,
       node_path: str | None = None,
@@ -126,7 +130,6 @@ class Context(ReadonlyContext):
       resume_inputs: dict[str, Any] | None = None,
       attempt_count: int = 1,
       output_for_ancestors: list[str] | None = None,
-      telemetry_context: TelemetryContext | None = None,
   ) -> None:
     """Initializes the Context.
 
@@ -142,11 +145,10 @@ class Context(ReadonlyContext):
       node_path: The path of the current node in the workflow graph. If not
         provided, it will be derived from parent_ctx and node.
       run_id: The execution ID of the current node.
-
       resume_inputs: Inputs for resuming node, keyed by interrupt id.
       attempt_count: Number of times this node has been attempted.
-      output_for_ancestors: Ancestor node paths whose output this node's output also represents.
-      telemetry_context: The telemetry context.
+      output_for_ancestors: Ancestor node paths whose output this node's output
+        also represents.
     """
     super().__init__(invocation_context)
 
@@ -154,6 +156,7 @@ class Context(ReadonlyContext):
     from ..sessions.state import State
     from ..telemetry.node_tracing import TelemetryContext
 
+    # Core State & Actions, Event & Telemetry
     self._event_actions = event_actions or EventActions()
 
     computed_state_schema = None
@@ -167,17 +170,24 @@ class Context(ReadonlyContext):
         delta=self._event_actions.state_delta,
         schema=computed_state_schema or invocation_context._state_schema,
     )
+
+    self._event_author = parent_ctx.event_author if parent_ctx else ''
+
+    self._telemetry_context = TelemetryContext(
+        otel_context=context_api.get_current()
+    )
+
+    # Tool Execution
     self._function_call_id = function_call_id
     self._tool_confirmation = tool_confirmation
 
-    self._node_path, run_id = _derive_node_path(
+    # Workflow Execution
+    self._node_path, self._run_id = _derive_node_path(
         node.name if node else None,
         run_id,
         node_path,
         parent_ctx.node_path if parent_ctx else None,
     )
-    self._run_id = run_id
-
     self._resume_inputs = resume_inputs or {}
     self._workflow_scheduler = _derive_scheduler(parent_ctx)
     self._node_rerun_on_resume = node.rerun_on_resume if node else True
@@ -190,18 +200,7 @@ class Context(ReadonlyContext):
     self._route_value: RouteValue | list[RouteValue] | None = None
     self._route_emitted: bool = False
     self._interrupt_ids: set[str] = set()
-
-    self._event_author = parent_ctx.event_author if parent_ctx else ''
-
-    self._telemetry_context = telemetry_context or TelemetryContext(
-        otel_context=context_api.get_current()
-    )
     self._output_for_ancestors: list[str] = output_for_ancestors or []
-    """Ancestor node paths whose output this node's output also represents.
-
-    E.g. ['wf/parent@1', 'wf/grandparent@1'] means this node's output event
-    is also considered the output for those ancestor paths.
-    """
     self._error: Exception | None = None
     self._error_node_path: str = ''
 
