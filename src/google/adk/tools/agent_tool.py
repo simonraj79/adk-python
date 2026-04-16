@@ -14,6 +14,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 from typing import Optional
 from typing import TYPE_CHECKING
@@ -318,7 +319,10 @@ class AgentToolConfig(BaseToolConfig):
 
 
 class _SingleTurnAgentTool(AgentTool):
-  """A tool that wraps a single-turn agent and runs it via ctx.run_node."""
+  """A tool that wraps a single-turn agent and runs it via ctx.run_node.
+
+  This is only used in mode='chat' LlmAgent.
+  """
 
   @override
   async def run_async(
@@ -342,3 +346,68 @@ class _SingleTurnAgentTool(AgentTool):
       )
     except Exception as e:
       return f'Error running sub-agent: {e}'
+
+
+class _TaskAgentTool(AgentTool):
+  """A tool that wraps a task-mode agent and delegates execution via create_task.
+
+  This is only used in mode='chat' LlmAgent. It starts the sub-agent as a
+  background task and returns control immediately.
+  """
+
+  def __init__(
+      self,
+      agent: BaseAgent,
+      skip_summarization: bool = False,
+      *,
+      include_plugins: bool = True,
+      propagate_grounding_metadata: bool = False,
+  ):
+    super().__init__(
+        agent,
+        skip_summarization,
+        include_plugins=include_plugins,
+        propagate_grounding_metadata=propagate_grounding_metadata,
+    )
+    self.description = agent.description
+
+  @override
+  async def run_async(
+      self,
+      *,
+      args: dict[str, Any],
+      tool_context: ToolContext,
+  ) -> Any:
+    input_schema = _get_input_schema(self.agent)
+    if input_schema:
+      try:
+        node_input = input_schema.model_validate(args)
+      except Exception as e:
+        return f'Error validating input: {e}'
+    else:
+      node_input = args.get('request')
+
+    override_branch = None
+    if tool_context.function_call_id:
+      override_branch = f'task:{tool_context.function_call_id}'
+
+    try:
+      # Record task request in actions
+      if tool_context.actions.request_task is None:
+        tool_context.actions.request_task = {}
+
+      if isinstance(node_input, BaseModel):
+        task_input = node_input.model_dump(mode='json')
+      elif isinstance(node_input, dict):
+        task_input = node_input
+      else:
+        task_input = {'request': node_input}
+
+      tool_context.actions.request_task[tool_context.function_call_id] = {
+          'agentName': self.agent.name,
+          'input': task_input,
+      }
+
+      return f'Task delegated to {self.agent.name}.'
+    except Exception as e:
+      return f'Error starting task: {e}'
