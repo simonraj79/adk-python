@@ -31,8 +31,8 @@ from google.adk.agents.context import Context
 from google.adk.events.event import Event
 from google.adk.runners import Runner
 from google.adk.sessions.in_memory_session_service import InMemorySessionService
-from google.adk.workflow._base_node import BaseNode
-from google.adk.workflow._base_node import START
+from google.adk.workflow import node
+from google.adk.workflow import START
 from google.adk.workflow._errors import DynamicNodeFailError
 from google.adk.workflow._workflow import Workflow
 from google.genai import types
@@ -113,19 +113,16 @@ async def test_dynamic_node_fresh_execution():
   Assert: Parent receives Child's output and yields the combined result.
   """
 
-  class _Child(BaseNode):
+  @node
+  async def child(*, ctx, node_input):
+    yield f'child got: {node_input}'
 
-    async def _run_impl(self, *, ctx, node_input):
-      yield f'child got: {node_input}'
+  @node(rerun_on_resume=True)
+  async def parent(*, ctx, node_input):
+    result = await ctx.run_node(child, node_input='hello')
+    yield f'parent got: {result}'
 
-  class _Parent(BaseNode):
-    rerun_on_resume: bool = True
-
-    async def _run_impl(self, *, ctx, node_input):
-      result = await ctx.run_node(_Child(name='child'), node_input='hello')
-      yield f'parent got: {result}'
-
-  wf = Workflow(name='wf', edges=[(START, _Parent(name='parent'))])
+  wf = Workflow(name='wf', edges=[(START, parent)])
   ss = InMemorySessionService()
   runner = Runner(app_name='test', node=wf, session_service=ss)
   session = await ss.create_session(app_name='test', user_id='u')
@@ -147,26 +144,22 @@ async def test_dynamic_node_with_downstream_static():
     Child's result) as node_input.
   """
 
-  class _Child(BaseNode):
+  @node
+  async def child(*, ctx, node_input):
+    yield f'child: {node_input}'
 
-    async def _run_impl(self, *, ctx, node_input):
-      yield f'child: {node_input}'
+  @node(rerun_on_resume=True)
+  async def parent(*, ctx, node_input):
+    result = await ctx.run_node(child, node_input='forwarded')
+    yield result
 
-  class _Parent(BaseNode):
-    rerun_on_resume: bool = True
-
-    async def _run_impl(self, *, ctx, node_input):
-      result = await ctx.run_node(_Child(name='child'), node_input='forwarded')
-      yield result
-
-  class _After(BaseNode):
-
-    async def _run_impl(self, *, ctx, node_input):
-      yield f'after: {node_input}'
+  @node
+  async def after(*, ctx, node_input):
+    yield f'after: {node_input}'
 
   wf = Workflow(
       name='wf',
-      edges=[(START, _Parent(name='parent'), _After(name='after'))],
+      edges=[(START, parent, after)],
   )
   ss = InMemorySessionService()
   runner = Runner(app_name='test', node=wf, session_service=ss)
@@ -194,34 +187,30 @@ async def test_dynamic_node_interrupted_resume():
     - Parent yields the final combined result.
   """
 
-  class _Approver(BaseNode):
-    rerun_on_resume: bool = True
+  @node(rerun_on_resume=True)
+  async def approver(*, ctx, node_input):
+    if ctx.resume_inputs and 'fc-1' in ctx.resume_inputs:
+      yield f'approved: {ctx.resume_inputs["fc-1"]["answer"]}'
+      return
+    yield Event(
+        content=types.Content(
+            parts=[
+                types.Part(
+                    function_call=types.FunctionCall(
+                        name='approve', args={}, id='fc-1'
+                    )
+                )
+            ]
+        ),
+        long_running_tool_ids={'fc-1'},
+    )
 
-    async def _run_impl(self, *, ctx, node_input):
-      if ctx.resume_inputs and 'fc-1' in ctx.resume_inputs:
-        yield f'approved: {ctx.resume_inputs["fc-1"]["answer"]}'
-        return
-      yield Event(
-          content=types.Content(
-              parts=[
-                  types.Part(
-                      function_call=types.FunctionCall(
-                          name='approve', args={}, id='fc-1'
-                      )
-                  )
-              ]
-          ),
-          long_running_tool_ids={'fc-1'},
-      )
+  @node(rerun_on_resume=True)
+  async def parent(*, ctx, node_input):
+    result = await ctx.run_node(approver)
+    yield f'final: {result}'
 
-  class _Parent(BaseNode):
-    rerun_on_resume: bool = True
-
-    async def _run_impl(self, *, ctx, node_input):
-      result = await ctx.run_node(_Approver(name='approver'))
-      yield f'final: {result}'
-
-  wf = Workflow(name='wf', edges=[(START, _Parent(name='parent'))])
+  wf = Workflow(name='wf', edges=[(START, parent)])
   ss = InMemorySessionService()
   runner = Runner(app_name='test', node=wf, session_service=ss)
   session = await ss.create_session(app_name='test', user_id='u')
@@ -251,44 +240,39 @@ async def test_dynamic_node_completed_dedup_on_resume():
     - Final output combines both results.
   """
 
-  class _Completer(BaseNode):
+  @node
+  async def completer(*, ctx, node_input):
+    yield 'completed_result'
 
-    async def _run_impl(self, *, ctx, node_input):
-      yield 'completed_result'
-
-  class _Interrupter(BaseNode):
-    rerun_on_resume: bool = True
-
-    async def _run_impl(self, *, ctx, node_input):
-      if ctx.resume_inputs and 'fc-1' in ctx.resume_inputs:
-        yield f'resumed: {ctx.resume_inputs["fc-1"]["value"]}'
-        return
-      yield Event(
-          content=types.Content(
-              parts=[
-                  types.Part(
-                      function_call=types.FunctionCall(
-                          name='tool', args={}, id='fc-1'
-                      )
-                  )
-              ]
-          ),
-          long_running_tool_ids={'fc-1'},
-      )
+  @node(rerun_on_resume=True)
+  async def interrupter(*, ctx, node_input):
+    if ctx.resume_inputs and 'fc-1' in ctx.resume_inputs:
+      yield f'resumed: {ctx.resume_inputs["fc-1"]["value"]}'
+      return
+    yield Event(
+        content=types.Content(
+            parts=[
+                types.Part(
+                    function_call=types.FunctionCall(
+                        name='tool', args={}, id='fc-1'
+                    )
+                )
+            ]
+        ),
+        long_running_tool_ids={'fc-1'},
+    )
 
   call_count = [0]
 
-  class _Parent(BaseNode):
-    rerun_on_resume: bool = True
+  @node(rerun_on_resume=True)
+  async def parent(*, ctx, node_input):
+    call_count[0] += 1
 
-    async def _run_impl(self, *, ctx, node_input):
-      call_count[0] += 1
+    r1 = await ctx.run_node(completer)
+    r2 = await ctx.run_node(interrupter)
+    yield f'{r1} + {r2}'
 
-      r1 = await ctx.run_node(_Completer(name='completer'))
-      r2 = await ctx.run_node(_Interrupter(name='interrupter'))
-      yield f'{r1} + {r2}'
-
-  wf = Workflow(name='wf', edges=[(START, _Parent(name='parent'))])
+  wf = Workflow(name='wf', edges=[(START, parent)])
   ss = InMemorySessionService()
   runner = Runner(app_name='test', node=wf, session_service=ss)
   session = await ss.create_session(app_name='test', user_id='u')
@@ -325,36 +309,49 @@ async def test_dynamic_node_sequential_interrupts():
       output.
   """
 
-  class _Interrupter(BaseNode):
-    rerun_on_resume: bool = True
+  @node(rerun_on_resume=True)
+  async def a(*, ctx, node_input):
+    if ctx.resume_inputs and 'fc-a' in ctx.resume_inputs:
+      yield f'a: {ctx.resume_inputs["fc-a"]["value"]}'
+      return
+    yield Event(
+        content=types.Content(
+            parts=[
+                types.Part(
+                    function_call=types.FunctionCall(
+                        name='tool', args={}, id='fc-a'
+                    )
+                )
+            ]
+        ),
+        long_running_tool_ids={'fc-a'},
+    )
 
-    async def _run_impl(self, *, ctx, node_input):
-      fc_id = f'fc-{self.name}'
-      if ctx.resume_inputs and fc_id in ctx.resume_inputs:
-        yield f'{self.name}: {ctx.resume_inputs[fc_id]["value"]}'
-        return
-      yield Event(
-          content=types.Content(
-              parts=[
-                  types.Part(
-                      function_call=types.FunctionCall(
-                          name='tool', args={}, id=fc_id
-                      )
-                  )
-              ]
-          ),
-          long_running_tool_ids={fc_id},
-      )
+  @node(rerun_on_resume=True)
+  async def b(*, ctx, node_input):
+    if ctx.resume_inputs and 'fc-b' in ctx.resume_inputs:
+      yield f'b: {ctx.resume_inputs["fc-b"]["value"]}'
+      return
+    yield Event(
+        content=types.Content(
+            parts=[
+                types.Part(
+                    function_call=types.FunctionCall(
+                        name='tool', args={}, id='fc-b'
+                    )
+                )
+            ]
+        ),
+        long_running_tool_ids={'fc-b'},
+    )
 
-  class _Parent(BaseNode):
-    rerun_on_resume: bool = True
+  @node(rerun_on_resume=True)
+  async def parent(*, ctx, node_input):
+    r1 = await ctx.run_node(a, node_input=node_input)
+    r2 = await ctx.run_node(b, node_input=node_input)
+    yield f'{r1} + {r2}'
 
-    async def _run_impl(self, *, ctx, node_input):
-      r1 = await ctx.run_node(_Interrupter(name='a'), node_input=node_input)
-      r2 = await ctx.run_node(_Interrupter(name='b'), node_input=node_input)
-      yield f'{r1} + {r2}'
-
-  wf = Workflow(name='wf', edges=[(START, _Parent(name='parent'))])
+  wf = Workflow(name='wf', edges=[(START, parent)])
   ss = InMemorySessionService()
   runner = Runner(app_name='test', node=wf, session_service=ss)
   session = await ss.create_session(app_name='test', user_id='u')
@@ -387,34 +384,30 @@ async def test_dynamic_node_run_id_reused_on_resume():
     run_id as the original interrupt event.
   """
 
-  class _Interrupter(BaseNode):
-    rerun_on_resume: bool = True
+  @node(rerun_on_resume=True)
+  async def interrupter(*, ctx, node_input):
+    if ctx.resume_inputs and 'fc-1' in ctx.resume_inputs:
+      yield 'resumed'
+      return
+    yield Event(
+        content=types.Content(
+            parts=[
+                types.Part(
+                    function_call=types.FunctionCall(
+                        name='tool', args={}, id='fc-1'
+                    )
+                )
+            ]
+        ),
+        long_running_tool_ids={'fc-1'},
+    )
 
-    async def _run_impl(self, *, ctx, node_input):
-      if ctx.resume_inputs and 'fc-1' in ctx.resume_inputs:
-        yield 'resumed'
-        return
-      yield Event(
-          content=types.Content(
-              parts=[
-                  types.Part(
-                      function_call=types.FunctionCall(
-                          name='tool', args={}, id='fc-1'
-                      )
-                  )
-              ]
-          ),
-          long_running_tool_ids={'fc-1'},
-      )
+  @node(rerun_on_resume=True)
+  async def parent(*, ctx, node_input):
+    result = await ctx.run_node(interrupter)
+    yield result
 
-  class _Parent(BaseNode):
-    rerun_on_resume: bool = True
-
-    async def _run_impl(self, *, ctx, node_input):
-      result = await ctx.run_node(_Interrupter(name='interrupter'))
-      yield result
-
-  wf = Workflow(name='wf', edges=[(START, _Parent(name='parent'))])
+  wf = Workflow(name='wf', edges=[(START, parent)])
   ss = InMemorySessionService()
   runner = Runner(app_name='test', node=wf, session_service=ss)
   session = await ss.create_session(app_name='test', user_id='u')
@@ -451,36 +444,32 @@ async def test_nested_static_workflow_with_dynamic_interrupt():
     outer_wf completes.
   """
 
-  class _Approver(BaseNode):
-    rerun_on_resume: bool = True
+  @node(rerun_on_resume=True)
+  async def approver(*, ctx, node_input):
+    if ctx.resume_inputs and 'fc-1' in ctx.resume_inputs:
+      yield f'approved: {ctx.resume_inputs["fc-1"]["value"]}'
+      return
+    yield Event(
+        content=types.Content(
+            parts=[
+                types.Part(
+                    function_call=types.FunctionCall(
+                        name='tool', args={}, id='fc-1'
+                    )
+                )
+            ]
+        ),
+        long_running_tool_ids={'fc-1'},
+    )
 
-    async def _run_impl(self, *, ctx, node_input):
-      if ctx.resume_inputs and 'fc-1' in ctx.resume_inputs:
-        yield f'approved: {ctx.resume_inputs["fc-1"]["value"]}'
-        return
-      yield Event(
-          content=types.Content(
-              parts=[
-                  types.Part(
-                      function_call=types.FunctionCall(
-                          name='tool', args={}, id='fc-1'
-                      )
-                  )
-              ]
-          ),
-          long_running_tool_ids={'fc-1'},
-      )
-
-  class _Parent(BaseNode):
-    rerun_on_resume: bool = True
-
-    async def _run_impl(self, *, ctx, node_input):
-      result = await ctx.run_node(_Approver(name='approver'))
-      yield f'parent: {result}'
+  @node(rerun_on_resume=True)
+  async def parent(*, ctx, node_input):
+    result = await ctx.run_node(approver)
+    yield f'parent: {result}'
 
   inner_wf = Workflow(
       name='inner_wf',
-      edges=[(START, _Parent(name='parent'))],
+      edges=[(START, parent)],
   )
   outer_wf = Workflow(
       name='outer_wf',
@@ -511,41 +500,37 @@ async def test_dynamic_workflow_with_static_interrupt():
     receives inner_wf's output.
   """
 
-  class _Interrupter(BaseNode):
-    rerun_on_resume: bool = True
-
-    async def _run_impl(self, *, ctx, node_input):
-      if ctx.resume_inputs and 'fc-1' in ctx.resume_inputs:
-        yield f'done: {ctx.resume_inputs["fc-1"]["value"]}'
-        return
-      yield Event(
-          content=types.Content(
-              parts=[
-                  types.Part(
-                      function_call=types.FunctionCall(
-                          name='tool', args={}, id='fc-1'
-                      )
-                  )
-              ]
-          ),
-          long_running_tool_ids={'fc-1'},
-      )
+  @node(rerun_on_resume=True)
+  async def step(*, ctx, node_input):
+    if ctx.resume_inputs and 'fc-1' in ctx.resume_inputs:
+      yield f'done: {ctx.resume_inputs["fc-1"]["value"]}'
+      return
+    yield Event(
+        content=types.Content(
+            parts=[
+                types.Part(
+                    function_call=types.FunctionCall(
+                        name='tool', args={}, id='fc-1'
+                    )
+                )
+            ]
+        ),
+        long_running_tool_ids={'fc-1'},
+    )
 
   inner_wf = Workflow(
       name='inner_wf',
-      edges=[(START, _Interrupter(name='step'))],
+      edges=[(START, step)],
   )
 
-  class _Parent(BaseNode):
-    rerun_on_resume: bool = True
-
-    async def _run_impl(self, *, ctx, node_input):
-      result = await ctx.run_node(inner_wf)
-      yield f'parent: {result}'
+  @node(rerun_on_resume=True)
+  async def parent(*, ctx, node_input):
+    result = await ctx.run_node(inner_wf)
+    yield f'parent: {result}'
 
   outer_wf = Workflow(
       name='outer_wf',
-      edges=[(START, _Parent(name='parent'))],
+      edges=[(START, parent)],
   )
   ss = InMemorySessionService()
   runner = Runner(app_name='test', node=outer_wf, session_service=ss)
@@ -574,48 +559,42 @@ async def test_dynamic_workflow_with_nested_dynamic_interrupt():
     nesting resolved correctly.
   """
 
-  class _Approver(BaseNode):
-    rerun_on_resume: bool = True
+  @node(rerun_on_resume=True)
+  async def approver(*, ctx, node_input):
+    if ctx.resume_inputs and 'fc-1' in ctx.resume_inputs:
+      yield f'approved: {ctx.resume_inputs["fc-1"]["value"]}'
+      return
+    yield Event(
+        content=types.Content(
+            parts=[
+                types.Part(
+                    function_call=types.FunctionCall(
+                        name='tool', args={}, id='fc-1'
+                    )
+                )
+            ]
+        ),
+        long_running_tool_ids={'fc-1'},
+    )
 
-    async def _run_impl(self, *, ctx, node_input):
-      if ctx.resume_inputs and 'fc-1' in ctx.resume_inputs:
-        yield f'approved: {ctx.resume_inputs["fc-1"]["value"]}'
-        return
-      yield Event(
-          content=types.Content(
-              parts=[
-                  types.Part(
-                      function_call=types.FunctionCall(
-                          name='tool', args={}, id='fc-1'
-                      )
-                  )
-              ]
-          ),
-          long_running_tool_ids={'fc-1'},
-      )
-
-  class _Orchestrator(BaseNode):
-    rerun_on_resume: bool = True
-
-    async def _run_impl(self, *, ctx, node_input):
-      result = await ctx.run_node(_Approver(name='approver'))
-      yield f'orch: {result}'
+  @node(rerun_on_resume=True)
+  async def orch(*, ctx, node_input):
+    result = await ctx.run_node(approver)
+    yield f'orch: {result}'
 
   inner_wf = Workflow(
       name='inner_wf',
-      edges=[(START, _Orchestrator(name='orch'))],
+      edges=[(START, orch)],
   )
 
-  class _Parent(BaseNode):
-    rerun_on_resume: bool = True
-
-    async def _run_impl(self, *, ctx, node_input):
-      result = await ctx.run_node(inner_wf)
-      yield f'parent: {result}'
+  @node(rerun_on_resume=True)
+  async def parent(*, ctx, node_input):
+    result = await ctx.run_node(inner_wf)
+    yield f'parent: {result}'
 
   outer_wf = Workflow(
       name='outer_wf',
-      edges=[(START, _Parent(name='parent'))],
+      edges=[(START, parent)],
   )
   ss = InMemorySessionService()
   runner = Runner(app_name='test', node=outer_wf, session_service=ss)
@@ -652,56 +631,45 @@ async def test_parallel_parents_same_named_dynamic_children():
     - Both parents complete.
   """
 
-  class _Child(BaseNode):
-    rerun_on_resume: bool = True
+  @node(rerun_on_resume=True)
+  async def child(*, ctx, node_input):
+    if ctx.resume_inputs and 'fc-b' in ctx.resume_inputs:
+      yield f'resumed: {ctx.resume_inputs["fc-b"]["value"]}'
+      return
+    if node_input == 'interrupt':
+      yield Event(
+          content=types.Content(
+              parts=[
+                  types.Part(
+                      function_call=types.FunctionCall(
+                          name='tool', args={}, id='fc-b'
+                      )
+                  )
+              ]
+          ),
+          long_running_tool_ids={'fc-b'},
+      )
+    else:
+      yield f'child: {node_input}'
 
-    async def _run_impl(self, *, ctx, node_input):
-      if ctx.resume_inputs and 'fc-b' in ctx.resume_inputs:
-        yield f'resumed: {ctx.resume_inputs["fc-b"]["value"]}'
-        return
-      if node_input == 'interrupt':
-        yield Event(
-            content=types.Content(
-                parts=[
-                    types.Part(
-                        function_call=types.FunctionCall(
-                            name='tool', args={}, id='fc-b'
-                        )
-                    )
-                ]
-            ),
-            long_running_tool_ids={'fc-b'},
-        )
-      else:
-        yield f'child: {node_input}'
+  @node(rerun_on_resume=True)
+  async def parent_a(*, ctx, node_input):
+    result = await ctx.run_node(child, node_input='complete')
+    yield f'a: {result}'
 
-  class _ParentA(BaseNode):
-    rerun_on_resume: bool = True
+  @node(rerun_on_resume=True)
+  async def parent_b(*, ctx, node_input):
+    result = await ctx.run_node(child, node_input='interrupt')
+    yield f'b: {result}'
 
-    async def _run_impl(self, *, ctx, node_input):
-      result = await ctx.run_node(_Child(name='child'), node_input='complete')
-      yield f'a: {result}'
-
-  class _ParentB(BaseNode):
-    rerun_on_resume: bool = True
-
-    async def _run_impl(self, *, ctx, node_input):
-      result = await ctx.run_node(_Child(name='child'), node_input='interrupt')
-      yield f'b: {result}'
-
-  class _Join(BaseNode):
-
-    async def _run_impl(self, *, ctx, node_input):
-      yield f'joined: {node_input}'
-
-  from google.adk.workflow._join_node import JoinNode
+  from google.adk.workflow import JoinNode
 
   join = JoinNode(name='join')
   wf = Workflow(
       name='wf',
       edges=[
-          (START, _ParentA(name='parent_a'), join),
-          (START, _ParentB(name='parent_b'), join),
+          (START, parent_a, join),
+          (START, parent_b, join),
       ],
   )
   ss = InMemorySessionService()
@@ -742,39 +710,35 @@ async def test_dynamic_node_use_as_output_with_interrupt():
     - The parent's own output event is suppressed.
   """
 
-  class _Child(BaseNode):
-    rerun_on_resume: bool = True
+  @node(rerun_on_resume=True)
+  async def child(*, ctx, node_input):
+    if ctx.resume_inputs and 'fc-1' in ctx.resume_inputs:
+      yield f'child: {ctx.resume_inputs["fc-1"]["value"]}'
+      return
+    yield Event(
+        content=types.Content(
+            parts=[
+                types.Part(
+                    function_call=types.FunctionCall(
+                        name='tool', args={}, id='fc-1'
+                    )
+                )
+            ]
+        ),
+        long_running_tool_ids={'fc-1'},
+    )
 
-    async def _run_impl(self, *, ctx, node_input):
-      if ctx.resume_inputs and 'fc-1' in ctx.resume_inputs:
-        yield f'child: {ctx.resume_inputs["fc-1"]["value"]}'
-        return
-      yield Event(
-          content=types.Content(
-              parts=[
-                  types.Part(
-                      function_call=types.FunctionCall(
-                          name='tool', args={}, id='fc-1'
-                      )
-                  )
-              ]
-          ),
-          long_running_tool_ids={'fc-1'},
-      )
-
-  class _Parent(BaseNode):
-    rerun_on_resume: bool = True
-
-    async def _run_impl(self, *, ctx, node_input):
-      result = await ctx.run_node(_Child(name='child'), use_as_output=True)
-      # Set on ctx so orchestrator reads it. _output_delegated
-      # suppresses the output Event (child already emitted it).
-      ctx.output = result
-      yield  # keep as async generator
+  @node(rerun_on_resume=True)
+  async def parent(*, ctx, node_input):
+    result = await ctx.run_node(child, use_as_output=True)
+    # Set on ctx so orchestrator reads it. _output_delegated
+    # suppresses the output Event (child already emitted it).
+    ctx.output = result
+    yield  # keep as async generator
 
   wf = Workflow(
       name='wf',
-      edges=[(START, _Parent(name='parent'))],
+      edges=[(START, parent)],
   )
   ss = InMemorySessionService()
   runner = Runner(app_name='test', node=wf, session_service=ss)
@@ -822,56 +786,50 @@ async def test_dynamic_node_none_output_not_rerun():
   """
   run_count_a = [0]
 
-  class _NodeA(BaseNode):
-    rerun_on_resume: bool = True
+  @node(rerun_on_resume=True)
+  async def a(*, ctx, node_input):
+    run_count_a[0] += 1
+    if ctx.resume_inputs and 'fc-a' in ctx.resume_inputs:
+      # Complete with no output.
+      return
+    yield Event(
+        content=types.Content(
+            parts=[
+                types.Part(
+                    function_call=types.FunctionCall(
+                        name='tool', args={}, id='fc-a'
+                    )
+                )
+            ]
+        ),
+        long_running_tool_ids={'fc-a'},
+    )
 
-    async def _run_impl(self, *, ctx, node_input):
-      run_count_a[0] += 1
-      if ctx.resume_inputs and 'fc-a' in ctx.resume_inputs:
-        # Complete with no output.
-        return
-      yield Event(
-          content=types.Content(
-              parts=[
-                  types.Part(
-                      function_call=types.FunctionCall(
-                          name='tool', args={}, id='fc-a'
-                      )
-                  )
-              ]
-          ),
-          long_running_tool_ids={'fc-a'},
-      )
+  @node(rerun_on_resume=True)
+  async def b(*, ctx, node_input):
+    if ctx.resume_inputs and 'fc-b' in ctx.resume_inputs:
+      yield f'b: {ctx.resume_inputs["fc-b"]["value"]}'
+      return
+    yield Event(
+        content=types.Content(
+            parts=[
+                types.Part(
+                    function_call=types.FunctionCall(
+                        name='tool', args={}, id='fc-b'
+                    )
+                )
+            ]
+        ),
+        long_running_tool_ids={'fc-b'},
+    )
 
-  class _NodeB(BaseNode):
-    rerun_on_resume: bool = True
+  @node(rerun_on_resume=True)
+  async def parent(*, ctx, node_input):
+    await ctx.run_node(a)
+    result = await ctx.run_node(b)
+    yield f'done: {result}'
 
-    async def _run_impl(self, *, ctx, node_input):
-      if ctx.resume_inputs and 'fc-b' in ctx.resume_inputs:
-        yield f'b: {ctx.resume_inputs["fc-b"]["value"]}'
-        return
-      yield Event(
-          content=types.Content(
-              parts=[
-                  types.Part(
-                      function_call=types.FunctionCall(
-                          name='tool', args={}, id='fc-b'
-                      )
-                  )
-              ]
-          ),
-          long_running_tool_ids={'fc-b'},
-      )
-
-  class _Parent(BaseNode):
-    rerun_on_resume: bool = True
-
-    async def _run_impl(self, *, ctx, node_input):
-      await ctx.run_node(_NodeA(name='a'))
-      result = await ctx.run_node(_NodeB(name='b'))
-      yield f'done: {result}'
-
-  wf = Workflow(name='wf', edges=[(START, _Parent(name='parent'))])
+  wf = Workflow(name='wf', edges=[(START, parent)])
   ss = InMemorySessionService()
   runner = Runner(app_name='test', node=wf, session_service=ss)
   session = await ss.create_session(app_name='test', user_id='u')
@@ -912,34 +870,30 @@ async def test_dynamic_node_rerun_on_resume_false():
   """
   run_count = [0]
 
-  class _Child(BaseNode):
-    rerun_on_resume: bool = False
+  @node(rerun_on_resume=False)
+  async def child(*, ctx, node_input):
+    run_count[0] += 1
+    yield Event(
+        content=types.Content(
+            parts=[
+                types.Part(
+                    function_call=types.FunctionCall(
+                        name='tool', args={}, id='fc-1'
+                    )
+                )
+            ]
+        ),
+        long_running_tool_ids={'fc-1'},
+    )
 
-    async def _run_impl(self, *, ctx, node_input):
-      run_count[0] += 1
-      yield Event(
-          content=types.Content(
-              parts=[
-                  types.Part(
-                      function_call=types.FunctionCall(
-                          name='tool', args={}, id='fc-1'
-                      )
-                  )
-              ]
-          ),
-          long_running_tool_ids={'fc-1'},
-      )
-
-  class _Parent(BaseNode):
-    rerun_on_resume: bool = True
-
-    async def _run_impl(self, *, ctx, node_input):
-      result = await ctx.run_node(_Child(name='child'))
-      yield f'parent: {result}'
+  @node(rerun_on_resume=True)
+  async def parent(*, ctx, node_input):
+    result = await ctx.run_node(child)
+    yield f'parent: {result}'
 
   wf = Workflow(
       name='wf',
-      edges=[(START, _Parent(name='parent'))],
+      edges=[(START, parent)],
   )
   ss = InMemorySessionService()
   runner = Runner(app_name='test', node=wf, session_service=ss)
@@ -969,20 +923,21 @@ async def test_dynamic_node_rerun_on_resume_false():
 async def test_dynamic_nodes_get_run_id_one():
   """Each distinct dynamic child gets run_id '1' for its first run."""
 
-  class _Child(BaseNode):
+  @node
+  async def step_a(*, ctx, node_input):
+    yield f'child: {node_input}'
 
-    async def _run_impl(self, *, ctx, node_input):
-      yield f'child: {node_input}'
+  @node
+  async def step_b(*, ctx, node_input):
+    yield f'child: {node_input}'
 
-  class _Parent(BaseNode):
-    rerun_on_resume: bool = True
+  @node(rerun_on_resume=True)
+  async def parent(*, ctx, node_input):
+    a = await ctx.run_node(step_a, node_input='x')
+    b = await ctx.run_node(step_b, node_input='y')
+    yield f'{a},{b}'
 
-    async def _run_impl(self, *, ctx, node_input):
-      a = await ctx.run_node(_Child(name='step_a'), node_input='x')
-      b = await ctx.run_node(_Child(name='step_b'), node_input='y')
-      yield f'{a},{b}'
-
-  wf = Workflow(name='wf', edges=[(START, _Parent(name='parent'))])
+  wf = Workflow(name='wf', edges=[(START, parent)])
   ss = InMemorySessionService()
   runner = Runner(app_name='test', node=wf, session_service=ss)
   session = await ss.create_session(app_name='test', user_id='u')
@@ -1004,34 +959,30 @@ async def test_dynamic_nodes_get_run_id_one():
 async def test_dynamic_node_keeps_run_id_on_resume():
   """A dynamic node that interrupts and resumes keeps the same run_id."""
 
-  class _Approver(BaseNode):
-    rerun_on_resume: bool = True
+  @node(rerun_on_resume=True)
+  async def approver(*, ctx, node_input):
+    if ctx.resume_inputs and 'fc-1' in ctx.resume_inputs:
+      yield f'approved: {ctx.resume_inputs["fc-1"]["answer"]}'
+      return
+    yield Event(
+        content=types.Content(
+            parts=[
+                types.Part(
+                    function_call=types.FunctionCall(
+                        name='approve', args={}, id='fc-1'
+                    )
+                )
+            ]
+        ),
+        long_running_tool_ids={'fc-1'},
+    )
 
-    async def _run_impl(self, *, ctx, node_input):
-      if ctx.resume_inputs and 'fc-1' in ctx.resume_inputs:
-        yield f'approved: {ctx.resume_inputs["fc-1"]["answer"]}'
-        return
-      yield Event(
-          content=types.Content(
-              parts=[
-                  types.Part(
-                      function_call=types.FunctionCall(
-                          name='approve', args={}, id='fc-1'
-                      )
-                  )
-              ]
-          ),
-          long_running_tool_ids={'fc-1'},
-      )
+  @node(rerun_on_resume=True)
+  async def parent(*, ctx, node_input):
+    result = await ctx.run_node(approver)
+    yield f'final: {result}'
 
-  class _Parent(BaseNode):
-    rerun_on_resume: bool = True
-
-    async def _run_impl(self, *, ctx, node_input):
-      result = await ctx.run_node(_Approver(name='approver'))
-      yield f'final: {result}'
-
-  wf = Workflow(name='wf', edges=[(START, _Parent(name='parent'))])
+  wf = Workflow(name='wf', edges=[(START, parent)])
   ss = InMemorySessionService()
   runner = Runner(app_name='test', node=wf, session_service=ss)
   session = await ss.create_session(app_name='test', user_id='u')
@@ -1067,21 +1018,18 @@ async def test_dynamic_node_keeps_run_id_on_resume():
 async def test_custom_run_id_used_on_events():
   """ctx.run_node(run_id=...) sets the custom run_id on child events."""
 
-  class _Child(BaseNode):
+  @node
+  async def child(*, ctx, node_input):
+    yield f'done: {node_input}'
 
-    async def _run_impl(self, *, ctx, node_input):
-      yield f'done: {node_input}'
+  @node(rerun_on_resume=True)
+  async def parent(*, ctx, node_input):
+    result = await ctx.run_node(
+        child, node_input='hello', run_id='my-custom-id'
+    )
+    yield result
 
-  class _Parent(BaseNode):
-    rerun_on_resume: bool = True
-
-    async def _run_impl(self, *, ctx, node_input):
-      result = await ctx.run_node(
-          _Child(name='child'), node_input='hello', run_id='my-custom-id'
-      )
-      yield result
-
-  wf = Workflow(name='wf', edges=[(START, _Parent(name='parent'))])
+  wf = Workflow(name='wf', edges=[(START, parent)])
   ss = InMemorySessionService()
   runner = Runner(app_name='test', node=wf, session_service=ss)
   session = await ss.create_session(app_name='test', user_id='u')
@@ -1108,32 +1056,25 @@ async def test_custom_run_id_used_on_events():
 async def test_dynamic_node_failure_handling():
   """Dynamic node throws exception; parent catches it and continues."""
 
-  class _FailingChild(BaseNode):
+  @node
+  async def failing_node(*, ctx, node_input):
+    if node_input == 'fail':
+      raise ValueError('Intentional Failure')
+    yield f'Processed {node_input}'
 
-    async def _run_impl(self, *, ctx, node_input):
-      if node_input == 'fail':
-        raise ValueError('Intentional Failure')
-      yield f'Processed {node_input}'
+  @node(rerun_on_resume=True)
+  async def parent(*, ctx, node_input):
+    results = []
+    try:
+      await ctx.run_node(failing_node, node_input='fail')
+    except DynamicNodeFailError as e:
+      results.append(f'Caught: {str(e.error)}')
 
-  class _Parent(BaseNode):
-    rerun_on_resume: bool = True
+    res = await ctx.run_node(failing_node, node_input='work')
+    results.append(f'Success: {res}')
+    yield results
 
-    async def _run_impl(self, *, ctx, node_input):
-      results = []
-      try:
-        await ctx.run_node(
-            _FailingChild(name='failing_node'), node_input='fail'
-        )
-      except DynamicNodeFailError as e:
-        results.append(f'Caught: {str(e.error)}')
-
-      res = await ctx.run_node(
-          _FailingChild(name='failing_node'), node_input='work'
-      )
-      results.append(f'Success: {res}')
-      yield results
-
-  wf = Workflow(name='wf', edges=[(START, _Parent(name='parent'))])
+  wf = Workflow(name='wf', edges=[(START, parent)])
   ss = InMemorySessionService()
   runner = Runner(app_name='test', node=wf, session_service=ss)
   session = await ss.create_session(app_name='test', user_id='u')
@@ -1171,35 +1112,30 @@ async def test_workflow_resume_does_not_rerun_completed_llm_agent():
 
   agent = LlmAgent(name='my_agent', model=mock_model)
 
-  class _InterruptNode(BaseNode):
+  @node
+  async def interrupt_node(*, ctx, node_input):
+    event = Event(
+        content=types.Content(
+            parts=[
+                types.Part(
+                    function_call=types.FunctionCall(
+                        name='tool', id='interrupt_1', args={}
+                    )
+                )
+            ]
+        )
+    )
+    event.long_running_tool_ids = {'interrupt_1'}
+    yield event
+    yield f'Resumed with {node_input}'
 
-    async def _run_impl(self, *, ctx, node_input):
-      event = Event(
-          content=types.Content(
-              parts=[
-                  types.Part(
-                      function_call=types.FunctionCall(
-                          name='tool', id='interrupt_1', args={}
-                      )
-                  )
-              ]
-          )
-      )
-      event.long_running_tool_ids = {'interrupt_1'}
-      yield event
-      yield f'Resumed with {node_input}'
+  @node(rerun_on_resume=True)
+  async def parent(*, ctx, node_input):
+    res = await ctx.run_node(agent, node_input='go')
+    res2 = await ctx.run_node(interrupt_node, node_input=res)
+    yield res2
 
-  class _Parent(BaseNode):
-    rerun_on_resume: bool = True
-
-    async def _run_impl(self, *, ctx, node_input):
-      res = await ctx.run_node(agent, node_input='go')
-      res2 = await ctx.run_node(
-          _InterruptNode(name='interrupter'), node_input=res
-      )
-      yield res2
-
-  wf = Workflow(name='wf', edges=[(START, _Parent(name='parent'))])
+  wf = Workflow(name='wf', edges=[(START, parent)])
   ss = InMemorySessionService()
   runner = Runner(app_name='test', node=wf, session_service=ss)
   session = await ss.create_session(app_name='test', user_id='u')
@@ -1243,23 +1179,19 @@ async def test_workflow_resume_does_not_rerun_completed_llm_agent():
 async def test_dynamic_node_parallel_execution():
   """Three parallel ctx.run_node calls via asyncio.gather return ordered results."""
 
-  class _EchoNode(BaseNode):
+  @node
+  async def echo_node(*, ctx, node_input):
+    yield node_input
 
-    async def _run_impl(self, *, ctx, node_input):
-      yield node_input
+  @node(rerun_on_resume=True)
+  async def parent_node(*, ctx, node_input):
+    tasks = [
+        ctx.run_node(echo_node, node_input=f'call_{i}') for i in range(3)
+    ]
+    results = await asyncio.gather(*tasks)
+    yield results
 
-  class _ParentNode(BaseNode):
-    rerun_on_resume: bool = True
-
-    async def _run_impl(self, *, ctx, node_input):
-      tasks = [
-          ctx.run_node(_EchoNode(name='echo_node'), node_input=f'call_{i}')
-          for i in range(3)
-      ]
-      results = await asyncio.gather(*tasks)
-      yield results
-
-  wf = Workflow(name='wf', edges=[(START, _ParentNode(name='parent_node'))])
+  wf = Workflow(name='wf', edges=[(START, parent_node)])
   ss = InMemorySessionService()
   runner = Runner(app_name='test', node=wf, session_service=ss)
   session = await ss.create_session(app_name='test', user_id='u')
