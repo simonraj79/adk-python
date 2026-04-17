@@ -176,7 +176,8 @@ def _get_transfer_targets(agent: LlmAgent) -> list[BaseAgent]:
   result.extend([
       sub_agent
       for sub_agent in agent.sub_agents
-      if agent.mode not in ('single_turn', 'task')
+      if not hasattr(sub_agent, 'mode')
+      or sub_agent.mode not in ('single_turn', 'task')
   ])
 
   if not agent.parent_agent or not hasattr(
@@ -192,6 +193,7 @@ def _get_transfer_targets(agent: LlmAgent) -> list[BaseAgent]:
         peer_agent
         for peer_agent in agent.parent_agent.sub_agents
         if peer_agent.name != agent.name
+        and peer_agent.mode not in ('single_turn', 'task')
     ])
 
   return result
