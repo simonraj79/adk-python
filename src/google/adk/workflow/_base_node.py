@@ -219,13 +219,16 @@ class BaseNode(BaseModel):
         if item is None:
           continue
         if isinstance(item, Event):
+          if item.output is not None:
+            item.output = self._validate_output_data(item.output)
           yield item
         elif isinstance(item, RequestInput):
           from .utils._workflow_hitl_utils import create_request_input_event
 
           yield create_request_input_event(item)
         else:
-          yield Event(output=item)
+          validated = self._validate_output_data(item)
+          yield Event(output=validated)
 
   async def _run_impl(
       self,

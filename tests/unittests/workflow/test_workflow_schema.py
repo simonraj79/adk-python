@@ -715,8 +715,8 @@ async def test_node_returns_content_json_parsed():
     async def _run_impl(
         self, *, ctx: Context, node_input: Any
     ) -> AsyncGenerator[Any, None]:
-      yield self._validate_output_data(
-          types.Content(parts=[types.Part(text='{"name": "Alice", "age": 30}')])
+      yield types.Content(
+          parts=[types.Part(text='{"name": "Alice", "age": 30}')]
       )
 
   node = _MyNode(name='node', output_schema=_MyModel)
@@ -755,7 +755,7 @@ async def test_node_returns_raw_string_not_parsed():
         self, *, ctx: Context, node_input: Any
     ) -> AsyncGenerator[Any, None]:
       # This should fail validation because it's a string, not a dict/model
-      yield self._validate_output_data('{"name": "Alice", "age": 30}')
+      yield '{"name": "Alice", "age": 30}'
 
   node = _MyNode(name='node', output_schema=_MyModel)
   wf = Workflow(name='wf', edges=[(START, node)])
@@ -771,3 +771,72 @@ async def test_node_returns_raw_string_not_parsed():
         user_id='u', session_id=session.id, new_message=msg
     ):
       pass
+
+
+@pytest.mark.asyncio
+async def test_output_schema_enforced_by_runtime_without_manual_validation():
+  """Runtime enforces output_schema even when _run_impl doesn't call _validate_output_data."""
+  from pydantic import ValidationError
+
+  class _MyModel(BaseModel):
+    name: str
+    age: int
+
+  class _NaiveNode(BaseNode):
+    """Node that yields raw data without any manual validation."""
+
+    async def _run_impl(
+        self, *, ctx: Context, node_input: Any
+    ) -> AsyncGenerator[Any, None]:
+      yield {'color': 'red'}  # Does NOT match _MyModel
+
+  node = _NaiveNode(name='node', output_schema=_MyModel)
+  wf = Workflow(name='wf', edges=[(START, node)])
+
+  ss = InMemorySessionService()
+  runner = Runner(app_name='test', node=wf, session_service=ss)
+  session = await ss.create_session(app_name='test', user_id='u')
+
+  msg = types.Content(parts=[types.Part(text='hello')], role='user')
+
+  with pytest.raises(ValidationError):
+    async for _ in runner.run_async(
+        user_id='u', session_id=session.id, new_message=msg
+    ):
+      pass
+
+
+@pytest.mark.asyncio
+async def test_output_schema_enforced_for_valid_raw_yield():
+  """Runtime validates and coerces valid raw yields against output_schema."""
+
+  class _MyModel(BaseModel):
+    name: str
+    age: int
+
+  class _NaiveNode(BaseNode):
+    """Node that yields valid raw data without manual validation."""
+
+    async def _run_impl(
+        self, *, ctx: Context, node_input: Any
+    ) -> AsyncGenerator[Any, None]:
+      yield {'name': 'Alice', 'age': 30}
+
+  node = _NaiveNode(name='node', output_schema=_MyModel)
+  wf = Workflow(name='wf', edges=[(START, node)])
+
+  ss = InMemorySessionService()
+  runner = Runner(app_name='test', node=wf, session_service=ss)
+  session = await ss.create_session(app_name='test', user_id='u')
+
+  msg = types.Content(parts=[types.Part(text='hello')], role='user')
+  events = []
+
+  async for event in runner.run_async(
+      user_id='u', session_id=session.id, new_message=msg
+  ):
+    events.append(event)
+
+  data_events = [e for e in events if isinstance(e, Event) and e.output]
+  assert len(data_events) == 1
+  assert data_events[0].output == {'name': 'Alice', 'age': 30}
