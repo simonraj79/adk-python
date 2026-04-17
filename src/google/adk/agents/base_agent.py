@@ -315,10 +315,6 @@ class BaseAgent(BaseNode):
     async for event in self.run_async(
         parent_context=ctx.get_invocation_context()
     ):
-      # Convert AdkEvent to WorkflowEvent to support node_path
-      if not isinstance(event, Event):
-        event = Event(**event.model_dump())
-
       # Preserve author by setting it in context for NodeRunner
       if event.author:
         ctx.event_author = event.author
