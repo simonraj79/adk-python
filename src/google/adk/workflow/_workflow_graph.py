@@ -174,7 +174,7 @@ def _process_explicit_edge(
 
 
 def _process_chain(
-  chain: tuple, node_map: dict[int, BaseNode], graph_edges: list[Edge]
+  chain: tuple[Any, ...], node_map: dict[int, BaseNode], graph_edges: list[Edge]
 ) -> None:
   """Processes a chain of elements (tuple)."""
   for i in range(len(chain) - 1):
@@ -188,7 +188,7 @@ def _process_chain(
 
 
 def _process_routing_map_edge(
-  from_el: Any, to_el: dict, node_map: dict[int, BaseNode], graph_edges: list[Edge]
+  from_el: Any, to_el: RoutingMap, node_map: dict[int, BaseNode], graph_edges: list[Edge]
 ) -> None:
   """Processes edges where the destination is a routing map."""
   if isinstance(from_el, dict):

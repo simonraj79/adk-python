@@ -23,8 +23,8 @@ from ._node import Node
 from ._node import node
 from ._retry_config import RetryConfig
 from ._workflow import Workflow
+from ._graph_definitions import Edge
 from ._workflow_graph import DEFAULT_ROUTE
-from ._workflow_graph import Edge
 
 __all__ = [
     'BaseNode',

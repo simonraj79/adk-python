@@ -185,7 +185,8 @@ def _reconstruct_node_states(
       if not event_path_builder.is_descendant_of(base_path_builder):
         return None
       child_path = base_path_builder.get_direct_child(event_path_builder)
-      return child_path._segments[-1]
+      segment: str = child_path._segments[-1]
+      return segment
     else:
       if event_path_builder == base_path_builder or event_path_builder.is_descendant_of(
           base_path_builder

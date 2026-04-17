@@ -551,8 +551,11 @@ class Workflow(BaseNode):
     (None, '') if no predecessor is found, or (None, triggered_by)
     if a predecessor is found but has no cached output.
     """
+    graph = self.graph
+    if graph is None:
+      return None, ''
     incoming_edges = [
-        e for e in self.graph.edges if e.to_node.name == child_name
+        e for e in graph.edges if e.to_node.name == child_name
     ]
     if not incoming_edges:
       return None, ''
@@ -635,7 +638,10 @@ class Workflow(BaseNode):
 
       # Skip triggering if all targets are already processed (completed or waiting).
       # This prevents re-triggering loop iterations that were already executed.
-      next_nodes = self.graph.get_next_pending_nodes(
+      graph = self.graph
+      if graph is None:
+        continue
+      next_nodes = graph.get_next_pending_nodes(
           node_name=child_name,
           routes_to_match=route,
       )

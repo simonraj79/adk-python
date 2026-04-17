@@ -17,6 +17,7 @@ from __future__ import annotations
 """Utility functions for building workflow graphs."""
 
 from typing import Any
+from typing import cast
 
 from ...tools.base_tool import BaseTool
 from .._base_node import BaseNode
@@ -87,25 +88,25 @@ def build_node(
     if isinstance(node_like, LlmAgent):
       if rerun_on_resume is None:
         kwargs['rerun_on_resume'] = True
-      node = node_like.clone(update=kwargs)
+      agent = node_like.clone(update=kwargs)
       # Preserve parent agent reference that was lost during clone
-      node.parent_agent = node_like.parent_agent
+      agent.parent_agent = node_like.parent_agent
 
-      if node.mode is None:
-        node.mode = 'single_turn'
+      if agent.mode is None:
+        agent.mode = 'single_turn'
 
-      if node.mode in ('task', 'chat'):
-        node.wait_for_output = True
+      if agent.mode in ('task', 'chat'):
+        agent.wait_for_output = True
 
-      if node.parallel_worker:
+      if agent.parallel_worker:
         from .._parallel_worker import _ParallelWorker
 
-        node.parallel_worker = False
-        return _ParallelWorker(node=node)
-      return node
+        agent.parallel_worker = False
+        return _ParallelWorker(node=agent)
+      return cast(BaseNode, agent)
     else:
       if kwargs:
-        return node_like.model_copy(update=kwargs)
+        return cast(BaseNode, node_like.model_copy(update=kwargs))
       return node_like
   elif isinstance(node_like, BaseTool):
     return _ToolNode(

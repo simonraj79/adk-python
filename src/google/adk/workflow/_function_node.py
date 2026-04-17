@@ -22,6 +22,7 @@ import typing
 from collections.abc import AsyncGenerator
 from collections.abc import Callable
 from typing import Any
+from typing import cast
 from typing import Literal
 from typing import TYPE_CHECKING
 
@@ -444,7 +445,7 @@ class FunctionNode(BaseNode):
   def model_copy(
       self, *, update: dict[str, Any] | None = None, deep: bool = False
   ) -> FunctionNode:
-    copied = super().model_copy(update=update, deep=deep)
+    copied = cast(FunctionNode, super().model_copy(update=update, deep=deep))
     if not update or 'name' not in update:
       return copied
 
