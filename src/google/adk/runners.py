@@ -503,9 +503,7 @@ class Runner:
 
     # 4. Main loop: consume events, persist, yield
     try:
-      async with aclosing(
-          self._consume_event_queue(ic, done_sentinel)
-      ) as agen:
+      async with aclosing(self._consume_event_queue(ic, done_sentinel)) as agen:
         async for event in agen:
           yield event
     finally:

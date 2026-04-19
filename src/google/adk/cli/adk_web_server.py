@@ -338,14 +338,14 @@ class InMemoryExporter(export_lib.SpanExporter):
   ) -> export_lib.SpanExportResult:
     for span in spans:
       trace_id = span.context.trace_id
-      if span.name == "call_llm":
-        attributes = dict(span.attributes)
-        session_id = attributes.get("gcp.vertex.agent.session_id", None)
-        if session_id:
-          if session_id not in self.trace_dict:
-            self.trace_dict[session_id] = [trace_id]
-          else:
-            self.trace_dict[session_id] += [trace_id]
+      attributes = dict(span.attributes)
+      session_id = attributes.get(
+          "gcp.vertex.agent.session_id", None
+      ) or attributes.get("gen_ai.conversation.id", None)
+      if session_id:
+        trace_ids = self.trace_dict.setdefault(session_id, [])
+        if trace_id not in trace_ids:
+          trace_ids.append(trace_id)
     self._spans.extend(spans)
     return export_lib.SpanExportResult.SUCCESS
 
