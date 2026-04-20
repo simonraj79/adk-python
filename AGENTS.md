@@ -2,14 +2,14 @@
 
 This document provides context for AI coding assistants (Antigravity, Gemini CLI, etc.) to understand the ADK Python project and assist with development.
 
-## ADK Knowledge and Style Guide
+## ADK Knowledge, Architecture, and Style
 
-For all matters regarding ADK coding style, architecture patterns, and testing best practices, please use the **`adk-style`** skill.
-You must read `.agents/skills/adk-style/SKILL.md` to get full instructions when you encounter tasks related to:
-- Code style, conventions, and Python idioms
-- Architecture patterns (Workflow, Runner, NodeRunner, BaseNode, etc.)
-- Testing best practices and rules
-- PR reviews and code quality standards
+For all matters regarding ADK development, please use the appropriate skill:
+
+- **`adk-architecture`**: Use this skill whenever you need to understand the architecture, event flow, or state management of the ADK system, or when designing or modifying core components and public APIs.
+  - Read `.agents/skills/adk-architecture/SKILL.md` for full instructions.
+- **`adk-style`**: Use this skill whenever writing code, tests, or reviewing PRs for the ADK project to ensure compliance with styling and coding conventions. Also use it for committing, bug fixing, and testing rules.
+  - Read `.agents/skills/adk-style/SKILL.md` for full instructions.
 
 ## Project Overview
 
@@ -26,11 +26,11 @@ The Agent Development Kit (ADK) is an open-source, code-first Python toolkit for
 - **BaseNode** (ADK 2.0): Contract for all nodes, supporting output streaming and human-in-the-loop steps.
 - **Context** (ADK 2.0): Holds execution state and telemetry context mapped 1:1 to nodes.
 
-For details on how the Runner works and the invocation lifecycle, please refer to the `adk-style` skill and the referenced documentation therein.
+For details on how the Runner works and the invocation lifecycle, please refer to the `adk-architecture` skill and the referenced documentation therein.
 
 ## Project Architecture
 
-For detailed architecture patterns and component descriptions, please refer to the **`adk-style`** skill at `.agents/skills/adk-style/SKILL.md`.
+For detailed architecture patterns, component descriptions, and core interfaces, please refer to the **`adk-architecture`** skill at `.agents/skills/adk-architecture/SKILL.md`.
 
 ## Development Setup
 
