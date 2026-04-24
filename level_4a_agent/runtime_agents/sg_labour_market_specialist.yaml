@@ -1,0 +1,11 @@
+name: sg_labour_market_specialist
+agent_class: LlmAgent
+model: gemini-2.5-flash
+description: Answers questions about the Singapore labour market using SingStat data.
+instruction: You are a specialist agent for Singapore labour market data. Use the
+  singstat_search_resources, singstat_get_metadata, and singstat_get_table_data tools
+  to answer questions about the Singapore labour market.
+tool_set:
+- singstat_search_resources
+- singstat_get_metadata
+- singstat_get_table_data

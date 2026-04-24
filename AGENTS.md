@@ -163,6 +163,436 @@ ContextFilterPlugin(num_invocations_to_keep=3), ], ) ```
 **Rationale:** This structure allows the ADK CLI (`adk web`, `adk run`, etc.) to
 automatically discover and load agents without additional configuration.
 
+### Agent Instruction Best Practices (Required)
+
+**ALWAYS refer to this section and the official ADK samples in
+`contributing/samples/` when writing agent instructions.**
+
+#### Keep Instructions Concise and Action-Oriented
+
+Agent instructions should be **direct, minimal, and focused on constraints** —
+not verbose methodology explanations. The LLM already understands common agentic
+patterns (ReAct, planning, etc.). Your job is to **trigger** the right behaviour
+with the fewest tokens, not to teach the LLM what ReAct is.
+
+**Good instruction pattern:**
+```
+You are a ReAct web research agent. You answer questions by looping:
+REASON what you need → ACT by calling web_search → OBSERVE the results → decide if sufficient.
+Stop as soon as you have a complete answer. Use at most 3 searches.
+```
+
+**Bad instruction pattern (too verbose):**
+```
+You are a ReAct (Reason + Act) Web Research Agent. You answer questions by
+iterating through a Reason → Act → Observe loop until you have enough information.
+
+## Your ReAct Loop
+For every user question, follow this cycle:
+
+### REASON (think before you act)
+Before each search, think step-by-step out loud:
+- What specific information do I still need?
+- What is the best search query to find it?
+...
+(40+ more lines explaining what ReAct is)
+```
+
+#### Let Tool Docstrings Do the Heavy Lifting
+
+Tool docstrings are part of the LLM's context. They should explain **how and
+when** to use each tool. The agent instruction should focus on **workflow,
+constraints, and output format** — not repeat what the tool docstrings already
+say.
+
+#### Insights and Gotchas
+
+1.  **Don't teach the LLM patterns it already knows.** Writing "A ReAct agent
+    loops: Reason → Act → Observe → Reason → Act → ..." wastes tokens. The LLM
+    knows ReAct. Just say "You are a ReAct agent" and specify constraints.
+
+2.  **Avoid meta-commentary in instructions.** Sections like "How You Differ
+    from a ReAct Agent" or "Your Core Capability: Context Engineering" are
+    documentation for humans, not actionable instructions for the LLM. Put these
+    in your README or design docs, not in the prompt.
+
+3.  **Emoji and rich formatting in instructions are noise.** Using ✅ ❌ markers,
+    elaborate markdown headers, and worked examples bloat the system prompt.
+    Use plain text with minimal structure.
+
+4.  **The official ADK `google_search_agent` instruction is one sentence.**
+    This is the gold standard for simplicity. Start simple, add constraints only
+    when the agent misbehaves during testing.
+
+5.  **Verbose prompts waste context window and can confuse the LLM.** Every
+    token in your instruction competes with the user's conversation history
+    and tool outputs for context window space. Shorter instructions leave more
+    room for the actual work.
+
+6.  **Workflow steps should be terse.** Instead of multi-paragraph step
+    descriptions, use a numbered list:
+    `1. PLAN: Decompose into 2-3 sub-questions.`
+    `2. EXECUTE: Search then save_research_note for each.`
+    `3. SYNTHESISE: get_research_notes, cross-reference, write report.`
+
+7.  **Test and iterate.** Start with a minimal instruction, run the agent, and
+    only add constraints when you observe unwanted behaviour. This is more
+    effective than front-loading a verbose prompt.
+
+### ADK-First Development (Required)
+
+**ALWAYS use ADK's built-in features before writing custom code.** The whole
+point of ADK is declarative agent configuration — not reimplementing primitives
+that the framework already provides.
+
+#### ADK Feature Map
+
+Before writing custom code, check if ADK already provides it:
+
+| You need... | ADK provides... | Don't... |
+|---|---|---|
+| Web search | `google_search` built-in tool | Write a custom `web_search()` with `genai.Client` |
+| State between tool calls | `ToolContext.state` | Build your own state store |
+| Conversation history | `SessionService` | Manage chat history manually |
+| Multi-agent orchestration | `sub_agents` parameter | Build a custom router |
+| Serial execution | `SequentialAgent` | Enforce ordering via instructions alone |
+| Parallel execution | `ParallelAgent` | Run agents manually in threads |
+| Iterative loops | `LoopAgent` | Write custom loop logic |
+| Code execution + math + charts | `code_executor=BuiltInCodeExecutor()` | Write `calculator.py` with hand-coded math functions |
+| Agent callable as a typed tool | `AgentTool(agent=X, input_schema=..., output_schema=...)` | Wrap an agent with a custom dispatcher |
+| Passing data between agents | `output_key="foo"` + `{foo?}` injection in the next agent's instruction | Manually copy state with custom helpers |
+| Returning an image/file from an agent | `tool_context.save_artifact(name, Part.from_bytes(...))` | `print()` raw bytes or base64 strings |
+| Loading an agent from YAML at runtime | `config_agent_utils.from_config(path)` (experimental — see gotchas) | Build your own YAML loader |
+| Building a new agent from a generated spec | Either `from_config` (YAML path) or `Agent(**spec)` in Python | Generate + `exec()` Python source |
+| Explicit plan-then-act reasoning | `planner=PlanReActPlanner()` or `BuiltInPlanner(thinking_config=...)` | Embed multi-paragraph "think step by step" blocks in instructions |
+
+#### Use Built-in Tools
+
+ADK provides ready-to-use tools in `google.adk.tools`:
+- `google_search` — Google Search grounding (auto-invoked by Gemini)
+- `BuiltInCodeExecutor` — sandboxed code execution
+
+**Correct pattern (ADK built-in):**
+```python
+from google.adk.agents import Agent
+from google.adk.tools.google_search_tool import google_search
+
+root_agent = Agent(
+    name="my_agent",
+    model="gemini-2.5-flash",
+    instruction="You answer questions using Google Search.",
+    tools=[google_search],
+)
+```
+
+**Anti-pattern (custom reimplementation):**
+```python
+import os
+from google import genai
+from google.genai import types
+
+async def web_search(query: str) -> str:
+    client = genai.Client(api_key=os.environ.get("GOOGLE_API_KEY"))
+    response = await client.aio.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=f"Search for: {query}",
+        config=types.GenerateContentConfig(
+            tools=[types.Tool(google_search=types.GoogleSearch())],
+        ),
+    )
+    return response.text
+```
+
+The built-in tool handles API keys, model routing, and search grounding
+internally. The custom version adds ~20 lines of code that duplicate what ADK
+already does.
+
+#### Mixing Built-in Tools with Custom Tools
+
+By default, ADK built-in tools like `google_search` cannot be combined with
+custom function tools in the same agent. To mix them, use
+`bypass_multi_tools_limit=True`:
+
+```python
+from google.adk.agents import Agent
+from google.adk.tools.google_search_tool import GoogleSearchTool
+from google.adk.tools.tool_context import ToolContext
+
+def save_note(topic: str, finding: str, tool_context: ToolContext) -> str:
+    """Save a finding to the scratchpad."""
+    if "notes" not in tool_context.state:
+        tool_context.state["notes"] = []
+    tool_context.state["notes"] = tool_context.state["notes"] + [
+        {"topic": topic, "finding": finding}
+    ]
+    return "Saved."
+
+root_agent = Agent(
+    name="researcher",
+    model="gemini-2.5-flash",
+    instruction="Search the web and save key findings to your scratchpad.",
+    tools=[
+        GoogleSearchTool(bypass_multi_tools_limit=True),
+        save_note,
+    ],
+)
+```
+
+This converts the built-in search into a function-calling tool that coexists
+with custom tools. See `contributing/samples/built_in_multi_tools/` for the
+official reference.
+
+#### Use Workflow Agents for Flow Control
+
+ADK provides workflow agents that enforce execution patterns architecturally
+— don't rely solely on instructions to control flow:
+
+- **`SequentialAgent`** — runs sub-agents one after another, in order
+- **`ParallelAgent`** — runs sub-agents simultaneously
+- **`LoopAgent`** — runs sub-agents in a loop until a condition is met
+
+These are more reliable than instructing a single agent to "do step 1, then
+step 2, then step 3" because the flow is enforced by the framework, not by
+the LLM's interpretation of the instruction.
+
+#### Insights and Gotchas
+
+1.  **The official `google_search_agent` sample is 15 lines.** If your agent is
+    significantly longer and does the same thing, you're probably reimplementing
+    ADK features. Check `contributing/samples/` for reference implementations.
+
+2.  **Built-in tools handle infrastructure you don't see.** `google_search`
+    handles API key management, model version routing (Gemini 1.x vs 2.x), and
+    search grounding type selection automatically. Custom reimplementations
+    miss these edge cases.
+
+3.  **`bypass_multi_tools_limit=True` unlocks composition.** When you need an
+    agent to use BOTH built-in tools (like `google_search`) AND custom function
+    tools (like a scratchpad), use `GoogleSearchTool(bypass_multi_tools_limit=
+    True)`. Without this flag, Gemini restricts the agent to only one tool type.
+    See `contributing/samples/built_in_multi_tools/` for the pattern.
+
+4.  **`ToolContext.state` is your scratchpad.** For any agent that needs to
+    accumulate context across tool calls, use `ToolContext.state` — don't build
+    custom state management.
+
+5.  **`sub_agents` is your orchestrator.** For multi-agent systems, use the
+    `sub_agents` parameter on `Agent`. ADK handles routing based on agent
+    `description` fields. Don't build custom routing logic.
+
+6.  **Align agent levels with ADK features.** Each level in Google's agent
+    taxonomy maps to specific ADK capabilities:
+    - Level 1 (Connected): `Agent` + built-in tools
+    - Level 2 (Strategic): `Agent` + `GoogleSearchTool(bypass_multi_tools_limit
+      =True)` + custom tools + `ToolContext.state`
+    - Level 3 (Multi-Agent): `Agent` + `sub_agents` (or `AgentTool` when the
+      coordinator needs typed returns to compose)
+    - Level 4 (Self-Evolving): L3 + a creator sub-agent that writes specs into
+      `state.capabilities`, re-hydrated as `AgentTool`s by a
+      `before_agent_callback` each turn
+
+7.  **Custom tool functions are for business logic only.** Write custom tools
+    when you need domain-specific logic (e.g., `save_research_note`). Don't
+    write custom tools that wrap ADK built-ins.
+
+8.  **Check `contributing/samples/` BEFORE writing any agent.** There are 100+
+    official samples covering common patterns. Find the closest one and adapt
+    it — don't start from scratch.
+
+9.  **ADK is declarative — work with it.** The framework's power comes from
+    configuration over code. If you're writing plumbing (API clients, state
+    stores, routers, execution loops), you're fighting the framework. Step back
+    and look for the ADK feature that does it for you.
+
+10. **`AgentTool` returns text only — charts reach the user via the
+    Artifacts sidebar, not inline chat.** When a wrapped agent uses
+    `BuiltInCodeExecutor` + matplotlib to draw a chart,
+    `AgentTool._run_async_impl` merges only `p.text` from the child's last
+    content (`agent_tool.py:272-274`). `inline_data` image parts are
+    **dropped** from the tool result — so `plt.show()` inside the sandbox
+    does not produce an inline chart bubble when the producing agent is
+    wrapped as an AgentTool. The compensating mechanism is Gemini's
+    code_execution auto-save: any matplotlib figure produced in the
+    sandbox is saved with a timestamp name (e.g. `YYYYMMDD_HHMMSS.png`)
+    and flows through `ForwardingArtifactService` (`agent_tool.py:233`)
+    into the parent session's artifact service, where `adk web` renders
+    it in the **Artifacts** sidebar. The parent LLM never sees the chart.
+    Note: `tool_context` is **not** accessible inside the sandbox —
+    `tool_context.save_artifact(...)` in Python code executed by
+    `BuiltInCodeExecutor` fails because the sandbox is server-side in
+    Gemini and has no ADK namespace. To see the chart inline in chat,
+    don't wrap the chart-producing agent as an AgentTool; make it a
+    `sub_agent` so its events (including `inline_data`) land directly on
+    the top-level event stream — but you lose coordinator orchestration
+    after the transfer.
+
+11. **`AgentTool` creates a fresh session per call — don't rely on child
+    history.** Each invocation instantiates a new `InMemorySessionService`
+    (`agent_tool.py:234`). The child sees only the args you pass and a
+    *snapshot* of the parent's state (`agent_tool.py:240-249`). If the child
+    needs context from prior turns, pass it explicitly in args or via shared
+    state — don't assume the child can "remember" a previous conversation.
+    State writes from the child stream back through `state_delta` events, so
+    round-trip communication works.
+
+12. **Don't wrap an agent that has `sub_agents` as an `AgentTool`.** An agent
+    with both a parent routing to it via `AgentTool` *and* its own `sub_agents`
+    has two valid delegation paths; the LLM silently picks one under pressure,
+    usually the wrong one. Rule: wrap **leaf** agents (no `sub_agents`) as
+    tools. Use `sub_agents` OR `AgentTool` on the same agent, not both.
+
+13. **`output_key` + `{state_key?}` injection replaces custom save/get tools.**
+    Setting `output_key="foo"` on an `LlmAgent` auto-writes its final text to
+    `state.foo` (`llm_agent.py:859`). Reading it is `{foo?}` inside the next
+    agent's instruction string — the `?` marks it optional so a missing key
+    renders empty instead of raising. This pair replaces custom
+    `save_finding`/`get_findings` tool pairs for single-value hand-offs. Use
+    `ToolContext.state` + a custom tool only for list accumulation (multi-
+    call append).
+
+14. **`BuiltInCodeExecutor` is stateful and sandboxed — optimize around that.**
+    Variables, DataFrames, and figures persist across turns within a session,
+    so follow-up queries can reuse them. But the sandbox is Gemini-server-
+    side: no `pip install`, no internet from inside, fixed library set (io,
+    math, re, matplotlib, numpy, pandas, scipy). If the agent needs a package
+    outside that set, the code won't run — either pick a different tool or
+    switch to `ContainerCodeExecutor` (local, requires Docker) or a cloud
+    executor. Requires Gemini 2.0+ (`built_in_code_executor.py:46-47`).
+
+15. **Never use `UnsafeLocalCodeExecutor` for LLM-generated code.** It does
+    `exec(code, globals_, globals_)` in a subprocess (`unsafe_local_code_
+    executor.py:45`) with no filesystem, network, or import sandbox. Process
+    isolation ≠ security isolation. For local-safe execution, use
+    `ContainerCodeExecutor`; for zero-setup, use `BuiltInCodeExecutor`.
+
+16. **`config_agent_utils.from_config` is `@experimental`.** The YAML-to-live-
+    agent loader (`config_agent_utils.py:34`) is gated by
+    `FeatureName.AGENT_CONFIG`. For production, consider building `Agent(**spec)`
+    directly in Python from a validated dict — it's non-experimental, produces
+    the same live object, and lets you keep the YAML as an audit-only artifact.
+    The `level_4_agent` takes this route.
+
+17. **Dynamic tools must rebuild from a fixed base, not accumulate.** When you
+    add tools to a coordinator via `before_agent_callback` (e.g., re-hydrating
+    runtime-created specialists from `state.capabilities`), do:
+    `agent.tools = list(FIXED_TOOLS) + hydrate(state)` on every call — don't
+    `agent.tools.append(...)`. Appending leaks tools from one session into the
+    next because the `Agent` object is module-level. Rebuilding ensures session
+    isolation. See `level_4_agent/agent.py:_rehydrate_runtime_tools`.
+
+18. **Runtime agent creation has non-negotiable safety rules.** If a system
+    creates agents at runtime (Level 4+), enforce: (a) a tool allowlist
+    validated before `Agent(...)` construction; (b) never
+    `UnsafeLocalCodeExecutor` — only sandboxed executors; (c) a HITL
+    confirmation gate (prompt-level works; `tool_human_in_the_loop_config/`
+    is the framework-level pattern); (d) name-based dedupe so a looping
+    coordinator can't spawn unbounded copies. All four must be in place
+    before demoing Level 4 behavior publicly.
+
+19. **`AgentTool(skip_summarization=True)` suppresses final text emission
+    — use it only for programmatic consumers.** With this flag, the
+    coordinator's turn ends at the function_response; the tool's output
+    does **not** become a visible text event in `adk web`. The output is
+    still accessible via the Function Responses panel but it never
+    renders as a chat bubble. Symptom: a wrapped agent whose purpose is
+    to produce the final user-facing reply (e.g. a report writer) runs
+    successfully, its output is present in the trace, but the chat
+    stream ends with no assistant bubble. Fix: drop
+    `skip_summarization=True` and add a prompt rule on the coordinator
+    telling it to reproduce the writer's output verbatim. Costs one
+    extra coordinator LLM call per turn; worth it when the user needs to
+    see the text. Keep the flag when the tool's output is consumed
+    programmatically (passed to another tool, parsed by the coordinator,
+    etc.) — the original purpose of the flag is to prevent the
+    coordinator from rewriting already-finalised text.
+
+20. **Inside `BuiltInCodeExecutor`, `plt.show()` vs `plt.savefig(name)`
+    have different UX semantics — pick one per chart, never mix.**
+    `plt.show()` makes Gemini emit the figure as an `inline_data` Part,
+    which renders inline in `adk web`'s chat stream — provided the
+    chart-producing agent is **not** wrapped as an AgentTool (see gotcha
+    #10). `plt.savefig("chart.png")` writes a named artifact visible in
+    the Artifacts sidebar regardless of AgentTool wrapping, via
+    `ForwardingArtifactService`. If you call both, or if a later code
+    cell closes/re-saves the figure, Gemini will save a second blank
+    version of the same artifact — the Artifacts tab then defaults to
+    showing the blank version and the real chart hides under "Version:
+    0". Instruction-level fix: require exactly one chart block ending in
+    `plt.tight_layout(); plt.show()` with no subsequent `plt.*` calls.
+
+21. **Gemini 2.5 Pro + `BuiltInCodeExecutor` + AFC can hang indefinitely
+    on multi-step numeric+chart prompts.** Observed a 6-minute no-return
+    with `AFC is enabled with max remote calls: 10` on a three-step
+    prompt (calculate totals, compute percentages, produce a stacked bar
+    chart). Gemini 2.5 Flash handles the same prompt in ~30s. **Rule:**
+    put code-exec agents on Flash. Reserve Pro for meta-reasoning roles
+    (coordinator routing, agent-creator spec design) where the model
+    isn't going through AFC + code_execution rounds. If you must use Pro
+    on a code-exec leaf, simplify the prompt to single-step and monitor
+    wall time aggressively.
+
+22. **MCP tool invocations appear in ADK traces as `build <tool_name>`
+    spans — use the timing pattern to diagnose cold start vs upstream
+    latency vs rate limiting.** Each `build` span is one
+    `McpTool._run_async_impl()` → `session.call_tool()` round trip
+    (`mcp_tool.py:373, 414`). The first call per session pays the
+    stdio-subprocess cold-start cost (Node.js/`tsx` boot + MCP
+    `initialize` handshake), typically 5–15s. Subsequent calls reuse the
+    `MCPSessionManager`-pooled session and are usually <200ms. Three
+    patterns to read from a trace: (a) first slow, rest fast → healthy
+    cold start; (b) all slow → upstream server is slow (or the MCP
+    server implements a rate limiter — check its source); (c) fast then
+    slow → rate limiter kicked in between calls, not a bug in ADK. If
+    you need to eliminate the cold-start visible delay, pre-warm the
+    toolset from a `before_agent_callback` on the root agent before the
+    user's first turn.
+
+23. **`InMemoryMemoryService` / `InMemorySessionService` / `ForwardingArtifactService`
+    are fresh per `AgentTool` call.** `AgentTool` constructs a new
+    `Runner` with these services on every invocation (`agent_tool.py:230-235`).
+    The child agent's artifact writes DO propagate to the parent session
+    via `ForwardingArtifactService`, but its session events do **not** —
+    the parent sees only the text summary via `p.text` merging (#10
+    above). Consequence: you cannot rely on the child's event history
+    across multiple `AgentTool` invocations in the same parent turn.
+    For multi-turn continuity between a coordinator and a specialist,
+    use `output_key` + `{state_key?}` injection (#13), not the child's
+    session.
+
+24. **A built-in tool (`google_search`, `BuiltInCodeExecutor`) on an
+    agent that is registered as a `sub_agent` will fail with HTTP 400
+    "Built-in tools and Function Calling cannot be combined in the same
+    request."** When ADK transfers control into a `sub_agent`,
+    `agent_transfer.py:44-66` auto-injects a `transfer_to_agent`
+    function tool (so the sub-agent can transfer back to the parent or
+    to peer sub-agents — see `_get_transfer_targets`,
+    `agent_transfer.py:156-174`). At request time the sub-agent
+    therefore has *both* a built-in tool and a function tool in its
+    `tools=[...]` list, which Gemini's API forbids. There is no warning
+    at agent-construction time; the failure surfaces only on the first
+    real LLM call. **Two correct fixes, in order of preference:**
+    (a) **`bypass_multi_tools_limit=True`** on the built-in tool's
+    constructor — for `google_search` use
+    `tools=[GoogleSearchTool(bypass_multi_tools_limit=True)]` instead
+    of the default `google_search` singleton. The flag is documented at
+    `src/google/adk/tools/google_search_tool.py:42-49` and exists for
+    exactly this scenario. Same flag, same reason as `level_2_agent`'s
+    use (which mixes `google_search` with explicit user-defined function
+    tools). (b) **Wrap the built-in-using agent as `AgentTool`, not
+    `sub_agent`.** `AgentTool`-wrapped agents do NOT get the
+    `transfer_to_agent` auto-injection because they are not in the
+    parent's `sub_agents` list; they appear in `tools` instead. This is
+    the pattern `level_4_agent` and `level_4a_agent` use for their
+    `data_fetcher_agent`. Pick (a) when the sub-agent genuinely needs
+    bidirectional transfer affordances (peer/parent transfer); pick
+    (b) when one-way "call and return text" is enough. **Do not** try
+    to silence this by removing the built-in tool and re-implementing
+    its behavior in a custom function tool — that's the anti-pattern
+    flagged in the ADK Feature Map at `:267`. The whole point of
+    `bypass_multi_tools_limit` is that this combination is supported,
+    just gated behind an explicit opt-in.
+
+
 ## Development Setup
 
 ### Requirements
