@@ -155,6 +155,50 @@ adk eval \
     samples_for_testing/hello_world/hello_world_eval_set_001.evalset.json
 ```
 
+## 🎓 Local Agent Level Demos (this fork)
+
+This repo also contains a set of **cumulative demo agents** mapped to
+[Google's agent taxonomy](https://cloud.google.com/discover/what-are-ai-agents)
+(from the *Introduction to Agents* whitepaper). Each level adds **exactly one**
+new capability on top of the previous, so the progression doubles as a
+curriculum for the ADK primitives at each stage.
+
+See [`AGENT_LEVELS.md`](./AGENT_LEVELS.md) for full design notes and flow diagrams.
+
+| Directory | Taxonomy | New capability | Key ADK concept |
+|---|---|---|---|
+| [`my_first_agent/`](./my_first_agent) | L0 — Core Reasoning | LLM + one trivial tool | Tool discovery |
+| [`level_1_agent/`](./level_1_agent) | L1 — Connected | External tools | `google_search` built-in |
+| [`level_2_agent/`](./level_2_agent) | L2 — Strategic | Upfront planning + scratchpad | `ToolContext.state`, `GoogleSearchTool(bypass_multi_tools_limit=True)` |
+| [`level_3_agent/`](./level_3_agent) | L3 — Multi-Agent | Delegation to specialists | `sub_agents`, `output_key`, `{state_key?}` injection |
+| [`level_4_agent/`](./level_4_agent) | L4 — Self-Evolving | Meta-reasoning + runtime agent creation | `AgentTool`, `BuiltInCodeExecutor`, `before_agent_callback` rehydration |
+| [`level_4a_agent/`](./level_4a_agent) | L4 variant — MCP data source | Same as L4, with a domain-specific MCP server in place of `google_search` | `McpToolset` + `StdioConnectionParams` — full design: [`New Agents/LEVEL_4A_MCP_PLAN.md`](./New%20Agents/LEVEL_4A_MCP_PLAN.md) |
+
+### Quickstart
+
+```bash
+# One-time setup
+uv venv --python "python3.11" ".venv"
+source .venv/Scripts/activate        # Windows (bash); use .venv/bin/activate elsewhere
+uv sync --all-extras
+
+# Run any of the demos in the web UI (auto-discovers every level_*_agent dir)
+adk web .
+
+# Or run one interactively in the CLI
+adk run level_2_agent
+```
+
+Each demo expects a `.env` at repo root with `GOOGLE_API_KEY` for Gemini calls.
+`level_4a_agent/` additionally needs **Node 18+** on PATH (it spawns a local
+MCP subprocess via `npx tsx`); a one-time `npm install` inside
+`level_4a_agent/vendor/gahmen-mcp/` primes the dependency cache.
+
+> **Note on scope.** Edits under `src/google/adk/` belong to the upstream ADK
+> framework and follow the contributor flow in [`AGENTS.md`](./AGENTS.md).
+> The level demos live **outside** `src/` and are intended as consumers of the
+> framework, not modifications to it.
+
 ## 🤝 Contributing
 
 We welcome contributions from the community! Whether it's bug reports, feature requests, documentation improvements, or code contributions, please see our

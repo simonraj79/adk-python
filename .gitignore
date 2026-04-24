@@ -99,6 +99,9 @@ Thumbs.db
 *.tmp
 *.temp
 
+# Level 4 agent — runtime-generated specialists (session-scoped, do not commit)
+level_4_agent/runtime_agents/*.yaml
+
 # AI Coding Tools - Project-specific configs
 # Developers should symlink or copy AGENTS.md and add their own overrides locally
 .adk/
@@ -116,3 +119,5 @@ CLAUDE.md
 .rooignore
 .bolt/
 .v0/
+
+level_4a_agent/vendor/
