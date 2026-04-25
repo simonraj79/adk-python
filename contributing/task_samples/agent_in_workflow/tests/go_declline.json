@@ -1,0 +1,317 @@
+{
+  "events": [
+    {
+      "author": "user",
+      "content": {
+        "parts": [
+          {
+            "text": "go"
+          }
+        ],
+        "role": "user"
+      },
+      "id": "e-1",
+      "invocationId": "i-1",
+      "nodeInfo": {
+        "path": ""
+      }
+    },
+    {
+      "author": "task_in_workflow",
+      "content": {
+        "parts": [
+          {
+            "text": "Hello! I'm here to help you with your lab intake. Could I please get your full name and phone number?"
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "id": "e-2",
+      "invocationId": "i-1",
+      "nodeInfo": {
+        "path": "task_in_workflow@1/intake_agent@1"
+      }
+    },
+    {
+      "author": "user",
+      "content": {
+        "parts": [
+          {
+            "text": "Jane Doe"
+          }
+        ],
+        "role": "user"
+      },
+      "id": "e-3",
+      "invocationId": "i-2",
+      "nodeInfo": {
+        "path": ""
+      }
+    },
+    {
+      "author": "task_in_workflow",
+      "content": {
+        "parts": [
+          {
+            "text": "Thanks, Jane. Could I please get your phone number?"
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "id": "e-4",
+      "invocationId": "i-2",
+      "nodeInfo": {
+        "path": "task_in_workflow@1/intake_agent@1"
+      }
+    },
+    {
+      "author": "user",
+      "content": {
+        "parts": [
+          {
+            "text": "555-1234"
+          }
+        ],
+        "role": "user"
+      },
+      "id": "e-5",
+      "invocationId": "i-3",
+      "nodeInfo": {
+        "path": ""
+      }
+    },
+    {
+      "author": "task_in_workflow",
+      "content": {
+        "parts": [
+          {
+            "functionCall": {
+              "args": {
+                "name": "Jane Doe",
+                "phone_number": "555-1234"
+              },
+              "id": "fc-1",
+              "name": "finish_task"
+            }
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "id": "e-6",
+      "invocationId": "i-3",
+      "longRunningToolIds": [],
+      "nodeInfo": {
+        "path": "task_in_workflow@1/intake_agent@1"
+      }
+    },
+    {
+      "actions": {
+        "finishTask": {
+          "output": {
+            "name": "Jane Doe",
+            "phone_number": "555-1234"
+          }
+        }
+      },
+      "author": "task_in_workflow",
+      "content": {
+        "parts": [
+          {
+            "functionResponse": {
+              "id": "fc-1",
+              "name": "finish_task",
+              "response": {
+                "result": "Task completed."
+              }
+            }
+          }
+        ],
+        "role": "user"
+      },
+      "id": "e-7",
+      "invocationId": "i-3",
+      "nodeInfo": {
+        "outputFor": [
+          "task_in_workflow@1/intake_agent@1"
+        ],
+        "path": "task_in_workflow@1/intake_agent@1"
+      },
+      "output": {
+        "name": "Jane Doe",
+        "phone_number": "555-1234"
+      }
+    },
+    {
+      "author": "task_in_workflow",
+      "content": {
+        "parts": [
+          {
+            "text": "Hello Jane Doe! Let me look up your orders."
+          }
+        ],
+        "role": "user"
+      },
+      "id": "e-8",
+      "invocationId": "i-3",
+      "nodeInfo": {
+        "path": "task_in_workflow@1/check_identity@1"
+      }
+    },
+    {
+      "author": "task_in_workflow",
+      "content": {
+        "parts": [
+          {
+            "functionCall": {
+              "args": {},
+              "id": "fc-2",
+              "name": "find_orders"
+            }
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "id": "e-9",
+      "invocationId": "i-3",
+      "longRunningToolIds": [],
+      "nodeInfo": {
+        "path": "task_in_workflow@1/generate_instruction@1"
+      }
+    },
+    {
+      "author": "task_in_workflow",
+      "content": {
+        "parts": [
+          {
+            "functionCall": {
+              "args": {
+                "originalFunctionCall": {
+                  "args": {},
+                  "id": "fc-2",
+                  "name": "find_orders"
+                },
+                "toolConfirmation": {
+                  "confirmed": false,
+                  "hint": "Please approve or reject the tool call find_orders() by responding with a FunctionResponse with an expected ToolConfirmation payload."
+                }
+              },
+              "id": "fc-3",
+              "name": "adk_request_confirmation"
+            }
+          }
+        ],
+        "role": "user"
+      },
+      "id": "e-10",
+      "invocationId": "i-3",
+      "longRunningToolIds": [
+        "fc-3"
+      ],
+      "nodeInfo": {
+        "path": "task_in_workflow@1/generate_instruction@1"
+      }
+    },
+    {
+      "actions": {
+        "requestedToolConfirmations": {
+          "fc-2": {
+            "confirmed": false,
+            "hint": "Please approve or reject the tool call find_orders() by responding with a FunctionResponse with an expected ToolConfirmation payload."
+          }
+        },
+        "skipSummarization": true
+      },
+      "author": "task_in_workflow",
+      "content": {
+        "parts": [
+          {
+            "functionResponse": {
+              "id": "fc-2",
+              "name": "find_orders",
+              "response": {
+                "error": "This tool call requires confirmation, please approve or reject."
+              }
+            }
+          }
+        ],
+        "role": "user"
+      },
+      "id": "e-11",
+      "invocationId": "i-3",
+      "nodeInfo": {
+        "path": "task_in_workflow@1/generate_instruction@1"
+      }
+    },
+    {
+      "author": "user",
+      "content": {
+        "parts": [
+          {
+            "functionResponse": {
+              "id": "fc-3",
+              "name": "adk_request_confirmation",
+              "response": {
+                "confirmed": false,
+                "payload": {}
+              }
+            }
+          }
+        ],
+        "role": "user"
+      },
+      "id": "e-12",
+      "invocationId": "i-3",
+      "nodeInfo": {
+        "path": ""
+      }
+    },
+    {
+      "author": "task_in_workflow",
+      "content": {
+        "parts": [
+          {
+            "functionResponse": {
+              "id": "fc-2",
+              "name": "find_orders",
+              "response": {
+                "error": "This tool call is rejected."
+              }
+            }
+          }
+        ],
+        "role": "user"
+      },
+      "id": "e-13",
+      "invocationId": "i-3",
+      "nodeInfo": {
+        "path": "task_in_workflow@1/generate_instruction@1"
+      }
+    },
+    {
+      "author": "task_in_workflow",
+      "content": {
+        "parts": [
+          {
+            "text": "I'm sorry, but I was unable to retrieve the patient's orders. The tool call was rejected."
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "id": "e-14",
+      "invocationId": "i-3",
+      "nodeInfo": {
+        "messageAsOutput": true,
+        "outputFor": [
+          "task_in_workflow@1/generate_instruction@1",
+          "task_in_workflow@1"
+        ],
+        "path": "task_in_workflow@1/generate_instruction@1"
+      }
+    }
+  ]
+}

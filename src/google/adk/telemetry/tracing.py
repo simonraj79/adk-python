@@ -170,7 +170,6 @@ def trace_tool_call(
     args: dict[str, Any],
     function_response_event: Event | None,
     error: Exception | None = None,
-    span: Span | None = None,
 ):
   """Traces tool call.
 
@@ -179,9 +178,8 @@ def trace_tool_call(
     args: The arguments to the tool call.
     function_response_event: The event with the function response details.
     error: The exception raised during tool execution, if any.
-    span: The span to record attributes on. If None, uses current span.
   """
-  span = span or trace.get_current_span()
+  span = trace.get_current_span()
 
   span.set_attribute(GEN_AI_OPERATION_NAME, 'execute_tool')
 
@@ -642,12 +640,9 @@ def _is_gemini_agent(agent: BaseAgent) -> bool:
   if not isinstance(agent, LlmAgent):
     return False
 
-  if isinstance(agent.model, str):
-    return is_gemini_model(agent.model)
-
-  from ..models.google_llm import Gemini
-
-  return isinstance(agent.model, Gemini)
+  model = agent.model if agent.model != '' else agent._default_model
+  model_name = model if isinstance(model, str) else model.model
+  return is_gemini_model(model_name)
 
 
 def _set_common_generate_content_attributes(

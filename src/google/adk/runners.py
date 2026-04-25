@@ -15,6 +15,7 @@
 from __future__ import annotations
 
 import asyncio
+from contextlib import aclosing
 import inspect
 import logging
 from pathlib import Path
@@ -48,7 +49,7 @@ from .code_executors.built_in_code_executor import BuiltInCodeExecutor
 from .errors.session_not_found_error import SessionNotFoundError
 from .events.event import Event
 from .events.event import EventActions
-from .flows.llm_flows import contents
+from .flows.llm_flows.contents import _is_live_model_audio_event_with_inline_data
 from .flows.llm_flows.functions import find_event_by_function_call_id
 from .flows.llm_flows.functions import find_matching_function_call
 from .memory.base_memory_service import BaseMemoryService
@@ -63,7 +64,6 @@ from .sessions.session import Session
 from .telemetry.tracing import tracer
 from .tools.base_toolset import BaseToolset
 from .utils._debug_output import print_event
-from .utils.context_utils import Aclosing
 
 logger = logging.getLogger('google_adk.' + __name__)
 
@@ -131,8 +131,8 @@ class Runner:
 
   app_name: str
   """The app name of the runner."""
-  agent: BaseAgent
-  """The root agent to run."""
+  agent: Optional[BaseAgent | 'BaseNode'] = None
+  """The root agent or node to run."""
   artifact_service: Optional[BaseArtifactService] = None
   """The artifact service for the runner."""
   plugin_manager: PluginManager
@@ -154,6 +154,7 @@ class Runner:
       app: Optional[App] = None,
       app_name: Optional[str] = None,
       agent: Optional[BaseAgent] = None,
+      node: Any = None,
       plugins: Optional[List[BasePlugin]] = None,
       artifact_service: Optional[BaseArtifactService] = None,
       session_service: BaseSessionService,
@@ -164,22 +165,18 @@ class Runner:
   ):
     """Initializes the Runner.
 
-    Developers should provide either an `app` instance or both `app_name` and
-    `agent`. When `app` is provided, `app_name` can optionally override the
-    app's name (useful for deployment scenarios like Agent Engine where the
-    resource name differs from the app's identifier). However, `agent` should
-    not be provided when `app` is provided. Providing `app` is the recommended
-    way to create a runner.
+    Exactly one of `app`, `agent`, or `node` must be provided. When `agent`
+    or `node` is provided, the Runner wraps it into an `App` internally.
+    Providing `app` is the recommended way to create a runner. When `app` is
+    provided, `app_name` can optionally override the app's name.
 
     Args:
-        app: An optional `App` instance. If provided, `agent` should not be
-          specified. `app_name` can optionally override `app.name`.
-        app_name: The application name of the runner. Required if `app` is not
-          provided. If `app` is provided, this can optionally override `app.name`
-          (e.g., for deployment scenarios where a resource name differs from the
-          app identifier).
-        agent: The root agent to run. Required if `app` is not provided. Should
-          not be provided when `app` is provided.
+        app: An `App` instance. Mutually exclusive with `agent` and `node`.
+        app_name: The application name. Required when `agent` is provided.
+          Optional override for `app.name` when `app` is provided. Defaults
+          to `node.name` when only `node` is provided.
+        agent: The root agent to run. Mutually exclusive with `app` and `node`.
+        node: The root node to run. Mutually exclusive with `app` and `agent`.
         plugins: Deprecated. A list of plugins for the runner. Please use the
           `app` argument to provide plugins instead.
         artifact_service: The artifact service for the runner.
@@ -192,34 +189,92 @@ class Runner:
           ValueError with a helpful message.
 
     Raises:
-        ValueError: If `app` is provided along with `agent` or `plugins`, or if
-          `app` is not provided but either `app_name` or `agent` is missing.
+        ValueError: If more than one of `app`, `agent`, or `node` is provided,
+          or if none is provided, or if `agent` is provided without `app_name`.
     """
+    app = self._resolve_app(app, app_name, agent, node, plugins)
+
+    # Extract from App — single code path.
     self.app = app
-    (
-        self.app_name,
-        self.agent,
-        self.context_cache_config,
-        self.resumability_config,
-        plugins,
-    ) = self._validate_runner_params(app, app_name, agent, plugins)
+    self.app_name = app_name or app.name
+    self.agent = app.root_agent
+    self.context_cache_config = app.context_cache_config
+    self.resumability_config = app.resumability_config
     self.artifact_service = artifact_service
     self.session_service = session_service
     self.memory_service = memory_service
     self.credential_service = credential_service
     self.plugin_manager = PluginManager(
-        plugins=plugins, close_timeout=plugin_close_timeout
+        plugins=app.plugins, close_timeout=plugin_close_timeout
     )
     self.auto_create_session = auto_create_session
-    (
-        self._agent_origin_app_name,
-        self._agent_origin_dir,
-    ) = self._infer_agent_origin(self.agent)
+    if self.agent is not None:
+      (
+          self._agent_origin_app_name,
+          self._agent_origin_dir,
+      ) = self._infer_agent_origin(self.agent)
+    else:
+      self._agent_origin_app_name = None
+      self._agent_origin_dir = None
     self._app_name_alignment_hint: Optional[str] = None
     self._enforce_app_name_alignment()
 
+  @staticmethod
+  def _resolve_app(
+      app: Optional[App],
+      app_name: Optional[str],
+      agent: Optional[BaseAgent],
+      node: Any,
+      plugins: Optional[List[BasePlugin]],
+  ) -> App:
+    """Validates inputs and normalizes to an App instance.
+
+    Exactly one of ``app``, ``agent``, or ``node`` must be provided.
+    When ``agent`` or ``node`` is given, it is wrapped in a new ``App``.
+
+    Returns:
+      The resolved ``App`` instance.
+
+    Raises:
+      ValueError: If the combination of arguments is invalid.
+    """
+    # Validate mutual exclusivity.
+    provided = sum(x is not None for x in (app, agent, node))
+    if provided > 1:
+      raise ValueError('Only one of app, agent, or node may be provided.')
+    if provided == 0:
+      raise ValueError('One of app, agent, or node must be provided.')
+
+    # Handle deprecated plugins argument.
+    if plugins is not None:
+      if app is not None:
+        raise ValueError(
+            'When app is provided, plugins should not be provided and should'
+            ' be provided in the app instead.'
+        )
+      warnings.warn(
+          'The `plugins` argument is deprecated. Please use the `app` argument'
+          ' to provide plugins instead.',
+          DeprecationWarning,
+      )
+
+    # Normalize to App — wrap bare agent or node.
+    if agent is not None:
+      if not app_name:
+        raise ValueError(
+            'app_name is required when agent is provided without app.'
+        )
+      return App(name=app_name, root_agent=agent, plugins=plugins or [])
+    if node is not None:
+      return App(
+          name=app_name or node.name,
+          root_agent=node,
+          plugins=plugins or [],
+      )
+    return app
+
+  @staticmethod
   def _validate_runner_params(
-      self,
       app: Optional[App],
       app_name: Optional[str],
       agent: Optional[BaseAgent],
@@ -231,53 +286,15 @@ class Runner:
       Optional[ResumabilityConfig],
       Optional[List[BasePlugin]],
   ]:
-    """Validates and extracts runner parameters.
-
-    Args:
-        app: An optional `App` instance.
-        app_name: The application name of the runner. Can override app.name when
-          app is provided.
-        agent: The root agent to run.
-        plugins: A list of plugins for the runner.
-
-    Returns:
-        A tuple containing (app_name, agent, context_cache_config,
-        resumability_config, plugins).
-
-    Raises:
-        ValueError: If parameters are invalid.
-    """
-    if plugins is not None:
-      warnings.warn(
-          'The `plugins` argument is deprecated. Please use the `app` argument'
-          ' to provide plugins instead.',
-          DeprecationWarning,
-      )
-
-    if app:
-      if agent:
-        raise ValueError('When app is provided, agent should not be provided.')
-      if plugins:
-        raise ValueError(
-            'When app is provided, plugins should not be provided and should be'
-            ' provided in the app instead.'
-        )
-      # Allow app_name to override app.name (useful for deployment scenarios
-      # like Agent Engine where resource names differ from app identifiers)
-      app_name = app_name or app.name
-      agent = app.root_agent
-      plugins = app.plugins
-      context_cache_config = app.context_cache_config
-      resumability_config = app.resumability_config
-    elif not app_name or not agent:
-      raise ValueError(
-          'Either app or both app_name and agent must be provided.'
-      )
-    else:
-      context_cache_config = None
-      resumability_config = None
-
-    return app_name, agent, context_cache_config, resumability_config, plugins
+    """Deprecated: use _resolve_app instead."""
+    resolved = Runner._resolve_app(app, app_name, agent, None, plugins)
+    return (
+        app_name or resolved.name,
+        resolved.root_agent,
+        resolved.context_cache_config,
+        resolved.resumability_config,
+        plugins if app is None else resolved.plugins,
+    )
 
   def _infer_agent_origin(
       self, agent: BaseAgent
@@ -393,6 +410,254 @@ class Runner:
         'auto_create_session=True when constructing the runner.'
     )
 
+  async def _run_node_async(
+      self,
+      *,
+      user_id: str,
+      session_id: str,
+      new_message: Optional[types.Content] = None,
+      run_config: Optional[RunConfig] = None,
+      yield_user_message: bool = False,
+      node: Optional['BaseNode'] = None,
+  ) -> AsyncGenerator[Event, None]:
+    """Run a BaseNode through NodeRunner.
+
+    Events flow through ic.event_queue via NodeRunner.
+
+    TODO: Add tracing and plugin lifecycle for the node runtime path.
+    """
+    from .workflow._node_runner import NodeRunner
+
+    # 1. Setup
+    session = await self._get_or_create_session(
+        user_id=user_id, session_id=session_id
+    )
+
+    # Validate and resolve resume inputs
+    resume_inputs = self._extract_resume_inputs(new_message)
+    self._validate_new_message(new_message, resume_inputs)
+
+    invocation_id = (
+        self._resolve_invocation_id_from_fr(session, new_message)
+        if new_message
+        else None
+    )
+
+    ic = self._new_invocation_context(
+        session,
+        new_message=new_message,
+        run_config=run_config or RunConfig(),
+        invocation_id=invocation_id,
+    )
+    ic.event_queue = asyncio.Queue()
+
+    # 2. Append user message to session and resolve node_input
+    if resume_inputs:
+      # Resume: find original user message, use as node_input
+      node_input = self._find_original_user_content(
+          ic.session, ic.invocation_id
+      )
+    else:
+      # Fresh: use user message as node_input
+      node_input = new_message
+
+    # Run callbacks on user message
+    if new_message:
+      modified_user_message = (
+          await ic.plugin_manager.run_on_user_message_callback(
+              invocation_context=ic, user_message=new_message
+          )
+      )
+      if modified_user_message is not None:
+        new_message = modified_user_message
+        ic.user_content = new_message
+
+    # Append user message to session for history
+    if new_message:
+      user_event = await self._append_user_event(ic, new_message)
+      if yield_user_message and user_event:
+        yield user_event
+
+    # Run before_run callbacks
+    await ic.plugin_manager.run_before_run_callback(invocation_context=ic)
+
+    # 3. Start root node in background
+    from .agents.context import Context
+
+    root_ctx = Context(ic)
+    root_node_runner = NodeRunner(node=node or self.agent, parent_ctx=root_ctx)
+    done_sentinel = object()
+
+    async def _drive_root_node():
+      try:
+        ctx = await root_node_runner.run(
+            node_input=node_input,
+            resume_inputs=resume_inputs,
+        )
+        if ctx.error:
+          raise ctx.error
+      finally:
+        await ic.event_queue.put((done_sentinel, None))
+
+    task = asyncio.create_task(_drive_root_node())
+
+    # 4. Main loop: consume events, persist, yield
+    try:
+      async with aclosing(self._consume_event_queue(ic, done_sentinel)) as agen:
+        async for event in agen:
+          yield event
+    finally:
+      await self._cleanup_root_task(task, self.agent.name)
+
+  def _extract_resume_inputs(
+      self, message: Optional[types.Content]
+  ) -> dict[str, Any] | None:
+    """Extract function response payloads from a message as resume_inputs."""
+    if not message or not message.parts:
+      return None
+    inputs = {}
+    for part in message.parts:
+      if part.function_response and part.function_response.id:
+        inputs[part.function_response.id] = part.function_response.response
+    return inputs or None
+
+  def _validate_new_message(
+      self,
+      message: Optional[types.Content],
+      resume_inputs: dict[str, Any] | None,
+  ) -> None:
+    """Validate that new_message doesn't mix FR and text parts."""
+    if not resume_inputs or not message or not message.parts:
+      return
+    if any(p.text for p in message.parts):
+      raise ValueError(
+          'Message cannot contain both function responses and text.'
+          ' Function responses resume an existing invocation while'
+          ' text starts a new one.'
+      )
+
+  def _resolve_invocation_id_from_fr(
+      self,
+      session: Session,
+      new_message: types.Content,
+  ) -> Optional[str]:
+    """Infer invocation_id by matching function responses to FC events.
+
+    Raises ValueError if responses resolve to different invocations.
+    """
+    fr_ids = {
+        p.function_response.id
+        for p in new_message.parts or []
+        if p.function_response and p.function_response.id
+    }
+    if not fr_ids:
+      return None
+
+    # Find invocation_id for each FR by matching its FC in session
+    invocation_ids = set()
+    for event in reversed(session.events):
+      for fc in event.get_function_calls():
+        if fc.id in fr_ids:
+          invocation_ids.add(event.invocation_id)
+          fr_ids.discard(fc.id)
+      if not fr_ids:
+        break
+
+    if fr_ids:
+      raise ValueError(
+          f'Function call not found for function response ids: {fr_ids}.'
+      )
+    if len(invocation_ids) > 1:
+      raise ValueError(
+          'Function responses resolve to multiple'
+          f' invocations: {invocation_ids}.'
+      )
+    return invocation_ids.pop()
+
+  async def _append_user_event(
+      self, ic: InvocationContext, content: types.Content
+  ) -> Event:
+    """Append a user message event to the session and return it."""
+    event = Event(
+        invocation_id=ic.invocation_id,
+        author='user',
+        content=content,
+    )
+    return await self.session_service.append_event(
+        session=ic.session, event=event
+    )
+
+  def _find_original_user_content(
+      self, session: Session, invocation_id: str
+  ) -> types.Content | None:
+    """Find the original user text message for a given invocation_id."""
+    for event in session.events:
+      if (
+          event.invocation_id == invocation_id
+          and event.author == 'user'
+          and event.content
+          and event.content.parts
+          and any(p.text for p in event.content.parts)
+      ):
+        return event.content
+    return None
+
+  async def _consume_event_queue(
+      self, ic: InvocationContext, done_sentinel: object
+  ) -> AsyncGenerator[Event, None]:
+    """Consume events from ic.event_queue until done_sentinel."""
+    while True:
+      event_or_done, processed_signal = await ic.event_queue.get()
+      if event_or_done is done_sentinel:
+        break
+      event: Event = event_or_done
+      if not event.partial:
+        if event.node_info.message_as_output and event.content is not None:
+          event = event.model_copy()
+          event.output = None
+
+      _apply_run_config_custom_metadata(event, ic.run_config)
+      modified_event = await ic.plugin_manager.run_on_event_callback(
+          invocation_context=ic, event=event
+      )
+      output_event = self._get_output_event(
+          original_event=event,
+          modified_event=modified_event,
+          run_config=ic.run_config,
+      )
+
+      if not event.partial:
+        await self.session_service.append_event(
+            session=ic.session, event=output_event
+        )
+      yield output_event
+
+      if isinstance(processed_signal, asyncio.Event):
+        processed_signal.set()
+
+  async def _cleanup_root_task(
+      self, task: asyncio.Task, node_name: str
+  ) -> None:
+    """Cancel the root task if still running, then await it.
+
+    The task may still be running if the caller stopped iterating
+    early (e.g., break in async for). In that case we must cancel
+    to avoid a leaked task.
+    """
+    if not task.done():
+      logger.debug(
+          'Cancelling root node %s (caller stopped early).',
+          node_name,
+      )
+      task.cancel()
+    try:
+      await task
+    except asyncio.CancelledError:
+      logger.error('Root node %s was cancelled.', node_name)
+    except Exception:
+      logger.error('Root node %s failed.', node_name, exc_info=True)
+      raise
+
   async def _get_or_create_session(
       self,
       *,
@@ -468,7 +733,7 @@ class Runner:
 
     async def _invoke_run_async():
       try:
-        async with Aclosing(
+        async with aclosing(
             self.run_async(
                 user_id=user_id,
                 session_id=session_id,
@@ -509,6 +774,7 @@ class Runner:
       new_message: Optional[types.Content] = None,
       state_delta: Optional[dict[str, Any]] = None,
       run_config: Optional[RunConfig] = None,
+      yield_user_message: bool = False,
   ) -> AsyncGenerator[Event, None]:
     """Main entry method to run the agent in this runner.
 
@@ -526,6 +792,8 @@ class Runner:
       new_message: A new message to append to the session.
       state_delta: Optional state changes to apply to the session.
       run_config: The run config for the agent.
+      yield_user_message: If True, yield the user message event before
+        agent/node events.
 
     Yields:
       The events generated by the agent.
@@ -538,6 +806,59 @@ class Runner:
 
     if new_message and not new_message.role:
       new_message.role = 'user'
+
+    from .agents.llm_agent import LlmAgent
+    from .workflow._base_node import BaseNode
+
+    if isinstance(self.agent, LlmAgent):
+      if self.agent.mode is None:
+        # LlmAgent as root agent must have chat mode.
+        self.agent.mode = 'chat'
+
+      if self.agent.mode == 'chat':
+        session = await self._get_or_create_session(
+            user_id=user_id, session_id=session_id
+        )
+        agent_to_run = self._find_agent_to_run(session, self.agent)
+        from .workflow.utils._workflow_graph_utils import build_node  # pylint: disable=g-import-not-at-top
+
+        agent_to_run = build_node(agent_to_run)
+      else:
+        raise ValueError(
+            "LlmAgent as root agent must have mode='chat', but got"
+            f" mode='{self.agent.mode}'."
+        )
+      async with aclosing(
+          self._run_node_async(
+              user_id=user_id,
+              session_id=session_id,
+              new_message=new_message,
+              run_config=run_config,
+              yield_user_message=yield_user_message,
+              node=agent_to_run,
+          )
+      ) as agen:
+        async for event in agen:
+          yield event
+      return
+
+    # TODO: remove `not isinstance(self.agent, BaseAgent)` after all agents are
+    # refactored to use the node runtime path (requires adding tracing and plugins to it).
+    if isinstance(self.agent, BaseNode) and not isinstance(
+        self.agent, BaseAgent
+    ):
+      async with aclosing(
+          self._run_node_async(
+              user_id=user_id,
+              session_id=session_id,
+              new_message=new_message,
+              run_config=run_config,
+              yield_user_message=yield_user_message,
+          )
+      ) as agen:
+        async for event in agen:
+          yield event
+      return
 
     async def _run_with_trace(
         new_message: Optional[types.Content] = None,
@@ -602,11 +923,11 @@ class Runner:
               return
 
         async def execute(ctx: InvocationContext) -> AsyncGenerator[Event]:
-          async with Aclosing(ctx.agent.run_async(ctx)) as agen:
+          async with aclosing(ctx.agent.run_async(ctx)) as agen:
             async for event in agen:
               yield event
 
-        async with Aclosing(
+        async with aclosing(
             self._exec_with_plugin(
                 invocation_context=invocation_context,
                 session=session,
@@ -628,7 +949,7 @@ class Runner:
               skip_token_compaction=invocation_context.token_compaction_checked,
           )
 
-    async with Aclosing(_run_with_trace(new_message, invocation_id)) as agen:
+    async with aclosing(_run_with_trace(new_message, invocation_id)) as agen:
       async for event in agen:
         yield event
 
@@ -782,9 +1103,7 @@ class Runner:
     # transcription events should not be appended.
     # Function call and function response events should be appended.
     # Other control events should be appended.
-    if is_live_call and contents._is_live_model_audio_event_with_inline_data(
-        event
-    ):
+    if is_live_call and _is_live_model_audio_event_with_inline_data(event):
       # We don't append live model audio events with inline data to avoid
       # storing large blobs in the session. However, events with file_data
       # (references to artifacts) should be appended.
@@ -877,7 +1196,7 @@ class Runner:
       buffered_events: list[Event] = []
       is_transcribing: bool = False
 
-      async with Aclosing(execute_fn(invocation_context)) as agen:
+      async with aclosing(execute_fn(invocation_context)) as agen:
         async for event in agen:
           _apply_run_config_custom_metadata(
               event, invocation_context.run_config
@@ -1119,11 +1438,11 @@ class Runner:
     invocation_context.agent = self._find_agent_to_run(session, root_agent)
 
     async def execute(ctx: InvocationContext) -> AsyncGenerator[Event]:
-      async with Aclosing(ctx.agent.run_live(ctx)) as agen:
+      async with aclosing(ctx.agent.run_live(ctx)) as agen:
         async for event in agen:
           yield event
 
-    async with Aclosing(
+    async with aclosing(
         self._exec_with_plugin(
             invocation_context=invocation_context,
             session=session,
@@ -1147,6 +1466,8 @@ class Runner:
     - An LlmAgent who replied last and is capable to transfer to any other agent
       in the agent hierarchy.
 
+    TODO: use wait_for_output to decide the agent to run
+
     Args:
         session: The session to find the agent for.
         root_agent: The root agent of the runner.
@@ -1155,12 +1476,26 @@ class Runner:
       The agent to run. (the active agent that should reply to the latest user
       message)
     """
+    # Mesh and Workflow Agents handle their own internal routing.
+    # Workflow will figure which node is interrupted and should be resumed.
+    from .workflow._workflow import Workflow
+
+    if isinstance(root_agent, Workflow):
+      return root_agent
+
     # If the last event is a function response, should send this response to
     # the agent that returned the corresponding function call regardless the
     # type of the agent. e.g. a remote a2a agent may surface a credential
     # request as a special long-running function tool call.
     event = find_matching_function_call(session.events)
-    if event and event.author:
+    is_resumable = (
+        self.resumability_config and self.resumability_config.is_resumable
+    )
+    # Only route based on a past function response if resumability is enabled.
+    # In non-resumable scenarios, a turn ending with function call response
+    # shouldn't trap the next turn on that same agent if it's not transferable.
+    # Falling through allows it to return to root.
+    if event and event.author and is_resumable:
       return root_agent.find_agent(event.author)
 
     def _event_filter(event: Event) -> bool:
@@ -1172,6 +1507,7 @@ class Runner:
       return True
 
     for event in filter(_event_filter, reversed(session.events)):
+      logger.warning(f'!!! DEBUG !!! checking event from {event.author}')
       if event.author == root_agent.name:
         # Found root agent.
         return root_agent
@@ -1183,7 +1519,11 @@ class Runner:
             event.id,
         )
         continue
-      if self._is_transferable_across_agent_tree(agent):
+      transferable = self._is_transferable_across_agent_tree(agent)
+      logger.warning(
+          f'!!! DEBUG !!! agent {agent.name} transferable={transferable}'
+      )
+      if transferable:
         return agent
     # Falls back to root agent if no suitable agents are found in the session.
     return root_agent
@@ -1290,9 +1630,9 @@ class Runner:
           app_name=self.app_name, user_id=user_id, session_id=session_id
       )
       if not quiet:
-        print(f'\n ### Created new session: {session_id}')
+        logger.info('Created new session: %s', session_id)
     elif not quiet:
-      print(f'\n ### Continue session: {session_id}')
+      logger.info('Continue session: %s', session_id)
 
     collected_events: list[Event] = []
 
@@ -1301,18 +1641,21 @@ class Runner:
 
     for message in user_messages:
       if not quiet:
-        print(f'\nUser > {message}')
+        logger.info('User > %s', message)
 
-      async for event in self.run_async(
-          user_id=user_id,
-          session_id=session.id,
-          new_message=types.UserContent(parts=[types.Part(text=message)]),
-          run_config=run_config,
-      ):
-        if not quiet:
-          print_event(event, verbose=verbose)
+      async with aclosing(
+          self.run_async(
+              user_id=user_id,
+              session_id=session.id,
+              new_message=types.UserContent(parts=[types.Part(text=message)]),
+              run_config=run_config,
+          )
+      ) as agen:
+        async for event in agen:
+          if not quiet:
+            print_event(event, verbose=verbose)
 
-        collected_events.append(event)
+          collected_events.append(event)
 
     return collected_events
 
@@ -1481,7 +1824,7 @@ class Runner:
             self.app.events_compaction_config if self.app else None
         ),
         invocation_id=invocation_id,
-        agent=self.agent,
+        agent=self.agent if isinstance(self.agent, BaseAgent) else None,
         session=session,
         user_content=new_message,
         live_request_queue=live_request_queue,
@@ -1561,8 +1904,9 @@ class Runner:
       for tool_union in agent.tools:
         if isinstance(tool_union, BaseToolset):
           toolsets.add(tool_union)
-    for sub_agent in agent.sub_agents:
-      toolsets.update(self._collect_toolset(sub_agent))
+    if hasattr(agent, 'sub_agents'):
+      for sub_agent in agent.sub_agents:
+        toolsets.update(self._collect_toolset(sub_agent))
     return toolsets
 
   async def _cleanup_toolsets(self, toolsets_to_close: set[BaseToolset]):
@@ -1599,7 +1943,8 @@ class Runner:
     """Closes the runner."""
     logger.info('Closing runner...')
     # Close Toolsets
-    await self._cleanup_toolsets(self._collect_toolset(self.agent))
+    if self.agent is not None:
+      await self._cleanup_toolsets(self._collect_toolset(self.agent))
 
     # Close Plugins
     if self.plugin_manager:
@@ -1639,6 +1984,7 @@ class InMemoryRunner(Runner):
       self,
       agent: Optional[BaseAgent] = None,
       *,
+      node: Any = None,
       app_name: Optional[str] = None,
       plugins: Optional[list[BasePlugin]] = None,
       app: Optional[App] = None,
@@ -1648,6 +1994,7 @@ class InMemoryRunner(Runner):
 
     Args:
         agent: The root agent to run.
+        node: The root node to run.
         app_name: The application name of the runner. Defaults to
           'InMemoryRunner'.
         plugins: Optional list of plugins for the runner.
@@ -1659,6 +2006,7 @@ class InMemoryRunner(Runner):
     super().__init__(
         app_name=app_name,
         agent=agent,
+        node=node,
         artifact_service=InMemoryArtifactService(),
         plugins=plugins,
         app=app,

@@ -44,8 +44,10 @@ from ..features import experimental
 from ..features import FeatureName
 from ..telemetry import _instrumentation
 from ..utils.context_utils import Aclosing
+from ..workflow._base_node import BaseNode
 from .base_agent_config import BaseAgentConfig
 from .callback_context import CallbackContext
+from .context import Context
 
 if TYPE_CHECKING:
   from .invocation_context import InvocationContext
@@ -82,7 +84,7 @@ class BaseAgentState(BaseModel):
 AgentState = TypeVar('AgentState', bound=BaseAgentState)
 
 
-class BaseAgent(BaseModel):
+class BaseAgent(BaseNode):
   """Base class for all agents in Agent Development Kit."""
 
   model_config = ConfigDict(
@@ -269,7 +271,6 @@ class BaseAgent(BaseModel):
     cloned_agent.parent_agent = None
     return cloned_agent
 
-  @final
   async def run_async(
       self,
       parent_context: InvocationContext,
@@ -300,6 +301,25 @@ class BaseAgent(BaseModel):
 
       if event := await self._handle_after_agent_callback(ctx):
         yield event
+
+  @override
+  async def _run_impl(
+      self,
+      *,
+      ctx: Context,
+      node_input: Any,
+  ) -> AsyncGenerator[Any, None]:
+    """Runs the agent as a node."""
+    async for event in self.run_async(
+        parent_context=ctx.get_invocation_context()
+    ):
+      # Preserve author by setting it in context for NodeRunner
+      if event.author:
+        ctx.event_author = event.author
+
+      if not event.node_info.path and event.author == self.name:
+        event.node_info.path = ctx.node_path
+      yield event
 
   @final
   async def run_live(
@@ -547,6 +567,7 @@ class BaseAgent(BaseModel):
 
   @override
   def model_post_init(self, __context: Any) -> None:
+    super().model_post_init(__context)
     self.__set_parent_agent_for_sub_agents()
 
   @field_validator('name', mode='after')

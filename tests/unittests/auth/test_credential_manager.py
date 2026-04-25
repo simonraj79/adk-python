@@ -97,7 +97,6 @@ class TestCredentialManager:
         CredentialManager._auth_provider_registry._providers[DummyAuthScheme]
         == provider1
     )
-
   def test_init(self):
     """Test CredentialManager initialization."""
     auth_config = Mock(spec=AuthConfig)

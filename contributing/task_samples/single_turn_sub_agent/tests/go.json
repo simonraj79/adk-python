@@ -1,0 +1,281 @@
+{
+  "events": [
+    {
+      "author": "user",
+      "content": {
+        "parts": [
+          {
+            "text": "go"
+          }
+        ],
+        "role": "user"
+      },
+      "id": "e-1",
+      "invocationId": "i-1",
+      "nodeInfo": {
+        "path": ""
+      }
+    },
+    {
+      "author": "root_agent",
+      "content": {
+        "parts": [
+          {
+            "text": "Hello! Are you looking for a new phone today? I can help you find the perfect Pixel phone. To get started, could you tell me a little about what you're looking for?\n\nWhat's your budget like?\nWhat do you primarily use your phone for (e.g., photography, gaming, social media, work)?\nDo you have a preferred size (e.g., compact, regular, large)?"
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "id": "e-2",
+      "invocationId": "i-1",
+      "nodeInfo": {
+        "path": "root_agent@1"
+      }
+    },
+    {
+      "author": "user",
+      "content": {
+        "parts": [
+          {
+            "text": "$1000, gaming"
+          }
+        ],
+        "role": "user"
+      },
+      "id": "e-3",
+      "invocationId": "i-2",
+      "nodeInfo": {
+        "path": ""
+      }
+    },
+    {
+      "author": "root_agent",
+      "content": {
+        "parts": [
+          {
+            "text": "Great! And what about the size? Do you prefer a compact, regular, or large phone?"
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "id": "e-4",
+      "invocationId": "i-2",
+      "nodeInfo": {
+        "path": "root_agent@1"
+      }
+    },
+    {
+      "author": "user",
+      "content": {
+        "parts": [
+          {
+            "text": "large"
+          }
+        ],
+        "role": "user"
+      },
+      "id": "e-5",
+      "invocationId": "i-3",
+      "nodeInfo": {
+        "path": ""
+      }
+    },
+    {
+      "author": "root_agent",
+      "content": {
+        "parts": [
+          {
+            "functionCall": {
+              "args": {
+                "budget": 1000,
+                "preferred_size": "large",
+                "primary_use": "gaming"
+              },
+              "id": "fc-1",
+              "name": "phone_recommender"
+            }
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "id": "e-6",
+      "invocationId": "i-3",
+      "longRunningToolIds": [],
+      "nodeInfo": {
+        "path": "root_agent@1"
+      }
+    },
+    {
+      "author": "phone_recommender",
+      "branch": "phone_recommender@1",
+      "content": {
+        "parts": [
+          {
+            "functionCall": {
+              "args": {
+                "model_name": "Pixel 10 Pro XL"
+              },
+              "id": "fc-2",
+              "name": "check_phone_price"
+            }
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "id": "e-7",
+      "invocationId": "i-3",
+      "longRunningToolIds": [],
+      "nodeInfo": {
+        "path": "phone_recommender@1"
+      }
+    },
+    {
+      "author": "phone_recommender",
+      "branch": "phone_recommender@1",
+      "content": {
+        "parts": [
+          {
+            "functionResponse": {
+              "id": "fc-2",
+              "name": "check_phone_price",
+              "response": {
+                "result": 799.0
+              }
+            }
+          }
+        ],
+        "role": "user"
+      },
+      "id": "e-8",
+      "invocationId": "i-3",
+      "nodeInfo": {
+        "path": "phone_recommender@1"
+      }
+    },
+    {
+      "author": "phone_recommender",
+      "branch": "phone_recommender@1",
+      "content": {
+        "parts": [
+          {
+            "functionCall": {
+              "args": {
+                "model_name": "Pixel 10 Pro XL",
+                "price": 799,
+                "reason": "The Pixel 10 Pro XL is recommended due to its large screen, ideal for an immersive gaming experience, and its 'Pro' level performance which is excellent for gaming. Its price of $799 also comfortably fits within your $1000 budget."
+              },
+              "id": "fc-3",
+              "name": "set_model_response"
+            }
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "id": "e-9",
+      "invocationId": "i-3",
+      "longRunningToolIds": [],
+      "nodeInfo": {
+        "path": "phone_recommender@1"
+      }
+    },
+    {
+      "actions": {
+        "setModelResponse": {
+          "model_name": "Pixel 10 Pro XL",
+          "price": 799.0,
+          "reason": "The Pixel 10 Pro XL is recommended due to its large screen, ideal for an immersive gaming experience, and its 'Pro' level performance which is excellent for gaming. Its price of $799 also comfortably fits within your $1000 budget."
+        }
+      },
+      "author": "phone_recommender",
+      "branch": "phone_recommender@1",
+      "content": {
+        "parts": [
+          {
+            "functionResponse": {
+              "id": "fc-3",
+              "name": "set_model_response",
+              "response": {
+                "model_name": "Pixel 10 Pro XL",
+                "price": 799.0,
+                "reason": "The Pixel 10 Pro XL is recommended due to its large screen, ideal for an immersive gaming experience, and its 'Pro' level performance which is excellent for gaming. Its price of $799 also comfortably fits within your $1000 budget."
+              }
+            }
+          }
+        ],
+        "role": "user"
+      },
+      "id": "e-10",
+      "invocationId": "i-3",
+      "nodeInfo": {
+        "path": "phone_recommender@1"
+      }
+    },
+    {
+      "author": "phone_recommender",
+      "branch": "phone_recommender@1",
+      "content": {
+        "parts": [
+          {
+            "text": "{\"model_name\": \"Pixel 10 Pro XL\", \"price\": 799.0, \"reason\": \"The Pixel 10 Pro XL is recommended due to its large screen, ideal for an immersive gaming experience, and its 'Pro' level performance which is excellent for gaming. Its price of $799 also comfortably fits within your $1000 budget.\"}"
+          }
+        ],
+        "role": "model"
+      },
+      "id": "e-11",
+      "invocationId": "i-3",
+      "nodeInfo": {
+        "messageAsOutput": true,
+        "outputFor": [
+          "phone_recommender@1"
+        ],
+        "path": "phone_recommender@1"
+      }
+    },
+    {
+      "author": "root_agent",
+      "content": {
+        "parts": [
+          {
+            "functionResponse": {
+              "id": "fc-1",
+              "name": "phone_recommender",
+              "response": {
+                "model_name": "Pixel 10 Pro XL",
+                "price": 799.0,
+                "reason": "The Pixel 10 Pro XL is recommended due to its large screen, ideal for an immersive gaming experience, and its 'Pro' level performance which is excellent for gaming. Its price of $799 also comfortably fits within your $1000 budget."
+              }
+            }
+          }
+        ],
+        "role": "user"
+      },
+      "id": "e-12",
+      "invocationId": "i-3",
+      "nodeInfo": {
+        "path": "root_agent@1"
+      }
+    },
+    {
+      "author": "root_agent",
+      "content": {
+        "parts": [
+          {
+            "text": "That's fantastic! Based on your preferences for a large phone, great for gaming, and a budget of $1000, I recommend the **Pixel 10 Pro XL**.\n\nIt's priced at **$799**, which fits nicely within your budget. The Pixel 10 Pro XL is perfect for you because of its large screen, which provides an incredibly immersive gaming experience, and its 'Pro' level performance is simply excellent for all your gaming needs!"
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "id": "e-13",
+      "invocationId": "i-3",
+      "nodeInfo": {
+        "path": "root_agent@1"
+      }
+    }
+  ]
+}

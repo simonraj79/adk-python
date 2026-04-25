@@ -48,11 +48,9 @@ class ComputerUseToolset(BaseToolset):
       self,
       *,
       computer: BaseComputer,
-      excluded_predefined_functions: Optional[list[str]] = None,
   ):
     super().__init__()
     self._computer = computer
-    self._excluded_predefined_functions = excluded_predefined_functions
     self._initialized = False
     self._tools = None
 
@@ -205,13 +203,6 @@ class ComputerUseToolset(BaseToolset):
       if method_name == "session_state":
         continue
 
-      # Skip methods excluded by configuration
-      if (
-          self._excluded_predefined_functions
-          and method_name in self._excluded_predefined_functions
-      ):
-        continue
-
       # Check if it's a method defined in Computer class
       attr = getattr(BaseComputer, method_name, None)
       if attr is not None and callable(attr):
@@ -268,18 +259,11 @@ class ComputerUseToolset(BaseToolset):
           types.Environment.ENVIRONMENT_BROWSER,
       )
       llm_request.config.tools.append(
-          types.Tool(
-              computer_use=types.ComputerUse(
-                  environment=environment,
-                  excluded_predefined_functions=self._excluded_predefined_functions,
-              )
-          )
+          types.Tool(computer_use=types.ComputerUse(environment=environment))
       )
       logger.debug(
-          "Added computer use tool with environment: %s,"
-          " excluded_functions: %s",
+          "Added computer use tool with environment: %s",
           environment,
-          self._excluded_predefined_functions,
       )
 
     except Exception as e:

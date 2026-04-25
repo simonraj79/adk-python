@@ -1719,56 +1719,6 @@ def test_openapi_json_schema_accessible(test_app):
   logger.info("OpenAPI /openapi.json endpoint is accessible")
 
 
-def test_get_event_graph_returns_dot_src_for_app_agent():
-  """Ensure graph endpoint unwraps App instances before building the graph."""
-  from google.adk.cli.adk_web_server import AdkWebServer
-
-  root_agent = DummyAgent(name="dummy_agent")
-  app_agent = App(name="test_app", root_agent=root_agent)
-
-  class Loader:
-
-    def load_agent(self, app_name):
-      return app_agent
-
-    def list_agents(self):
-      return [app_agent.name]
-
-  session_service = AsyncMock()
-  session = Session(
-      id="session_id",
-      app_name="test_app",
-      user_id="user",
-      state={},
-      events=[Event(author="dummy_agent")],
-  )
-  event_id = session.events[0].id
-  session_service.get_session.return_value = session
-
-  adk_web_server = AdkWebServer(
-      agent_loader=Loader(),
-      session_service=session_service,
-      memory_service=MagicMock(),
-      artifact_service=MagicMock(),
-      credential_service=MagicMock(),
-      eval_sets_manager=MagicMock(),
-      eval_set_results_manager=MagicMock(),
-      agents_dir=".",
-  )
-
-  fast_api_app = adk_web_server.get_fast_api_app(
-      setup_observer=lambda _observer, _server: None,
-      tear_down_observer=lambda _observer, _server: None,
-  )
-
-  client = TestClient(fast_api_app)
-  response = client.get(
-      f"/apps/test_app/users/user/sessions/session_id/events/{event_id}/graph"
-  )
-  assert response.status_code == 200
-  assert "dotSrc" in response.json()
-
-
 def test_a2a_agent_discovery(test_app_with_a2a):
   """Test that A2A agents are properly discovered and configured."""
   # This test mainly verifies that the A2A setup doesn't break the app

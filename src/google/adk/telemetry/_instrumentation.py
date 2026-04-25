@@ -16,14 +16,10 @@ from __future__ import annotations
 
 import contextlib
 import dataclasses
-import logging
-import sys
 import time
 from typing import Any
 from typing import AsyncIterator
 from typing import TYPE_CHECKING
-
-logger = logging.getLogger("google_adk." + __name__)
 
 from opentelemetry import trace
 import opentelemetry.context as context_api
@@ -78,33 +74,30 @@ async def record_agent_invocation(
   start_time = time.monotonic()
   caught_error: Exception | None = None
   span: trace.Span | None = None
-  span_name = f"invoke_agent {agent.name}"
   try:
-    with tracing.tracer.start_as_current_span(span_name) as s:
+    with tracing.tracer.start_as_current_span(
+        f"invoke_agent {agent.name}"
+    ) as s:
       span = s
       tracing.trace_agent_invocation(span, agent, ctx)
+      _metrics.record_agent_request_size(agent.name, ctx.user_content)
       tel_ctx = TelemetryContext(otel_context=context_api.get_current())
       yield tel_ctx
+
   except Exception as e:
     caught_error = e
     raise
   finally:
     elapsed_ms = _get_elapsed_ms(span, start_time)
-    try:
-      _metrics.record_agent_invocation_duration(
-          agent.name,
-          elapsed_ms,
-          ctx.user_content,
-          ctx.session.events,
-          caught_error,
-      )
-      _metrics.record_agent_request_size(agent.name, ctx.user_content)
-      _metrics.record_agent_response_size(agent.name, ctx.session.events)
-      _metrics.record_agent_workflow_steps(agent.name, len(ctx.session.events))
-    except Exception:  # pylint: disable=broad-exception-caught
-      logger.exception(
-          "Failed to record agent metrics for agent %s", agent.name
-      )
+    _metrics.record_agent_invocation_duration(
+        agent.name,
+        elapsed_ms,
+        ctx.user_content,
+        ctx.session.events,
+        caught_error,
+    )
+    _metrics.record_agent_response_size(agent.name, ctx.session.events)
+    _metrics.record_agent_workflow_steps(agent.name, len(ctx.session.events))
 
 
 @contextlib.asynccontextmanager
@@ -119,9 +112,8 @@ async def record_tool_execution(
   caught_error: Exception | None = None
   span: trace.Span | None = None
   tel_ctx: TelemetryContext | None = None
-  span_name = f"execute_tool {tool.name}"
   try:
-    with tracing.tracer.start_as_current_span(span_name) as s:
+    with tracing.tracer.start_as_current_span(f"execute_tool {tool.name}") as s:
       span = s
       tel_ctx = TelemetryContext(otel_context=context_api.get_current())
       try:
@@ -149,16 +141,11 @@ async def record_tool_execution(
         if isinstance(result_event, event_lib.Event)
         else None
     )
-    try:
-      _metrics.record_tool_execution_duration(
-          tool_name=tool.name,
-          agent_name=agent.name,
-          elapsed_ms=elapsed_ms,
-          input_content=invocation_context.user_content,
-          output_content=output_content,
-          error=caught_error,
-      )
-    except Exception:  # pylint: disable=broad-exception-caught
-      logger.exception(
-          "Failed to record tool execution duration for tool %s", tool.name
-      )
+    _metrics.record_tool_execution_duration(
+        tool_name=tool.name,
+        agent_name=agent.name,
+        elapsed_ms=elapsed_ms,
+        input_content=invocation_context.user_content,
+        output_content=output_content,
+        error=caught_error,
+    )

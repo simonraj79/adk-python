@@ -203,31 +203,16 @@ class McpToolset(BaseToolset):
     )
     self._use_mcp_resources = use_mcp_resources
 
-  def _get_auth_headers(
-      self, readonly_context: Optional[ReadonlyContext] = None
-  ) -> Optional[Dict[str, str]]:
+  def _get_auth_headers(self) -> Optional[Dict[str, str]]:
     """Build authentication headers from exchanged credential.
-
-    Args:
-      readonly_context: Readonly context to get credentials from.
 
     Returns:
         Dictionary of auth headers, or None if no auth configured.
     """
-    if not self._auth_config:
+    if not self._auth_config or not self._auth_config.exchanged_auth_credential:
       return None
 
-    credential = None
-    if readonly_context:
-      credential = readonly_context.get_credential(
-          self._auth_config.credential_key
-      )
-
-    if not credential:
-      credential = self._auth_config.exchanged_auth_credential
-
-    if not credential:
-      return None
+    credential = self._auth_config.exchanged_auth_credential
     headers: Optional[Dict[str, str]] = None
 
     if credential.oauth2:
@@ -304,7 +289,7 @@ class McpToolset(BaseToolset):
         headers.update(provider_headers)
 
     # Add auth headers from exchanged credential if available
-    auth_headers = self._get_auth_headers(readonly_context)
+    auth_headers = self._get_auth_headers()
     if auth_headers:
       headers.update(auth_headers)
 
@@ -432,7 +417,7 @@ class McpToolset(BaseToolset):
       await self._mcp_session_manager.close()
     except Exception as e:
       # Log the error but don't re-raise to avoid blocking shutdown
-      print(f"Warning: Error during McpToolset cleanup: {e}", file=self._errlog)
+      logger.warning("Error during McpToolset cleanup: %s", e)
 
   @override
   def get_auth_config(self) -> Optional[AuthConfig]:

@@ -23,6 +23,7 @@ import json
 import logging
 import os
 from pathlib import Path
+import sys
 import tempfile
 import textwrap
 from typing import Optional
@@ -647,50 +648,195 @@ def adk_services_options(*, default_use_local_storage: bool = True):
     ),
     callback=validate_exclusive,
 )
+@click.option(
+    "--state",
+    type=str,
+    help="Optional. Initial state for the run as a JSON string.",
+)
+@click.option(
+    "--timeout",
+    type=str,
+    help="Optional. Timeout for a single turn or query (e.g., 30s, 5m).",
+)
+@click.option(
+    "--in_memory",
+    is_flag=True,
+    help="Optional. Do not persist session data (use in-memory storage).",
+)
+@click.option(
+    "--jsonl",
+    is_flag=True,
+    help="Optional. Output structured JSONL instead of human-readable text.",
+)
 @click.argument(
     "agent",
     type=click.Path(
         exists=True, dir_okay=True, file_okay=False, resolve_path=True
     ),
 )
+@click.argument("query", type=str, required=False)
 def cli_run(
     agent: str,
+    query: Optional[str],
     save_session: bool,
     session_id: Optional[str],
     replay: Optional[str],
     resume: Optional[str],
+    state: Optional[str] = None,
+    timeout: Optional[str] = None,
+    in_memory: bool = False,
+    jsonl: bool = False,
     session_service_uri: Optional[str] = None,
     artifact_service_uri: Optional[str] = None,
     memory_service_uri: Optional[str] = None,
     use_local_storage: bool = True,
 ):
-  """Runs an interactive CLI for a certain agent.
+  """Runs an agent. If no query is provided, enters interactive mode.
 
   AGENT: The path to the agent source code folder.
+  QUERY: Optional. The user message to send to the agent for a single-step run.
 
   Example:
 
     adk run path/to/my_agent
+    adk run path/to/my_agent "hello"
   """
   logs.log_to_tmp_folder()
 
   agent_parent_folder = os.path.dirname(agent)
   agent_folder_name = os.path.basename(agent)
 
-  asyncio.run(
-      run_cli(
-          agent_parent_dir=agent_parent_folder,
-          agent_folder_name=agent_folder_name,
-          input_file=replay,
-          saved_session_file=resume,
-          save_session=save_session,
-          session_id=session_id,
-          session_service_uri=session_service_uri,
-          artifact_service_uri=artifact_service_uri,
-          memory_service_uri=memory_service_uri,
-          use_local_storage=use_local_storage,
+  # If query is provided, we run in single-step mode (JSONL output)
+  if query is not None:
+    from .cli import run_once_cli
+
+    exit_code = asyncio.run(
+        run_once_cli(
+            agent_parent_dir=agent_parent_folder,
+            agent_folder_name=agent_folder_name,
+            query=query,
+            state_str=state,
+            session_id=session_id,
+            replay=replay,
+            timeout=timeout,
+            in_memory=in_memory,
+            jsonl=jsonl,
+            session_service_uri=session_service_uri,
+            artifact_service_uri=artifact_service_uri,
+            memory_service_uri=memory_service_uri,
+            use_local_storage=use_local_storage,
+        )
+    )
+    sys.exit(exit_code)
+  else:
+    # Legacy interactive mode
+    asyncio.run(
+        run_cli(
+            agent_parent_dir=agent_parent_folder,
+            agent_folder_name=agent_folder_name,
+            input_file=replay,
+            saved_session_file=resume,
+            save_session=save_session,
+            session_id=session_id,
+            state_str=state,
+            timeout=timeout,
+            in_memory=in_memory,
+            jsonl=jsonl,
+            session_service_uri=session_service_uri,
+            artifact_service_uri=artifact_service_uri,
+            memory_service_uri=memory_service_uri,
+            use_local_storage=use_local_storage,
+        )
+    )
+
+
+@main.command(
+    "test",
+    cls=HelpfulCommand,
+    context_settings={
+        "allow_extra_args": True,
+        "allow_interspersed_args": True,
+        "ignore_unknown_options": True,
+    },
+)
+@click.argument(
+    "folder",
+    type=click.Path(
+        exists=True, dir_okay=True, file_okay=False, resolve_path=True
+    ),
+    default=".",
+)
+@click.option(
+    "--rebuild",
+    is_flag=True,
+    help="Rebuild test files by running the real agent with user messages.",
+)
+@click.pass_context
+def cli_test(ctx, folder: str, rebuild: bool):
+  """Runs pytest on agent test JSON files under the specified folder.
+
+  FOLDER: The path to the folder containing agents and tests.
+  Defaults to the current directory if not specified.
+
+  Example:
+      adk test path/to/agents
+  """
+  import sys
+
+  if rebuild:
+    from .agent_test_runner import rebuild_tests
+
+    click.echo(f"Rebuilding tests in {folder}...")
+    rebuild_tests(folder)
+    sys.exit(0)
+
+  # Parse arguments to separate pytest args (after --) from regular args
+  pytest_args = []
+  if "--" in ctx.args:
+    separator_index = ctx.args.index("--")
+    pytest_args = ctx.args[separator_index + 1 :]
+    regular_args = ctx.args[:separator_index]
+
+    if regular_args:
+      click.secho(
+          "Error: Unexpected arguments after folder and before '--':"
+          f" {' '.join(regular_args)}. \nOnly arguments after '--' are passed"
+          " to pytest.",
+          fg="red",
+          err=True,
       )
-  )
+      ctx.exit(2)
+  else:
+    # If no '--', all remaining arguments are passed to pytest
+    pytest_args = ctx.args
+
+  import subprocess
+
+  os.environ["ADK_TEST_FOLDER"] = folder
+
+  current_dir = Path(__file__).parent
+  test_runner_path = current_dir / "agent_test_runner.py"
+
+  if not test_runner_path.exists():
+    click.secho(
+        f"Error: Test runner not found at {test_runner_path}",
+        fg="red",
+        err=True,
+    )
+    sys.exit(1)
+
+  click.echo(f"Running tests in {folder} using runner {test_runner_path}...")
+
+  result = subprocess.run([
+      sys.executable,
+      "-m",
+      "pytest",
+      str(test_runner_path),
+      "-v",
+      "-s",
+      *pytest_args,
+  ])
+  sys.exit(result.returncode)
 
 
 def eval_options():
@@ -2197,6 +2343,7 @@ def cli_migrate_session(
         " It can only be `root_agent` or `app`. (default: `root_agent`)"
     ),
 )
+
 @click.option(
     "--env_file",
     type=str,
@@ -2272,6 +2419,7 @@ def cli_deploy_agent_engine(
     adk_app: str,
     adk_app_object: Optional[str],
     temp_folder: Optional[str],
+
     env_file: str,
     requirements_file: str,
     absolutize_imports: bool,
@@ -2312,6 +2460,7 @@ def cli_deploy_agent_engine(
         description=description,
         adk_app=adk_app,
         temp_folder=temp_folder,
+
         env_file=env_file,
         requirements_file=requirements_file,
         absolutize_imports=absolutize_imports,

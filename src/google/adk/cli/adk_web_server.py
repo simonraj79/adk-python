@@ -98,12 +98,15 @@ from ..utils.agent_info import get_agents_dict
 from ..utils.context_utils import Aclosing
 from ..utils.feature_decorator import experimental
 from ..version import __version__
+from ..workflow._node_status import NodeStatus
 from .cli_eval import EVAL_SESSION_ID_PREFIX
 from .utils import cleanup
 from .utils import common
 from .utils import envs
 from .utils import evals
 from .utils.base_agent_loader import BaseAgentLoader
+from .utils.graph_serialization import serialize_app_info
+from .utils.graph_visualization import plot_workflow_graph
 from .utils.shared_value import SharedValue
 from .utils.state import create_empty_state
 
@@ -335,14 +338,14 @@ class InMemoryExporter(export_lib.SpanExporter):
   ) -> export_lib.SpanExportResult:
     for span in spans:
       trace_id = span.context.trace_id
-      if span.name == "call_llm":
-        attributes = dict(span.attributes)
-        session_id = attributes.get("gcp.vertex.agent.session_id", None)
-        if session_id:
-          if session_id not in self.trace_dict:
-            self.trace_dict[session_id] = [trace_id]
-          else:
-            self.trace_dict[session_id] += [trace_id]
+      attributes = dict(span.attributes)
+      session_id = attributes.get(
+          "gcp.vertex.agent.session_id", None
+      ) or attributes.get("gen_ai.conversation.id", None)
+      if session_id:
+        trace_ids = self.trace_dict.setdefault(session_id, [])
+        if trace_id not in trace_ids:
+          trace_ids.append(trace_id)
     self._spans.extend(spans)
     return export_lib.SpanExportResult.SUCCESS
 
@@ -388,6 +391,10 @@ class CreateSessionRequest(common.BaseModel):
       default=None,
       description="A list of events to initialize the session with.",
   )
+
+
+class CreateTestRequest(common.BaseModel):
+  session_data: dict
 
 
 class SaveArtifactRequest(common.BaseModel):
@@ -711,10 +718,7 @@ class AdkWebServer:
         os.path.join(self.agents_dir, app_name, "root_agent.yaml")
     )
 
-    if isinstance(agent_or_app, BaseAgent):
-      plugins = extra_plugins_instances
-
-      # Handle BigQuery Analytics Plugin injection
+    def _maybe_add_bq_plugin(plugins: list[BasePlugin]) -> list[BasePlugin]:
       if bq_analytics_config and all([
           bq_analytics_config.get("project_id"),
           bq_analytics_config.get("dataset_id"),
@@ -730,16 +734,29 @@ class AdkWebServer:
                 location=bq_analytics_config.get("dataset_location"),
             )
         )
+      return plugins
 
+    if isinstance(agent_or_app, App):
+      # Combine existing plugins with extra plugins
+      plugins = _maybe_add_bq_plugin(
+          agent_or_app.plugins + extra_plugins_instances
+      )
+      agent_or_app.plugins = plugins
+      agentic_app = agent_or_app
+    elif isinstance(agent_or_app, BaseAgent):
+      plugins = _maybe_add_bq_plugin(extra_plugins_instances)
       agentic_app = App(
           name=app_name,
           root_agent=agent_or_app,
           plugins=plugins,
       )
     else:
-      # Combine existing plugins with extra plugins
-      agent_or_app.plugins = agent_or_app.plugins + extra_plugins_instances
-      agentic_app = agent_or_app
+      # BaseNode (non-agent)
+      agentic_app = App(
+          name=app_name,
+          root_agent=agent_or_app,
+          plugins=extra_plugins_instances,
+      )
 
     # If the root agent was loaded from YAML, we treat it as being from Visual Builder
     if is_visual_builder_agent:
@@ -765,6 +782,93 @@ class AdkWebServer:
         credential_service=self.credential_service,
         auto_create_session=self.auto_create_session,
     )
+
+  def _navigate_to_node(self, app_info: dict, node_path: str) -> dict | None:
+    """Navigate to a specific node in the agent hierarchy.
+
+    Args:
+      app_info: The full app info structure
+      node_path: Path like "agent1/agent2/agent3"
+
+    Returns:
+      The agent data at that path, or None if not found
+    """
+    if not node_path:
+      return app_info.get("root_agent")
+
+    # Strip leading/trailing slashes and split, filter out empty strings
+    path_parts = [p for p in node_path.strip("/").split("/") if p]
+    current = app_info.get("root_agent")
+
+    if not current:
+      return None
+
+    # Navigate through each level (skip first if it's the root name)
+    start_idx = 0
+    if path_parts[0] == current.get("name"):
+      start_idx = 1
+
+    for part in path_parts[start_idx:]:
+      found = None
+      # Check potential containers in order of preference
+      containers = []
+      if current.get("graph") and current["graph"].get("nodes"):
+        containers.append(current["graph"]["nodes"])
+      if current.get("nodes"):
+        containers.append(current["nodes"])
+      if current.get("sub_agents"):
+        containers.append(current["sub_agents"])
+
+      for container in containers:
+        for item in container:
+          if item.get("name") == part:
+            found = item
+            break
+        if found:
+          break
+
+      if not found:
+        return None
+      current = found
+
+    return current
+
+  def _get_all_sub_workflows(
+      self, app_info: dict, current_path: str = ""
+  ) -> dict[str, dict]:
+    """Recursively discover all sub-workflows within the given app info.
+
+    Args:
+      app_info: Current app_info snippet or agent dict
+      current_path: The accumulated string path (e.g., 'agent_a/workflow_b')
+
+    Returns:
+      A dictionary mapping the node path to the corresponding agent info dict.
+    """
+    workflows = {}
+
+    agent_info = app_info.get("root_agent", app_info)
+    if agent_info.get("graph"):
+      workflows[current_path] = agent_info
+
+    children = list(agent_info.get("sub_agents", []))
+    children.extend(agent_info.get("nodes", []))
+    graph = agent_info.get("graph")
+    if graph:
+      children.extend(graph.get("nodes", []))
+
+    for child in children:
+      child_name = child.get("name")
+      if not child_name:
+        continue
+      child_path = (
+          f"{current_path}/{child_name}" if current_path else child_name
+      )
+      workflows.update(
+          self._get_all_sub_workflows({"root_agent": child}, child_path)
+      )
+
+    return workflows
 
   def _instantiate_extra_plugins(self) -> list[BasePlugin]:
     """Instantiate extra plugins from the configured list.
@@ -1032,7 +1136,7 @@ class AdkWebServer:
       return event_dict
 
     if web_assets_dir:
-
+      # TODO: remove this endpoint once build_graph_image is completed
       @app.get("/dev/build_graph/{app_name}")
       async def get_app_info(app_name: str) -> Any:
         runner = await self.get_runner_async(app_name)
@@ -1042,82 +1146,210 @@ class AdkWebServer:
               status_code=404, detail=f"App not found: {app_name}"
           )
 
-        def serialize_agent(agent: BaseAgent) -> dict[str, Any]:
-          """Recursively serialize an agent, excluding non-serializable fields."""
-          agent_dict = {}
+        # Read README.md if it exists
+        readme_content = None
+        if self.agents_dir:
+          import os
 
-          for field_name, field_info in agent.__class__.model_fields.items():
-            # Skip non-serializable fields
-            if field_name in [
-                "parent_agent",
-                "before_agent_callback",
-                "after_agent_callback",
-                "before_model_callback",
-                "after_model_callback",
-                "on_model_error_callback",
-                "before_tool_callback",
-                "after_tool_callback",
-                "on_tool_error_callback",
-            ]:
-              continue
+          readme_path = os.path.join(self.agents_dir, app_name, "README.md")
+          if os.path.exists(readme_path):
+            try:
+              with open(readme_path, "r", encoding="utf-8") as f:
+                readme_content = f.read()
+            except Exception as e:
+              print(f"Error reading README.md: {e}")
 
-            value = getattr(agent, field_name, None)
+        return serialize_app_info(runner.app, readme_content)
 
-            # Handle sub_agents recursively
-            if field_name == "sub_agents" and value:
-              agent_dict[field_name] = [
-                  serialize_agent(sub_agent) for sub_agent in value
-              ]
-            elif value is None or field_name == "tools":
-              continue
-            else:
-              try:
-                if isinstance(value, (str, int, float, bool, list, dict)):
-                  agent_dict[field_name] = value
-                elif hasattr(value, "model_dump"):
-                  agent_dict[field_name] = value.model_dump(
-                      mode="python", exclude_none=True
-                  )
-                else:
-                  agent_dict[field_name] = str(value)
-              except Exception:
-                pass
+    @app.get("/dev/build_graph_image/{app_name}")
+    async def get_app_info_image(
+        app_name: str, dark_mode: bool = False, node: Optional[str] = None
+    ) -> dict[str, GetEventGraphResult]:
+      runner = await self.get_runner_async(app_name)
 
-          return agent_dict
+      if not runner.app:
+        raise HTTPException(
+            status_code=404, detail=f"App not found: {app_name}"
+        )
 
-        app_info = {
-            "name": runner.app.name,
-            "root_agent": serialize_agent(runner.app.root_agent),
-        }
+      app_info = serialize_app_info(runner.app)
 
-        # Add optional fields if present
-        if runner.app.plugins:
-          app_info["plugins"] = [
-              {"name": getattr(plugin, "name", type(plugin).__name__)}
-              for plugin in runner.app.plugins
-          ]
+      # Navigate to specific level if node is provided
+      if node:
+        target_agent = self._navigate_to_node(app_info, node)
+        if not target_agent:
+          raise HTTPException(status_code=404, detail=f"Node not found: {node}")
+        # Create a temporary app_info structure for the target level
+        app_info = {"root_agent": target_agent}
 
-        if runner.app.context_cache_config:
-          try:
-            app_info["context_cache_config"] = (
-                runner.app.context_cache_config.model_dump(
-                    mode="python", exclude_none=True
-                )
-            )
-          except Exception:
-            pass
+      workflows = self._get_all_sub_workflows(app_info, node if node else "")
 
-        if runner.app.resumability_config:
-          try:
-            app_info["resumability_config"] = (
-                runner.app.resumability_config.model_dump(
-                    mode="python", exclude_none=True
-                )
-            )
-          except Exception:
-            pass
+      # This allows plotting non-workflow agents as a tree.
+      target_path = node if node else ""
+      if target_path not in workflows:
+        target_agent = app_info.get("root_agent")
+        if target_agent:
+          workflows[target_path] = target_agent
 
-        return app_info
+      results = {}
+      for path, info in workflows.items():
+        dot_string = plot_workflow_graph(
+            {"root_agent": info}, format="dot", dark_mode=dark_mode
+        )
+        if dot_string:
+          results[path] = GetEventGraphResult(dot_src=dot_string)
+
+      return results
+
+    @app.get("/dev/{app_name}/tests")
+    async def list_tests(app_name: str) -> list[str]:
+      """Lists all test JSON files for the given app."""
+      agent_dir = os.path.join(self.agents_dir, app_name)
+      tests_dir = os.path.join(agent_dir, "tests")
+      if not os.path.exists(tests_dir):
+        return []
+
+      import glob
+
+      pattern = os.path.join(tests_dir, "*.json")
+      test_files = glob.glob(pattern)
+      return sorted([os.path.basename(f) for f in test_files])
+
+    @app.post("/dev/{app_name}/tests/rebuild")
+    async def rebuild_app_tests(
+        app_name: str, test_name: Optional[str] = None
+    ) -> dict[str, str]:
+      """Rebuilds tests for the app."""
+      agent_dir = os.path.join(self.agents_dir, app_name)
+
+      if test_name:
+        if not test_name.endswith(".json"):
+          test_name += ".json"
+        path = os.path.join(agent_dir, "tests", test_name)
+      else:
+        path = agent_dir
+
+      from .agent_test_runner import rebuild_tests
+
+      await asyncio.to_thread(rebuild_tests, path)
+      return {"status": "success"}
+
+    @app.post("/dev/{app_name}/tests/run")
+    async def run_app_tests(
+        app_name: str, test_name: Optional[str] = None
+    ) -> StreamingResponse:
+      """Runs tests and streams pytest output."""
+      agent_dir = os.path.join(self.agents_dir, app_name)
+
+      import subprocess
+      import sys
+
+      queue = asyncio.Queue()
+
+      async def run_pytest_subprocess():
+        cmd_args = [
+            sys.executable,
+            "-m",
+            "pytest",
+            os.path.join(os.path.dirname(__file__), "agent_test_runner.py"),
+            "-s",
+            "-vv",
+        ]
+        if test_name:
+          name_to_use = (
+              test_name[:-5] if test_name.endswith(".json") else test_name
+          )
+          cmd_args.extend(["-k", name_to_use])
+
+        # Ensure environment variable is set
+        env = os.environ.copy()
+        env["ADK_TEST_FOLDER"] = agent_dir
+
+        try:
+          process = await asyncio.create_subprocess_exec(
+              *cmd_args,
+              stdout=subprocess.PIPE,
+              stderr=subprocess.STDOUT,
+              env=env,
+          )
+
+          while True:
+            line = await process.stdout.readline()
+            if not line:
+              break
+            await queue.put(line.decode("utf-8"))
+
+          await process.wait()
+        finally:
+          # Signal completion to generator
+          await queue.put(None)
+
+      # Start pytest in a background task
+      asyncio.create_task(run_pytest_subprocess())
+
+      async def generate():
+        while True:
+          item = await queue.get()
+          if item is None:
+            break
+          yield item.encode("utf-8")
+
+      return StreamingResponse(generate(), media_type="text/plain")
+
+    @app.put("/dev/{app_name}/tests/{test_name}")
+    async def create_test(
+        app_name: str, test_name: str, req: CreateTestRequest
+    ) -> dict[str, str]:
+      """Creates or updates a test file from session data."""
+      # Sanitize test_name to prevent directory traversal
+      test_name = os.path.basename(test_name)
+      agent_dir = os.path.join(self.agents_dir, app_name)
+      tests_dir = os.path.join(agent_dir, "tests")
+      os.makedirs(tests_dir, exist_ok=True)
+
+      if not test_name.endswith(".json"):
+        test_name += ".json"
+
+      test_file_path = os.path.join(tests_dir, test_name)
+
+      with open(test_file_path, "w") as f:
+        json.dump(req.session_data, f, indent=2, sort_keys=True)
+
+      return {"status": "success", "file": test_name}
+
+    @app.delete("/dev/{app_name}/tests/{test_name}")
+    async def delete_test(app_name: str, test_name: str) -> dict[str, str]:
+      """Deletes a specific test file."""
+      agent_dir = os.path.join(self.agents_dir, app_name)
+      tests_dir = os.path.join(agent_dir, "tests")
+
+      if not test_name.endswith(".json"):
+        test_name += ".json"
+
+      test_file_path = os.path.join(tests_dir, test_name)
+
+      if not os.path.exists(test_file_path):
+        raise HTTPException(status_code=404, detail="Test file not found")
+
+      os.remove(test_file_path)
+      return {"status": "success"}
+
+    @app.get("/dev/{app_name}/tests/{test_name}")
+    async def get_test_content(app_name: str, test_name: str) -> dict[str, Any]:
+      """Fetches the content of a specific test file."""
+      agent_dir = os.path.join(self.agents_dir, app_name)
+      tests_dir = os.path.join(agent_dir, "tests")
+
+      if not test_name.endswith(".json"):
+        test_name += ".json"
+
+      test_file_path = os.path.join(tests_dir, test_name)
+
+      if not os.path.exists(test_file_path):
+        raise HTTPException(status_code=404, detail="Test file not found")
+
+      with open(test_file_path, "r") as f:
+        return json.load(f)
 
     @app.get("/debug/trace/session/{session_id}", tags=[TAG_DEBUG])
     async def get_session_trace(session_id: str) -> Any:

@@ -23,13 +23,13 @@ import pytest
 
 @pytest.fixture
 def gemini_llm():
-  return Gemini(model="gemini-1.5-flash")
+  return Gemini(model="gemini-3.1-pro-preview")
 
 
 @pytest.fixture
 def llm_request():
   return LlmRequest(
-      model="gemini-1.5-flash",
+      model="gemini-3.1-pro-preview",
       contents=[Content(role="user", parts=[Part.from_text(text="Hello")])],
       config=types.GenerateContentConfig(
           temperature=0.1,
@@ -57,8 +57,9 @@ async def test_generate_content_async_stream(gemini_llm, llm_request):
   text = ""
   for i in range(len(responses) - 1):
     assert responses[i].partial is True
-    assert responses[i].content.parts[0].text
-    text += responses[i].content.parts[0].text
+    assert responses[i].content.parts[0].text or responses[i].content.parts[0].thought_signature
+    if responses[i].content.parts[0].text:
+      text += responses[i].content.parts[0].text
 
   # Last message should be accumulated text
   assert responses[-1].content.parts[0].text == text

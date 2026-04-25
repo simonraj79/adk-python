@@ -1,60 +1,247 @@
-"""Level 4 — The Self-Evolving System: Business Intelligence Agent Team.
+"""Level 4 — Self-Evolving Business Intelligence System (ADK 2.0 rewrite).
 
-Extends the Level 3 pattern with meta-reasoning + dynamic agent creation.
+Taxonomy: "Level 4 — The Self-Evolving System". Extends the Level 3
+multi-agent pattern with **meta-reasoning + dynamic agent creation**.
+The coordinator routes to a fixed BI team, but if it detects a
+capability gap, it transfers to an `agent_creator` that synthesises a
+new specialist on demand. New specialists persist for the rest of the
+session.
 
-Fixed team:
-  - data_fetcher_agent : web search via `google_search` built-in
-  - analyst_agent      : math + pandas + matplotlib via `BuiltInCodeExecutor`
-  - report_writer_agent: formats the final BI brief
+Fixed team
+----------
+- `data_fetcher_agent`  — web search via the `google_search` built-in.
+- `analyst_agent`       — pandas/matplotlib via `BuiltInCodeExecutor`.
+- `report_writer_agent` — formats accumulated findings into a BI brief.
 
-Level 4 additions:
-  - agent_creator      : sub-agent that synthesizes new specialists on demand
-  - bi_coordinator     : meta-reasons about capability gaps, delegates to the
-                         fixed team OR to agent_creator when a gap is detected
+Level 4 additions
+-----------------
+- `agent_creator`       — builds new specialists on demand, with user
+                          confirmation before persisting.
+- Capability registry   — runtime specialists persist as dicts in
+                          session state and are re-hydrated as
+                          `AgentTool`s every turn.
+- Safety allowlist      — `safety.py` is the non-negotiable gate on
+                          which tools a runtime specialist may use.
 
-Every specialist is a leaf LlmAgent wrapped as an `AgentTool` (rule R8 from
-LEVEL_4_PLAN.md §3). `agent_creator` is the only `sub_agent` on the coordinator
-because creation is a conversational flow, not a single tool call.
+What changed v1 → v2 (and why)
+------------------------------
+Five concrete v2 wins layered on top of the v1 design:
 
-Reasoning mode: explicit `BuiltInPlanner` on `analyst_agent` only — Flash with
-native thinking enabled to plan code-cell layout before execution. See
-AGENTS.md gotcha #21 for why Pro is NOT used here despite the analyst's
-multi-step workload, and gotcha #20 for the chart blank-version failure
-mode the planner + hardened prompt below are designed to prevent.
+1. **Fixed team uses `sub_agents=[...]` + `mode='single_turn'` instead
+   of `tools=[AgentTool(agent=X), ...]`** (the L3 lesson). The
+   framework auto-derives `_SingleTurnAgentTool` instances and the
+   specialists declare typed `input_schema` / `output_schema` Pydantic
+   contracts. The coordinator delegates via auto-generated function
+   tools named after each agent.
+
+2. **`agent_creator` uses `mode='task'` for multi-turn confirmation
+   HITL.** v1 used default chat mode + a sub_agent + manual
+   transfer-back. v2 `task` mode keeps the multi-turn capability *with
+   auto-return on `finish_task`*: the creator chats with the user
+   ("Shall I proceed?"), receives the answer, calls
+   `create_specialist`, then calls `finish_task` to return to the
+   coordinator. No transfer plumbing.
+
+3. **`disallow_transfer_to_parent=True` and
+   `disallow_transfer_to_peers=True` on every fixed specialist with a
+   built-in tool** (`data_fetcher_agent` uses `google_search`,
+   `analyst_agent` uses `BuiltInCodeExecutor`). This is the v2
+   migration gotcha #2 echo: ADK's `agent_transfer.py:152-188`
+   auto-injects a `transfer_to_agent` function tool on every sub-agent
+   whose parent transfer is allowed, which then conflicts with built-
+   in tools (Gemini's "Built-in tools and Function Calling cannot be
+   combined"). Suppressing the injection is mandatory here. Same fix
+   as `level_3_agent`'s `search_agent`.
+
+4. **`output_schema` dropped on agents that use built-in tools.** Same
+   v2 limitation as L3: on Gemini API,
+   `_OutputSchemaRequestProcessor` injects a `set_model_response`
+   function tool that conflicts with built-ins. So
+   `data_fetcher_agent` and `analyst_agent` return free text; only
+   `report_writer_agent` (no built-ins) gets a typed `Brief`
+   output_schema.
+
+5. **Runtime specialists use `AgentTool` (the v1 pattern), not
+   `sub_agents`** — because v2's `sub_agents → _SingleTurnAgentTool`
+   auto-derivation runs once at `model_post_init` time
+   (`llm_agent.py:982-994`), so mutating `sub_agents` from the
+   `before_agent_callback` mid-session would not register new tools.
+   `AgentTool` injection via `tools=[...]` works at every turn. This
+   is the pedagogical split: **fixed teams use sub_agents; runtime
+   teams use AgentTool**.
+
+What stays from v1
+------------------
+- Three-specialist fixed team (search/analyse/write) plus the creator.
+- `BuiltInCodeExecutor` on `analyst_agent` with the same hardened
+  charting prompt — gotcha #20 (blank-version PNG) and gotcha #21
+  (Pro hangs on code execution) still apply at the model layer.
+- Three supporting modules: `safety.py` (allowlist), `registry.py`
+  (state-backed capability persistence), `creator_tools.py`
+  (`create_specialist` validate/smoke-test/persist).
+- `before_agent_callback` rebuilds runtime tools each turn from
+  `state.capabilities`, ensuring session isolation.
+
+Sample queries to try
+---------------------
+- "hi"  →  coordinator handles directly.
+- "What was Apple's Q1 2025 revenue and how does that compare to Q1 2024?"
+        → fixed team: `data_fetcher_agent` → `analyst_agent` (computes
+          deltas, makes a chart) → `report_writer_agent`.
+- "Build a specialist that pulls Formula 1 race results."
+        → coordinator detects gap → transfers to `agent_creator` →
+          creator drafts spec, asks user to confirm → user says yes →
+          `create_specialist` validates and persists → next turn the
+          new `f1_data_agent` is callable from the coordinator.
 """
 
-from google.adk.agents import Agent
+from __future__ import annotations
+
+from typing import Literal
+
+from google.adk import Agent
 from google.adk.agents.callback_context import CallbackContext
 from google.adk.code_executors.built_in_code_executor import BuiltInCodeExecutor
 from google.adk.planners.built_in_planner import BuiltInPlanner
-from google.adk.tools.agent_tool import AgentTool
-from google.adk.tools.google_search_tool import google_search
+from google.adk.planners.plan_re_act_planner import PlanReActPlanner
+from google.adk.tools.google_search_tool import GoogleSearchTool
+from google.adk.tools.load_web_page import load_web_page
 from google.genai import types
+from pydantic import BaseModel
+from pydantic import Field
 
 from .creator_tools import create_specialist
 from .registry import hydrate_capabilities
 
 
 # ---------------------------------------------------------------------------
-# Fixed team — three specialists. Every one is a leaf agent with NO sub_agents
-# so it can be safely wrapped as an AgentTool (LEVEL_4_PLAN.md §3.3 R6).
+# Pydantic schemas — typed contracts at every coordinator/specialist
+# boundary. Schemas are dropped on agents that use built-in tools (see
+# top docstring §4 for why); kept on schema-only agents.
 # ---------------------------------------------------------------------------
+
+
+class FetcherInput(BaseModel):
+  """Argument schema the coordinator passes to data_fetcher_agent."""
+
+  query: str = Field(
+      description=(
+          "Focused, self-contained search query for business data."
+          " Examples: 'Apple Q1 2025 revenue', 'Tesla EV deliveries"
+          " 2024 Q4', 'global lithium spot price October 2025'."
+      )
+  )
+
+
+class AnalystInput(BaseModel):
+  """Argument schema the coordinator passes to analyst_agent."""
+
+  task: str = Field(
+      description=(
+          "What to compute or visualise, with the raw numbers / table"
+          " inline. The analyst will run Python (pandas, matplotlib);"
+          " never compute the answer in this argument — just describe"
+          " the task."
+      )
+  )
+
+
+class WriterInput(BaseModel):
+  """Argument schema the coordinator passes to report_writer_agent."""
+
+  topic: str = Field(description="The original user question / topic.")
+  fetcher_findings: list[str] = Field(
+      description=(
+          "All raw findings from data_fetcher_agent calls. Pass an"
+          " empty list if no fetcher calls were made."
+      ),
+  )
+  analyst_findings: list[str] = Field(
+      description=(
+          "All printed numeric summaries from analyst_agent calls."
+          " Quote VERBATIM in the brief — do not round. Pass an empty"
+          " list if no analyst calls were made."
+      ),
+  )
+
+
+class Brief(BaseModel):
+  """Final structured BI brief returned from report_writer_agent."""
+
+  title: str = Field(description="Short title for the brief.")
+  executive_summary: str = Field(
+      description="1-2 paragraph plain-English answer to the question."
+  )
+  key_metrics: str = Field(
+      description=(
+          "Markdown bullet list of the headline numbers, quoted"
+          " verbatim from the analyst."
+      )
+  )
+  analysis: str = Field(
+      description="2-3 paragraph synthesis with inline source attribution."
+  )
+  sources: list[str] = Field(description="Source domains cited.")
+  confidence_and_gaps: str = Field(
+      description="Where the brief is most/least confident."
+  )
+
+
+# NOTE: there is intentionally no `CreatorMission` input_schema for
+# `agent_creator` — see the agent_creator definition below for the v2
+# task-mode multi-turn HITL caveat that explains why.
+
+
+# ---------------------------------------------------------------------------
+# Fixed team — three specialists + creator. Wired as `sub_agents` on the
+# coordinator so v2's framework auto-derives `_SingleTurnAgentTool` /
+# `_TaskAgentTool` entries (see top docstring §1, §2).
+# ---------------------------------------------------------------------------
+
 
 data_fetcher_agent = Agent(
     name="data_fetcher_agent",
     model="gemini-2.5-flash",
     description=(
-        "Fetches public business data via Google Search: company revenues, "
-        "financial filings, market data, industry benchmarks, news. Returns "
-        "text facts with source URLs."
+        "Fetches public business data via Google Search and direct"
+        " URL fetching: company revenues, financial filings, market"
+        " data, industry benchmarks, news. Returns text facts with"
+        " source domains. Use load_web_page when the user provides a"
+        " specific URL to extract content from."
     ),
+    mode="single_turn",
+    input_schema=FetcherInput,
+    # NO output_schema: would inject set_model_response and conflict with
+    # built-in tools on Gemini API. See top docstring §4.
     instruction=(
-        "You are a business-data research specialist. Use google_search to "
-        "answer the query. Return the raw facts with source URLs. Do not "
-        "compute or interpret — that is the analyst's job."
+        "You are a business-data research specialist. Two tools are"
+        " available:\n"
+        "  - google_search: search the web. Use for general data"
+        " lookups, recent news, market context.\n"
+        "  - load_web_page: fetch the text content of a specific URL."
+        " Use when the user provides a URL or you find a clearly"
+        " relevant link in a search result that warrants full-text"
+        " extraction (e.g., a 10-K filing, an earnings release).\n\n"
+        "Return raw facts as plain text with source domains cited"
+        " inline (e.g., 'According to bloomberg.com, ...'). Do not"
+        " compute or interpret — that is the analyst's job."
     ),
-    tools=[google_search],
-    output_key="last_search_result",
+    # Two tools (one built-in, one function). With
+    # `bypass_multi_tools_limit=True`, ADK's auto-swap
+    # (`llm_agent.py:151-157`) detects the multi-tool case and replaces
+    # the GoogleSearchTool built-in with GoogleSearchAgentTool (a
+    # function-tool wrapper). Final shape sent to Gemini: two function
+    # tools, no built-in conflict. Same trick used in the runtime
+    # allowlist in `safety.py`.
+    tools=[
+        GoogleSearchTool(bypass_multi_tools_limit=True),
+        load_web_page,
+    ],
+    # Mandatory: prevents the auto-injected transfer_to_agent function
+    # tool that would conflict with built-in tool surfaces. v2
+    # migration gotcha #2 — see AGENTS.md.
+    disallow_transfer_to_parent=True,
+    disallow_transfer_to_peers=True,
 )
 
 
@@ -62,8 +249,8 @@ analyst_agent = Agent(
     name="analyst_agent",
     # Flash + BuiltInPlanner per AGENTS.md gotcha #21: Pro on a
     # BuiltInCodeExecutor leaf can hang 6+ min under AFC. The planner
-    # turns Gemini's native thinking on for Flash so the model plans the
-    # cell layout before writing code — the directly addresses gotcha #20
+    # turns Gemini's native thinking on for Flash so the model plans
+    # cell layout before writing code — directly addressing gotcha #20
     # ("a later code cell closes/re-saves the figure → blank Version 1
     # overwrite hides the real chart at Version 0").
     model="gemini-2.5-flash",
@@ -71,12 +258,17 @@ analyst_agent = Agent(
         thinking_config=types.ThinkingConfig(include_thoughts=True)
     ),
     description=(
-        "Business analyst. Performs arithmetic (CAGR, percent change, "
-        "weighted averages, ratios, arbitrary expressions), explores tabular "
-        "data with pandas, and generates matplotlib charts. Returns a text "
-        "summary; charts surface in adk web via the framework's auto-save of "
-        "BuiltInCodeExecutor image output into the artifact service."
+        "Business analyst. Performs arithmetic (CAGR, percent change,"
+        " weighted averages, ratios, arbitrary expressions), explores"
+        " tabular data with pandas, and generates matplotlib charts."
+        " Returns a text summary; charts surface in adk web via the"
+        " framework's auto-save of BuiltInCodeExecutor image output"
+        " into the artifact service."
     ),
+    mode="single_turn",
+    input_schema=AnalystInput,
+    # NO output_schema: BuiltInCodeExecutor is a built-in tool, same
+    # set_model_response conflict as data_fetcher_agent.
     instruction="""You are a business analyst backed by Gemini's code_execution sandbox. Use Python (not mental math) for every numeric result.
 
 # Mandatory behaviour
@@ -94,7 +286,7 @@ Required structure of the chart cell — every step in the SAME executable_code 
     ax.set_title(...); ax.set_xlabel(...); ax.set_ylabel(...)
     # Defensive sanity check — proves the figure has artists before show:
     n_artists = len(ax.lines) + len(ax.patches) + len(ax.collections)
-    print(f"chart artists: {n_artists}")        # MUST be > 0; if 0, fix the data wrangling above and retry
+    print("chart artists:", n_artists)        # MUST be > 0; if 0, fix the data wrangling above and retry
     plt.tight_layout()
     plt.show()
 
@@ -108,10 +300,6 @@ Hard rules for the chart cell:
 - NEVER call `save_artifact` or reference `tool_context` — they don't exist inside the sandbox (the runner injects `ToolContext` into Python function tools, not into Gemini's hosted code-execution environment).
 - After the chart cell, run NO further `plt.*` calls.
 - If `n_artists` printed 0, the chart cell failed: re-do the data wrangling, then re-run the FULL chart cell (figure + plot + show) as one block. Do NOT add a follow-up `plt.show()`-only cell.
-- If the user reports a blank chart in adk web's Artifacts tab, ask them to open the Version dropdown on the artifact and select `Version: 0` — when two image Parts are emitted in one turn (e.g. a real figure plus an empty `plt.show()` afterwards), the framework auto-saves both and the UI defaults to the latest (blank) version while the real chart hides under v0. Following the single-cell rule above prevents this from happening in the first place.
-
-# How charts reach adk web (informational — you do not call this code)
-`plt.show()` makes Gemini's code-execution return the figure as an image Part on the model response. ADK's `_code_execution.py` post-processor detects any `inline_data` image, calls `artifact_service.save_artifact(...)` with an auto-generated `YYYYMMDD_HHMMSS.png` filename, strips the bytes from the Part, and replaces them with text `"Saved as artifact: <name>"` plus an `artifact_delta` event. adk web watches that delta and renders the chart from the artifact store. This requires the Runner to have an `artifact_service` configured (adk web wires `InMemoryArtifactService` by default). If you ever run this agent through a custom Runner without one, the first chart will raise `ValueError('Artifact service is not initialized.')`.
 
 # Environment
 - Stateful across turns: do not re-initialise variables or re-load data.
@@ -119,7 +307,11 @@ Hard rules for the chart cell:
 - Do NOT run `pip install`.
 """,
     code_executor=BuiltInCodeExecutor(),
-    output_key="last_analysis",
+    # Mandatory for the same reason as data_fetcher_agent — except here
+    # the conflicting built-in is BuiltInCodeExecutor (auto-injected as
+    # the executable_code tool surface) rather than google_search.
+    disallow_transfer_to_parent=True,
+    disallow_transfer_to_peers=True,
 )
 
 
@@ -127,132 +319,215 @@ report_writer_agent = Agent(
     name="report_writer_agent",
     model="gemini-2.5-flash",
     description=(
-        "Formats accumulated findings into a structured BI brief. Output is "
-        "the final answer — do not re-paraphrase."
+        "Formats accumulated findings into a structured BI brief."
+        " Output is the final answer — do not re-paraphrase."
     ),
-    instruction="""Format the findings below into a structured BI brief.
-
-Latest search result:
-{last_search_result?}
-
-Latest analyst output:
-{last_analysis?}
-
-Output format:
-## BI Brief: [Topic]
-### Executive Summary
-### Key Metrics
-### Analysis
-### Sources
-### Confidence & Gaps
-""",
+    mode="single_turn",
+    input_schema=WriterInput,
+    # SAFE to set output_schema here: this agent has no built-in tools,
+    # so set_model_response can be injected without conflict. Demonstrates
+    # the v2 typed-output contract for terminal nodes.
+    output_schema=Brief,
+    instruction=(
+        "Synthesise a Brief from the fetcher_findings (raw facts) and"
+        " analyst_findings (numeric summaries) for the topic. Quote"
+        " analyst numbers VERBATIM — do not round, re-format, or"
+        " re-interpret them. Weave fetcher source domains inline in the"
+        " analysis. Lead with the most important finding in"
+        " executive_summary."
+    ),
+    # No built-in tools, so transfer_to_agent injection wouldn't
+    # conflict — but consistency: terminal sub-agents shouldn't
+    # transfer; they should auto-return via request_task.
+    disallow_transfer_to_parent=True,
+    disallow_transfer_to_peers=True,
 )
 
 
 # ---------------------------------------------------------------------------
-# Agent creator — the Level 4 delta. Not an AgentTool (creation is a
-# conversational flow); it is the coordinator's only sub_agent.
+# Agent creator — builds new specialists on demand. Uses mode='task'
+# for multi-turn confirmation (the v2 way of doing in-agent HITL: it
+# can ask the user "Shall I proceed?" and wait for the answer, then
+# auto-return on finish_task). v1 used default chat + manual
+# transfer-back; v2 mode='task' is structurally cleaner.
 # ---------------------------------------------------------------------------
+
 
 agent_creator = Agent(
     name="agent_creator",
-    model="gemini-2.5-flash",
+    # Gemini 3.1 Pro for the creator specifically — the multi-turn
+    # HITL flow (draft → wait for confirmation → call
+    # create_specialist → call finish_task) is the kind of *chained*
+    # tool-decision where Flash exhibits empty-STOP responses
+    # (observed: "yes proceed" → 0 output tokens with
+    # finish_reason=STOP). Gemini 3.1 Pro is described in the model
+    # card (https://ai.google.dev/gemini-api/docs/gemini-3) as "our
+    # most intelligent model… state-of-the-art reasoning" and it
+    # supports compositional function calling (parallel + chained),
+    # which maps directly onto this agent's create_specialist →
+    # finish_task sequence. Cost is higher than Flash but creator is
+    # invoked rarely (only when the team has a capability gap), so
+    # the absolute spend stays small. Do NOT use Pro on
+    # `analyst_agent` — gotcha #21 (Pro + BuiltInCodeExecutor under
+    # AFC can hang 6+ min); Flash + BuiltInPlanner is the proven
+    # combination there.
+    model="gemini-3.1-pro-preview",
     description=(
-        "Synthesizes a new specialist agent when the BI team lacks a "
-        "capability. Use when the user's request cannot be served by "
-        "data_fetcher_agent, analyst_agent, or report_writer_agent."
+        "Synthesises a new specialist agent when the BI team lacks a"
+        " capability. Use when the user's request cannot be served by"
+        " data_fetcher_agent, analyst_agent, or report_writer_agent."
     ),
-    instruction="""You are the Agent Creator. You build new specialists to fill capability gaps.
+    mode="task",
+    # NO input_schema. v2 enforces input_schema on EVERY user turn within
+    # a task-mode conversation (not just the initial coordinator-
+    # delegated call). For multi-turn HITL like "draft spec → ask 'Shall
+    # I proceed?' → user types 'yes'", the user's free-form replies
+    # would fail input_schema validation. Drop the schema and let ADK
+    # use the default flexible input — the creator's instruction
+    # already documents the expected mission shape.
+    # No output_schema — the creator's "result" is conveyed through the
+    # create_specialist tool's return string (and the side effect on
+    # state.capabilities). Adding output_schema would force the LLM
+    # into a structured response that doesn't match the conversational
+    # flow.
+    instruction="""You are the Agent Creator. You build new specialists to fill capability gaps in the BI team.
 
-# Workflow
-1. Read the mission the coordinator gave you (e.g., "Build a specialist that
-   pulls Formula 1 race results").
-2. Draft a spec out loud:
+# Available tools (the safety allowlist)
+A new specialist may use any combination of these and only these tools — pass the short names verbatim in tool_set:
+  - "google_search"     — Web search for current information.
+  - "get_current_date"  — Returns today's date (YYYY-MM-DD). Pair with google_search for time-sensitive lookups like "current season", "this week's earnings", "recent IPOs".
+  - "calculator"        — Safe math expression evaluator. Use for arithmetic in specialists that don't need full Python (currency conversion, percentages, basic stats). Supports + - * / // % **, sqrt/log/exp/sin/cos/floor/ceil, min/max/round/sum, constants pi/e.
+  - "load_web_page"     — Fetch text content of a specific URL. Use for specialists that need to read a particular page rather than search.
+
+A spec with `tool_set: []` is allowed too — that creates a pure-LLM specialist with no tools.
+
+# Workflow (multi-turn — you may chat with the user during this)
+1. Read the mission from the input. Draft a spec out loud:
    - name: snake_case identifier (e.g., "f1_data_agent")
    - description: one-sentence role summary used by the coordinator for routing
    - instruction: the system prompt the new agent will follow
-   - tool_set: a list of ALLOWED tool names (see safety.py allowlist)
-3. **Ask the user to confirm**: "I propose creating a specialist called X that
-   does Y using tools Z. Shall I proceed?" Wait for an affirmative reply.
+   - tool_set: list of allowlisted tool names from the table above
+2. Pick the MINIMAL set of tools the specialist needs. More tools = more decisions for its LLM. If google_search alone is enough, use just that.
+3. **Ask the user to confirm**: "I propose creating a specialist called X that does Y using tools Z. Shall I proceed?" Wait for an affirmative reply.
 4. On confirmation, call `create_specialist` with the spec.
-5. Report success or failure back with the new specialist's name and description.
+5. Call `finish_task` to hand control back to the coordinator with the new specialist's name and description as the result.
 
 # Rules
-- Use ONLY tool names from the safety allowlist. Violations are rejected by
-  the tool.
+- Use ONLY tool names from the allowlist above (case-sensitive). Violations are rejected by `create_specialist`.
 - Keep specialist instructions narrow — one capability per specialist.
 - Never create a duplicate (the tool auto-dedupes by name).
 - Never create a specialist that duplicates the existing fixed team.
+- If the user says "no" or wants changes, revise the spec and ask again. Do not proceed without confirmation.
 """,
     tools=[create_specialist],
+    # mode='task' AND tools=[create_specialist] — the framework also
+    # injects FinishTaskTool (because mode='task'), so this agent has
+    # at least 2 function tools. Both are function tools, no built-in
+    # conflict.
+    #
+    # Setting disallow_transfer_to_{parent,peers}=True suppresses the
+    # auto-injection of `transfer_to_agent` from
+    # `agent_transfer.py:152-188`. Without this, agent_creator's tool
+    # surface is `[transfer_to_agent, create_specialist, finish_task]`
+    # — three tools competing for the same "I'm done" semantics, which
+    # empirically causes tool-choice paralysis on Gemini-2.5-flash
+    # (the model returns finish_reason=STOP with zero output tokens
+    # after "yes proceed"). With these flags set, the surface narrows
+    # to `[create_specialist, finish_task]` — clean separation, no
+    # ambiguity. The creator returns to the coordinator via
+    # `finish_task` (the v2 task-mode auto-return path), not via
+    # `transfer_to_agent` — so we lose nothing functional.
+    disallow_transfer_to_parent=True,
+    disallow_transfer_to_peers=True,
 )
 
 
 # ---------------------------------------------------------------------------
-# Coordinator — meta-reasoning router. Wraps fixed specialists as AgentTools;
-# agent_creator is a sub_agent for conversational delegation during creation.
+# Coordinator — meta-reasoning router with runtime tool hydration.
 # ---------------------------------------------------------------------------
 
 
-# Fixed team tools. Kept in a module-level list so the hydration callback can
-# rebuild `root_agent.tools` from this base + runtime specialists every turn,
-# instead of accumulating across sessions.
-_FIXED_TOOLS = [
-    AgentTool(agent=data_fetcher_agent, propagate_grounding_metadata=True),
-    AgentTool(agent=analyst_agent),
-    AgentTool(agent=report_writer_agent, skip_summarization=True),
-]
-
-
 def _rehydrate_runtime_tools(callback_context: CallbackContext):
-  """On each turn, rebuild tools = fixed + session-specific runtime tools.
+  """Rebuild `root_agent.tools` from runtime capabilities on every turn.
 
-  Level 4 feature F6 — persistence across turns within a session. Rebuilding
-  from scratch each turn (rather than appending) keeps sessions isolated: a
-  runtime specialist created in session A never leaks into session B.
+  Level 4 feature: persistence across turns within a session AND across
+  server restarts (the disk YAML library is loaded by
+  `hydrate_capabilities`). v2 note: the auto-derived
+  `_SingleTurnAgentTool` entries from `sub_agents` are added at
+  `model_post_init` and are preserved in `_INITIAL_TOOLS`; this
+  callback rebuilds `tools` as `fixed + runtime` on every turn.
+
+  We mutate the module-global `root_agent.tools`, NOT
+  `callback_context.agent.tools` — `CallbackContext` in v2 does not
+  expose `.agent` (use `get_invocation_context().agent` if you need
+  it, but here the module-global reference is the simpler equivalent
+  and matches the v1 pattern).
   """
   runtime_tools = hydrate_capabilities(callback_context.state)
-  root_agent.tools = list(_FIXED_TOOLS) + runtime_tools
+  root_agent.tools = list(_INITIAL_TOOLS) + runtime_tools
 
 
 root_agent = Agent(
     name="level_4_agent",
     model="gemini-2.5-flash",
     description=(
-        "Self-evolving Business Intelligence coordinator. Routes analytical "
-        "business questions to fixed specialists (data_fetcher, analyst, "
-        "report_writer) and creates new specialists on demand when a "
-        "capability gap is detected."
+        "Self-evolving Business Intelligence coordinator. Routes"
+        " analytical business questions to a fixed team (data_fetcher,"
+        " analyst, report_writer) and synthesises a new specialist via"
+        " agent_creator when the team lacks a needed capability."
     ),
+    # PlanReActPlanner forces the LLM to emit explicit
+    # PLANNING / REASONING / ACTION / FINAL_ANSWER blocks before
+    # calling tools. For Level 4 the coordinator's plan IS the
+    # meta-reasoning ("can my fixed team handle this? does a runtime
+    # specialist match? do I need agent_creator?"), so making it
+    # visible inline is the half of L4's teaching value that the
+    # rewrite was missing. Same choice as Level 3 (where the
+    # coordinator's routing decisions also benefit from inline
+    # visibility). Different from Level 2 (deterministic graph) and
+    # Level 1 (no orchestration to plan).
+    planner=PlanReActPlanner(),
     instruction="""You are a BI coordinator. You delegate all work — you do not compute, search, or format yourself.
 
-# Your team (call as AgentTools)
-- `data_fetcher_agent` — web searches for business data
+# Your fixed team (always available)
+- `data_fetcher_agent` — web searches for business data, also fetches specific URLs
 - `analyst_agent` — all arithmetic, pandas exploration, matplotlib charts
 - `report_writer_agent` — formats the final BI brief (call this LAST)
+- `agent_creator` — builds new specialists when the team has a capability gap (multi-turn dialogue)
 
-Additional runtime specialists may appear in your tool list if created by
-`agent_creator` earlier in the session. Use them when their description
-matches the task.
+# Runtime specialists (PERSISTENT — may appear in your tool list)
+Your tool list also contains runtime specialists previously created by `agent_creator`. These persist across server restarts via the `runtime_agents/` library, so a specialist created on Monday is still callable today. Each has a `description` you can read to decide if it matches the current task. **Always check this list FIRST — if a runtime specialist's description matches the user's request, call it directly. Only delegate to `agent_creator` when no fixed-team specialist AND no runtime specialist covers the request.**
 
-# Meta-reasoning — capability-gap detection
-Before answering, decide: can my team handle this?
-- If YES: orchestrate calls. Typical order: data_fetcher_agent → analyst_agent
-  (one or more times) → report_writer_agent.
-- If NO (user needs a capability none of my specialists cover — e.g., "query
-  our live Salesforce pipeline", "pull Formula 1 race data"): transfer to
-  `agent_creator` with a clear mission. After creation, resume the original
-  task using the new specialist on the next turn.
+# Greetings and meta questions ("hi", "hello", "what can you do?")
+Respond directly yourself — do NOT delegate. Reply with two sentences: one describing the team, one inviting a question.
+
+# Meta-reasoning — what to do for each request
+Walk through this checklist in order:
+1. Is the request a greeting / meta-question? → answer directly.
+2. Does a runtime specialist's description match the request (e.g., F1 questions and there's an `f1_*_agent` in your tools)? → call THAT specialist. Do NOT recreate.
+3. Is the request analytical (data lookup + math + brief)? → fixed-team flow: `data_fetcher_agent` → `analyst_agent` (one or more times) → `report_writer_agent`.
+4. Is the request a true capability gap (none of the above match — e.g., "query our live Salesforce pipeline")? → delegate to `agent_creator` with a clear mission.
 
 # Hard rules
 1. NEVER compute a number yourself. Always call analyst_agent.
 2. NEVER write the final BI brief yourself. Always call report_writer_agent.
-3. Quote analyst_agent's printed numbers VERBATIM. Do not round, re-format, or
-   re-interpret them.
-4. For simple factual questions one data_fetcher_agent call may be enough —
-   skip the analyst and writer in that case.
+3. Quote analyst_agent's printed numbers VERBATIM. Do not round, re-format, or re-interpret them.
+4. For simple factual questions, one data_fetcher_agent call may be enough — skip the analyst and writer in that case.
+5. Don't delegate to `agent_creator` if a runtime specialist already exists for the topic. The dedupe check will reject it anyway, but checking first saves a round trip.
 """,
-    tools=list(_FIXED_TOOLS),
-    sub_agents=[agent_creator],
+    sub_agents=[
+        data_fetcher_agent,
+        analyst_agent,
+        report_writer_agent,
+        agent_creator,
+    ],
     before_agent_callback=_rehydrate_runtime_tools,
 )
+
+
+# Capture the framework's auto-derived `_SingleTurnAgentTool` /
+# `_TaskAgentTool` entries created during `model_post_init` from
+# `sub_agents=[...]`. The callback rebuilds tools as
+# `_INITIAL_TOOLS + runtime_tools` each turn so runtime specialists
+# can be added/removed without disturbing the fixed team's auto-tools.
+_INITIAL_TOOLS = list(root_agent.tools)

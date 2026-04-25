@@ -121,3 +121,4 @@ CLAUDE.md
 .v0/
 
 level_4a_agent/vendor/
+.playwright-mcp/

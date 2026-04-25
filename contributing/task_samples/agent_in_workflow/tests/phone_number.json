@@ -1,0 +1,287 @@
+{
+  "events": [
+    {
+      "author": "user",
+      "content": {
+        "parts": [
+          {
+            "text": "My phone number is 555-1234"
+          }
+        ],
+        "role": "user"
+      },
+      "id": "e-1",
+      "invocationId": "i-1",
+      "nodeInfo": {
+        "path": ""
+      }
+    },
+    {
+      "author": "task_in_workflow",
+      "content": {
+        "parts": [
+          {
+            "text": "Thanks! What is your full name?"
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "id": "e-2",
+      "invocationId": "i-1",
+      "nodeInfo": {
+        "path": "task_in_workflow@1/intake_agent@1"
+      }
+    },
+    {
+      "author": "user",
+      "content": {
+        "parts": [
+          {
+            "text": "Jane Doe"
+          }
+        ],
+        "role": "user"
+      },
+      "id": "e-3",
+      "invocationId": "i-2",
+      "nodeInfo": {
+        "path": ""
+      }
+    },
+    {
+      "author": "task_in_workflow",
+      "content": {
+        "parts": [
+          {
+            "functionCall": {
+              "args": {
+                "name": "Jane Doe",
+                "phone_number": "555-1234"
+              },
+              "id": "fc-1",
+              "name": "finish_task"
+            }
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "id": "e-4",
+      "invocationId": "i-2",
+      "longRunningToolIds": [],
+      "nodeInfo": {
+        "path": "task_in_workflow@1/intake_agent@1"
+      }
+    },
+    {
+      "actions": {
+        "finishTask": {
+          "output": {
+            "name": "Jane Doe",
+            "phone_number": "555-1234"
+          }
+        }
+      },
+      "author": "task_in_workflow",
+      "content": {
+        "parts": [
+          {
+            "functionResponse": {
+              "id": "fc-1",
+              "name": "finish_task",
+              "response": {
+                "result": "Task completed."
+              }
+            }
+          }
+        ],
+        "role": "user"
+      },
+      "id": "e-5",
+      "invocationId": "i-2",
+      "nodeInfo": {
+        "outputFor": [
+          "task_in_workflow@1/intake_agent@1"
+        ],
+        "path": "task_in_workflow@1/intake_agent@1"
+      },
+      "output": {
+        "name": "Jane Doe",
+        "phone_number": "555-1234"
+      }
+    },
+    {
+      "author": "task_in_workflow",
+      "content": {
+        "parts": [
+          {
+            "text": "Hello Jane Doe! Let me look up your orders."
+          }
+        ],
+        "role": "user"
+      },
+      "id": "e-6",
+      "invocationId": "i-2",
+      "nodeInfo": {
+        "path": "task_in_workflow@1/check_identity@1"
+      }
+    },
+    {
+      "author": "task_in_workflow",
+      "content": {
+        "parts": [
+          {
+            "functionCall": {
+              "args": {},
+              "id": "fc-2",
+              "name": "find_orders"
+            }
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "id": "e-7",
+      "invocationId": "i-2",
+      "longRunningToolIds": [],
+      "nodeInfo": {
+        "path": "task_in_workflow@1/generate_instruction@1"
+      }
+    },
+    {
+      "author": "task_in_workflow",
+      "content": {
+        "parts": [
+          {
+            "functionCall": {
+              "args": {
+                "originalFunctionCall": {
+                  "args": {},
+                  "id": "fc-2",
+                  "name": "find_orders"
+                },
+                "toolConfirmation": {
+                  "confirmed": false,
+                  "hint": "Please approve or reject the tool call find_orders() by responding with a FunctionResponse with an expected ToolConfirmation payload."
+                }
+              },
+              "id": "fc-3",
+              "name": "adk_request_confirmation"
+            }
+          }
+        ],
+        "role": "user"
+      },
+      "id": "e-8",
+      "invocationId": "i-2",
+      "longRunningToolIds": [
+        "fc-3"
+      ],
+      "nodeInfo": {
+        "path": "task_in_workflow@1/generate_instruction@1"
+      }
+    },
+    {
+      "actions": {
+        "requestedToolConfirmations": {
+          "fc-2": {
+            "confirmed": false,
+            "hint": "Please approve or reject the tool call find_orders() by responding with a FunctionResponse with an expected ToolConfirmation payload."
+          }
+        },
+        "skipSummarization": true
+      },
+      "author": "task_in_workflow",
+      "content": {
+        "parts": [
+          {
+            "functionResponse": {
+              "id": "fc-2",
+              "name": "find_orders",
+              "response": {
+                "error": "This tool call requires confirmation, please approve or reject."
+              }
+            }
+          }
+        ],
+        "role": "user"
+      },
+      "id": "e-9",
+      "invocationId": "i-2",
+      "nodeInfo": {
+        "path": "task_in_workflow@1/generate_instruction@1"
+      }
+    },
+    {
+      "author": "user",
+      "content": {
+        "parts": [
+          {
+            "functionResponse": {
+              "id": "fc-3",
+              "name": "adk_request_confirmation",
+              "response": {
+                "confirmed": true,
+                "payload": {}
+              }
+            }
+          }
+        ],
+        "role": "user"
+      },
+      "id": "e-10",
+      "invocationId": "i-2",
+      "nodeInfo": {
+        "path": ""
+      }
+    },
+    {
+      "author": "task_in_workflow",
+      "content": {
+        "parts": [
+          {
+            "functionResponse": {
+              "id": "fc-2",
+              "name": "find_orders",
+              "response": {
+                "result": [
+                  "CBC (Complete Blood Count)",
+                  "Lipid Panel"
+                ]
+              }
+            }
+          }
+        ],
+        "role": "user"
+      },
+      "id": "e-11",
+      "invocationId": "i-2",
+      "nodeInfo": {
+        "path": "task_in_workflow@1/generate_instruction@1"
+      }
+    },
+    {
+      "author": "task_in_workflow",
+      "content": {
+        "parts": [
+          {
+            "text": "The patient has the following orders: CBC (Complete Blood Count) and Lipid Panel.\n\nPlease fast for 8-12 hours before your appointment for the Lipid Panel. You may drink water."
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "id": "e-12",
+      "invocationId": "i-2",
+      "nodeInfo": {
+        "messageAsOutput": true,
+        "outputFor": [
+          "task_in_workflow@1/generate_instruction@1",
+          "task_in_workflow@1"
+        ],
+        "path": "task_in_workflow@1/generate_instruction@1"
+      }
+    }
+  ]
+}

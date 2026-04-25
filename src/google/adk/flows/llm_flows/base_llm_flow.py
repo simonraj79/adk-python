@@ -143,11 +143,10 @@ async def _resolve_toolset_auth(
     if not auth_config:
       continue
 
-    auth_config_copy = auth_config.model_copy(deep=True)
     try:
-      credential = await CredentialManager(
-          auth_config_copy
-      ).get_auth_credential(callback_context)
+      credential = await CredentialManager(auth_config).get_auth_credential(
+          callback_context
+      )
     except ValueError as e:
       # Validation errors from CredentialManager should be logged but not
       # block the flow - the toolset may still work without auth
@@ -159,16 +158,14 @@ async def _resolve_toolset_auth(
       credential = None
 
     if credential:
-      # Store in invocation context to avoid data leakage and race conditions
-      invocation_context.credential_by_key[auth_config.credential_key] = (
-          credential
-      )
+      # Populate in-place for toolset to use in get_tools()
+      auth_config.exchanged_auth_credential = credential
     else:
       # Need auth - will interrupt
       toolset_id = (
           f'{TOOLSET_AUTH_CREDENTIAL_ID_PREFIX}{type(tool_union).__name__}'
       )
-      pending_auth_requests[toolset_id] = auth_config_copy
+      pending_auth_requests[toolset_id] = auth_config
 
   if not pending_auth_requests:
     return
@@ -285,7 +282,7 @@ async def _handle_after_model_callback(
   # First run callbacks from the plugins.
   callback_response = (
       await invocation_context.plugin_manager.run_after_model_callback(
-          callback_context=CallbackContext(invocation_context),
+          callback_context=callback_context,
           llm_response=llm_response,
       )
   )
@@ -489,6 +486,9 @@ class BaseLlmFlow(ABC):
         yield event
     if invocation_context.end_invocation:
       return
+
+    agent = invocation_context.agent
+    llm_request.model = agent.canonical_live_model.model
 
     llm = self.__get_llm(invocation_context)
     logger.debug(
@@ -840,20 +840,22 @@ class BaseLlmFlow(ABC):
     # Long running tool calls should have been handled before this point.
     # If there are still long running tool calls, it means the agent is paused
     # before, and its branch hasn't been resumed yet.
-    if (
-        invocation_context.is_resumable
-        and events
-        and len(events) > 1
-        # TODO: here we are using the last 2 events to decide whether to pause
-        # the invocation. But this is just being optimistic, we should find a
-        # way to pause when the long running tool call is followed by more than
-        # one text responses.
-        and (
-            invocation_context.should_pause_invocation(events[-1])
-            or invocation_context.should_pause_invocation(events[-2])
-        )
-    ):
-      return
+    if invocation_context.is_resumable and events and len(events) > 1:
+      pause = False
+      if invocation_context.should_pause_invocation(events[-1]):
+        pause = True
+      elif invocation_context.should_pause_invocation(events[-2]):
+        # NOTE: This only checks the last 2 events. If an LRO is followed by
+        # multiple text responses, this check may not trigger correctly.
+        # This is a known limitation of the current 2-event window.
+        # Check if the function call in events[-2] is resolved by events[-1]
+        fc_ids = {fc.id for fc in events[-2].get_function_calls()}
+        fr_ids = {fr.id for fr in events[-1].get_function_responses()}
+        if fc_ids and not fc_ids.issubset(fr_ids):
+          pause = True
+
+      if pause:
+        return
 
     if (
         invocation_context.is_resumable
@@ -1391,6 +1393,9 @@ class BaseLlmFlow(ABC):
       )
       config['_adk_replay_indexes'] = replay_indexes
       return model
+
+    if invocation_context.live_request_queue is not None:
+      return agent.canonical_live_model
 
     if not hasattr(agent, 'canonical_model'):
       raise TypeError(

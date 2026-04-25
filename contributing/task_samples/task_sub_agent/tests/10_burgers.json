@@ -1,0 +1,519 @@
+{
+  "events": [
+    {
+      "author": "user",
+      "content": {
+        "parts": [
+          {
+            "text": "10 burgers"
+          }
+        ],
+        "role": "user"
+      },
+      "id": "e-1",
+      "invocationId": "i-1",
+      "nodeInfo": {
+        "path": ""
+      }
+    },
+    {
+      "author": "coordinator",
+      "content": {
+        "parts": [
+          {
+            "functionCall": {
+              "args": {
+                "request": "10 burgers"
+              },
+              "id": "fc-1",
+              "name": "order_collector"
+            }
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "id": "e-2",
+      "invocationId": "i-1",
+      "longRunningToolIds": [],
+      "nodeInfo": {
+        "path": "coordinator@1"
+      }
+    },
+    {
+      "actions": {
+        "requestTask": {
+          "fc-1": {
+            "agentName": "order_collector",
+            "input": {
+              "request": "10 burgers"
+            }
+          }
+        }
+      },
+      "author": "coordinator",
+      "content": {
+        "parts": [
+          {
+            "functionResponse": {
+              "id": "fc-1",
+              "name": "order_collector",
+              "response": {
+                "result": "Task delegated to order_collector."
+              }
+            }
+          }
+        ],
+        "role": "user"
+      },
+      "id": "e-3",
+      "invocationId": "i-1",
+      "nodeInfo": {
+        "path": "coordinator@1"
+      }
+    },
+    {
+      "author": "order_collector",
+      "branch": "task:fc-1",
+      "content": {
+        "parts": [
+          {
+            "functionCall": {
+              "args": {},
+              "id": "fc-2",
+              "name": "confirmation"
+            }
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "id": "e-4",
+      "invocationId": "i-1",
+      "longRunningToolIds": [],
+      "nodeInfo": {
+        "path": "coordinator@1/order_collector@1"
+      }
+    },
+    {
+      "author": "order_collector",
+      "branch": "task:fc-1",
+      "content": {
+        "parts": [
+          {
+            "functionCall": {
+              "args": {
+                "originalFunctionCall": {
+                  "args": {},
+                  "id": "fc-2",
+                  "name": "confirmation"
+                },
+                "toolConfirmation": {
+                  "confirmed": false,
+                  "hint": "Please approve or reject the tool call confirmation() by responding with a FunctionResponse with an expected ToolConfirmation payload."
+                }
+              },
+              "id": "fc-3",
+              "name": "adk_request_confirmation"
+            }
+          }
+        ],
+        "role": "user"
+      },
+      "id": "e-5",
+      "invocationId": "i-1",
+      "longRunningToolIds": [
+        "fc-3"
+      ],
+      "nodeInfo": {
+        "path": "coordinator@1/order_collector@1"
+      }
+    },
+    {
+      "actions": {
+        "requestedToolConfirmations": {
+          "fc-2": {
+            "confirmed": false,
+            "hint": "Please approve or reject the tool call confirmation() by responding with a FunctionResponse with an expected ToolConfirmation payload."
+          }
+        },
+        "skipSummarization": true
+      },
+      "author": "order_collector",
+      "branch": "task:fc-1",
+      "content": {
+        "parts": [
+          {
+            "functionResponse": {
+              "id": "fc-2",
+              "name": "confirmation",
+              "response": {
+                "error": "This tool call requires confirmation, please approve or reject."
+              }
+            }
+          }
+        ],
+        "role": "user"
+      },
+      "id": "e-6",
+      "invocationId": "i-1",
+      "nodeInfo": {
+        "path": "coordinator@1/order_collector@1"
+      }
+    },
+    {
+      "author": "user",
+      "content": {
+        "parts": [
+          {
+            "functionResponse": {
+              "id": "fc-3",
+              "name": "adk_request_confirmation",
+              "response": {
+                "confirmed": true,
+                "payload": {}
+              }
+            }
+          }
+        ],
+        "role": "user"
+      },
+      "id": "e-7",
+      "invocationId": "i-1",
+      "nodeInfo": {
+        "path": ""
+      }
+    },
+    {
+      "author": "order_collector",
+      "content": {
+        "parts": [
+          {
+            "functionCall": {
+              "args": {
+                "result": [
+                  {
+                    "name": "Burger",
+                    "quantity": 10
+                  }
+                ]
+              },
+              "id": "fc-4",
+              "name": "finish_task"
+            }
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "id": "e-8",
+      "invocationId": "i-1",
+      "longRunningToolIds": [],
+      "nodeInfo": {
+        "path": "order_collector@1"
+      }
+    },
+    {
+      "actions": {
+        "finishTask": {
+          "output": [
+            {
+              "name": "Burger",
+              "quantity": 10
+            }
+          ]
+        }
+      },
+      "author": "order_collector",
+      "content": {
+        "parts": [
+          {
+            "functionResponse": {
+              "id": "fc-4",
+              "name": "finish_task",
+              "response": {
+                "result": "Task completed."
+              }
+            }
+          }
+        ],
+        "role": "user"
+      },
+      "id": "e-9",
+      "invocationId": "i-1",
+      "nodeInfo": {
+        "outputFor": [
+          "order_collector@1"
+        ],
+        "path": "order_collector@1"
+      },
+      "output": [
+        {
+          "name": "Burger",
+          "quantity": 10
+        }
+      ]
+    },
+    {
+      "author": "coordinator",
+      "content": {
+        "parts": [
+          {
+            "text": "Please provide your credit card number and CVV."
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "id": "e-10",
+      "invocationId": "i-1",
+      "nodeInfo": {
+        "path": "order_collector@1/coordinator@1"
+      }
+    },
+    {
+      "author": "user",
+      "content": {
+        "parts": [
+          {
+            "text": "1234-1234"
+          }
+        ],
+        "role": "user"
+      },
+      "id": "e-11",
+      "invocationId": "i-2",
+      "nodeInfo": {
+        "path": ""
+      }
+    },
+    {
+      "author": "coordinator",
+      "content": {
+        "parts": [
+          {
+            "text": "I have your credit card number, but I still need your CVV."
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "id": "e-12",
+      "invocationId": "i-2",
+      "nodeInfo": {
+        "path": "coordinator@1"
+      }
+    },
+    {
+      "author": "user",
+      "content": {
+        "parts": [
+          {
+            "text": "123"
+          }
+        ],
+        "role": "user"
+      },
+      "id": "e-13",
+      "invocationId": "i-3",
+      "nodeInfo": {
+        "path": ""
+      }
+    },
+    {
+      "author": "coordinator",
+      "content": {
+        "parts": [
+          {
+            "functionCall": {
+              "args": {
+                "request": "Credit card number: 1234-1234, CVV: 123"
+              },
+              "id": "fc-5",
+              "name": "payment_collector"
+            }
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "id": "e-14",
+      "invocationId": "i-3",
+      "longRunningToolIds": [],
+      "nodeInfo": {
+        "path": "coordinator@1"
+      }
+    },
+    {
+      "actions": {
+        "requestTask": {
+          "fc-5": {
+            "agentName": "payment_collector",
+            "input": {
+              "request": "Credit card number: 1234-1234, CVV: 123"
+            }
+          }
+        }
+      },
+      "author": "coordinator",
+      "content": {
+        "parts": [
+          {
+            "functionResponse": {
+              "id": "fc-5",
+              "name": "payment_collector",
+              "response": {
+                "result": "Task delegated to payment_collector."
+              }
+            }
+          }
+        ],
+        "role": "user"
+      },
+      "id": "e-15",
+      "invocationId": "i-3",
+      "nodeInfo": {
+        "path": "coordinator@1"
+      }
+    },
+    {
+      "author": "payment_collector",
+      "branch": "task:fc-5",
+      "content": {
+        "parts": [
+          {
+            "functionCall": {
+              "args": {
+                "credit_card_number": "1234-1234",
+                "cvv": "123"
+              },
+              "id": "fc-6",
+              "name": "finish_task"
+            }
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "id": "e-16",
+      "invocationId": "i-3",
+      "longRunningToolIds": [],
+      "nodeInfo": {
+        "path": "coordinator@1/payment_collector@1"
+      }
+    },
+    {
+      "actions": {
+        "finishTask": {
+          "output": {
+            "credit_card_number": "1234-1234",
+            "cvv": "123"
+          }
+        }
+      },
+      "author": "payment_collector",
+      "branch": "task:fc-5",
+      "content": {
+        "parts": [
+          {
+            "functionResponse": {
+              "id": "fc-6",
+              "name": "finish_task",
+              "response": {
+                "result": "Task completed."
+              }
+            }
+          }
+        ],
+        "role": "user"
+      },
+      "id": "e-17",
+      "invocationId": "i-3",
+      "nodeInfo": {
+        "outputFor": [
+          "coordinator@1/payment_collector@1"
+        ],
+        "path": "coordinator@1/payment_collector@1"
+      },
+      "output": {
+        "credit_card_number": "1234-1234",
+        "cvv": "123"
+      }
+    },
+    {
+      "author": "coordinator",
+      "branch": "task:fc-5",
+      "content": {
+        "parts": [
+          {
+            "functionCall": {
+              "args": {
+                "orders": [
+                  {
+                    "name": "Burger",
+                    "quantity": 10
+                  }
+                ],
+                "payment_info": {
+                  "credit_card_number": "1234-1234",
+                  "cvv": "123"
+                }
+              },
+              "id": "fc-7",
+              "name": "place_order"
+            }
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "id": "e-18",
+      "invocationId": "i-3",
+      "longRunningToolIds": [],
+      "nodeInfo": {
+        "path": "coordinator@1/payment_collector@1/coordinator@1"
+      }
+    },
+    {
+      "author": "coordinator",
+      "branch": "task:fc-5",
+      "content": {
+        "parts": [
+          {
+            "functionResponse": {
+              "id": "fc-7",
+              "name": "place_order",
+              "response": {
+                "result": "Successfully placed order for 10 items."
+              }
+            }
+          }
+        ],
+        "role": "user"
+      },
+      "id": "e-19",
+      "invocationId": "i-3",
+      "nodeInfo": {
+        "path": "coordinator@1/payment_collector@1/coordinator@1"
+      }
+    },
+    {
+      "author": "coordinator",
+      "branch": "task:fc-5",
+      "content": {
+        "parts": [
+          {
+            "text": "Your order has been placed!"
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "id": "e-20",
+      "invocationId": "i-3",
+      "nodeInfo": {
+        "path": "coordinator@1/payment_collector@1/coordinator@1"
+      }
+    }
+  ]
+}

@@ -465,6 +465,14 @@ def _get_contents(
   else:
     events_to_process = raw_filtered_events
 
+  # Build mapping of function call IDs to their authors
+  fc_author_by_id = {}
+  for e in events_to_process:
+    if e.content and e.content.parts:
+      for part in e.content.parts:
+        if part.function_call:
+          fc_author_by_id[part.function_call.id] = e.author
+
   filtered_events = []
   # aggregate transcription events
   for i in range(len(events_to_process)):
@@ -502,7 +510,23 @@ def _get_contents(
         )
         accumulated_output_transcription = ''
 
-    if _is_other_agent_reply(agent_name, event):
+    is_other_reply = _is_other_agent_reply(agent_name, event)
+
+    # Check if it's a FunctionResponse for another agent
+    if not is_other_reply and event.content:
+      for part in event.content.parts or []:
+        if part.function_response:
+          resp_id = part.function_response.id
+          call_author = fc_author_by_id.get(resp_id)
+          if (
+              call_author
+              and call_author != agent_name
+              and call_author != 'user'
+          ):
+            is_other_reply = True
+            break
+
+    if is_other_reply:
       if converted_event := _present_other_agent_message(event):
         filtered_events.append(converted_event)
     else:

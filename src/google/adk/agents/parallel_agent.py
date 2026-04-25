@@ -21,6 +21,7 @@ import sys
 from typing import AsyncGenerator
 from typing import ClassVar
 
+from typing_extensions import deprecated
 from typing_extensions import override
 
 from ..events.event import Event
@@ -146,7 +147,10 @@ async def _merge_agent_run_pre_3_11(
     for task in tasks:
       task.cancel()
 
-
+@deprecated(
+    'ParallelAgent is deprecated and will be removed in future versions.'
+    ' Please use Workflow instead.'
+)
 class ParallelAgent(BaseAgent):
   """A shell agent that runs its sub-agents in parallel in an isolated manner.
 

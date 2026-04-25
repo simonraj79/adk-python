@@ -23,6 +23,7 @@ from typing import ClassVar
 from typing import Dict
 from typing import Optional
 
+from typing_extensions import deprecated
 from typing_extensions import override
 
 from ..events.event import Event
@@ -48,7 +49,10 @@ class LoopAgentState(BaseAgentState):
   times_looped: int = 0
   """The number of times the loop agent has looped."""
 
-
+@deprecated(
+    'LoopAgent is deprecated and will be removed in future versions.'
+    ' Please use Workflow instead.'
+)
 class LoopAgent(BaseAgent):
   """A shell agent that run its sub-agents in a loop.
 

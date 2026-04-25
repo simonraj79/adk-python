@@ -56,6 +56,7 @@ dependencies = [
   "opentelemetry-exporter-otlp-proto-http>=1.36.0",
   "opentelemetry-resourcedetector-gcp>=1.9.0a0, <2.0.0",
   "opentelemetry-sdk>=1.36.0, <1.39.0",
+  "packaging>=21.0",                                         # For version parsing in CLI deploy and model id checks.
   "pyarrow>=14.0.0",
   "pydantic>=2.12.0, <3.0.0",                                 # For data validation/models
   "python-dateutil>=2.9.0.post0, <3.0.0",                    # For Vertext AI Session Service
@@ -88,11 +89,10 @@ adk = "google.adk.cli:main"
 dev = [
   # go/keep-sorted start
   "flit>=3.10.0",
-  "isort>=6.0.0",
   "mypy>=1.15.0",
-  "pre-commit>=4.0.0",
-  "pyink>=25.12.0",
   "pylint>=2.6.0",
+  "tox>=4.23.2",
+  "tox-uv>=1.33.2",
   # go/keep-sorted end
 ]
 
@@ -232,7 +232,7 @@ asyncio_mode = "auto"
 
 
 [tool.mypy]
-python_version = "3.10"
+python_version = "3.11"
 exclude = ["tests/", "contributing/samples/"]
 plugins = ["pydantic.mypy"]
 strict = true

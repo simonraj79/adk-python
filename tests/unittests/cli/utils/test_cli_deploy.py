@@ -236,6 +236,8 @@ def test_agent_engine_app_template_compiles_with_windows_paths() -> None:
       adk_app_type="agent",
       trace_to_cloud_option=False,
       express_mode=False,
+      extra_imports="",
+      app_instantiation="agent=root_agent",
   )
   compile(rendered, "<agent_engine_app.py>", "exec")
 
@@ -315,7 +317,9 @@ def test_to_agent_engine_happy_path(
   assert "enable_tracing=True" in content
   reqs_path = tmp_dir / "requirements.txt"
   assert reqs_path.is_file()
-  assert "google-cloud-aiplatform[adk,agent_engines]" in reqs_path.read_text()
+  reqs_content = reqs_path.read_text()
+  assert "google-cloud-aiplatform[agent_engines]" in reqs_content
+  assert f"google-adk=={cli_deploy.__version__}" in reqs_content
   assert len(create_recorder.calls) == 1
   assert str(rmtree_recorder.get_last_call_args()[0]) == str(tmp_dir)
 

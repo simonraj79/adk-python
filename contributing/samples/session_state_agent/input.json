@@ -1,4 +1,6 @@
 {
   "state": {},
-  "queries": ["hello world!"]
+  "queries": [
+    "hello world!"
+  ]
 }

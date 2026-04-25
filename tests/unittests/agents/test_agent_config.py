@@ -94,11 +94,18 @@ tools:
 def test_agent_config_discriminator_loop_agent(
     agent_class_value: str, tmp_path: Path
 ):
+  sub_agent_dir = tmp_path / "sub_agents"
+  sub_agent_dir.mkdir()
+  (sub_agent_dir / "sub_agent.yaml").write_text(
+      "name: sub_agent\nmodel: gemini-2.0-flash\n"
+      "description: a sub agent\ninstruction: sub agent instruction\n"
+  )
   yaml_content = f"""\
 agent_class: {agent_class_value}
 name: CodePipelineAgent
 description: Executes a sequence of code writing, reviewing, and refactoring.
-sub_agents: []
+sub_agents:
+  - config_path: sub_agents/sub_agent.yaml
 """
   config_file = tmp_path / "test_config.yaml"
   config_file.write_text(yaml_content)
@@ -121,11 +128,18 @@ sub_agents: []
 def test_agent_config_discriminator_parallel_agent(
     agent_class_value: str, tmp_path: Path
 ):
+  sub_agent_dir = tmp_path / "sub_agents"
+  sub_agent_dir.mkdir()
+  (sub_agent_dir / "sub_agent.yaml").write_text(
+      "name: sub_agent\nmodel: gemini-2.0-flash\n"
+      "description: a sub agent\ninstruction: sub agent instruction\n"
+  )
   yaml_content = f"""\
 agent_class: {agent_class_value}
 name: CodePipelineAgent
 description: Executes a sequence of code writing, reviewing, and refactoring.
-sub_agents: []
+sub_agents:
+  - config_path: sub_agents/sub_agent.yaml
 """
   config_file = tmp_path / "test_config.yaml"
   config_file.write_text(yaml_content)
@@ -148,11 +162,18 @@ sub_agents: []
 def test_agent_config_discriminator_sequential_agent(
     agent_class_value: str, tmp_path: Path
 ):
+  sub_agent_dir = tmp_path / "sub_agents"
+  sub_agent_dir.mkdir()
+  (sub_agent_dir / "sub_agent.yaml").write_text(
+      "name: sub_agent\nmodel: gemini-2.0-flash\n"
+      "description: a sub agent\ninstruction: sub agent instruction\n"
+  )
   yaml_content = f"""\
 agent_class: {agent_class_value}
 name: CodePipelineAgent
 description: Executes a sequence of code writing, reviewing, and refactoring.
-sub_agents: []
+sub_agents:
+  - config_path: sub_agents/sub_agent.yaml
 """
   config_file = tmp_path / "test_config.yaml"
   config_file.write_text(yaml_content)

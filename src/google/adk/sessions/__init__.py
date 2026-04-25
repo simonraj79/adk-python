@@ -15,6 +15,7 @@ from .base_session_service import BaseSessionService
 from .in_memory_session_service import InMemorySessionService
 from .session import Session
 from .state import State
+from .state import StateSchemaError
 from .vertex_ai_session_service import VertexAiSessionService
 
 __all__ = [
@@ -23,6 +24,7 @@ __all__ = [
     'InMemorySessionService',
     'Session',
     'State',
+    'StateSchemaError',
     'VertexAiSessionService',
 ]
 

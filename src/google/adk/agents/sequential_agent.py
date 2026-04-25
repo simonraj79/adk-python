@@ -21,6 +21,7 @@ from typing import AsyncGenerator
 from typing import ClassVar
 from typing import Type
 
+from typing_extensions import deprecated
 from typing_extensions import override
 
 from ..events.event import Event
@@ -44,7 +45,10 @@ class SequentialAgentState(BaseAgentState):
   current_sub_agent: str = ''
   """The name of the current sub-agent to run."""
 
-
+@deprecated(
+    'SequentialAgent is deprecated and will be removed in future versions.'
+    ' Please use Workflow instead.'
+)
 class SequentialAgent(BaseAgent):
   """A shell agent that runs its sub-agents in sequence."""
 

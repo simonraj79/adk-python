@@ -83,6 +83,7 @@ class LocalEnvironment(BaseEnvironment):
       logger.debug('Removed temporary workspace: %s', self._working_dir)
       self._working_dir = None
 
+
   @override
   async def execute(
       self,
@@ -123,24 +124,24 @@ class LocalEnvironment(BaseEnvironment):
     )
 
   @override
-  async def read_file(self, path: str | Path) -> bytes:
+  async def read_file(self, path: str) -> bytes:
     if self._working_dir is None:
       raise RuntimeError('`working_dir` is not set. Call initialize() first.')
 
-    resolved = self._resolve_path(path)
-    return await asyncio.to_thread(self._sync_read, resolved)
+    path = self._resolve_path(path)
+    return await asyncio.to_thread(self._sync_read, path)
 
   @override
-  async def write_file(self, path: str | Path, content: str | bytes) -> None:
+  async def write_file(self, path: str, content: str | bytes) -> None:
     if self._working_dir is None:
       raise RuntimeError('`working_dir` is not set. Call initialize() first.')
 
-    resolved = self._resolve_path(path)
-    return await asyncio.to_thread(self._sync_write, resolved, content)
+    path = self._resolve_path(path)
+    return await asyncio.to_thread(self._sync_write, path, content)
 
-  def _resolve_path(self, path: str | Path) -> str:
+
+  def _resolve_path(self, path: str) -> str:
     """Resolve a relative path against the working directory."""
-    path = str(path)
     if os.path.isabs(path):
       return path
     return os.path.join(self._working_dir, path)

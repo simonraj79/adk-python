@@ -69,12 +69,17 @@ def record_agent_request_size(
     agent_name: str, user_content: types.Content | None
 ):
   """Records the size of the agent request."""
-  size = _get_content_size(user_content)
-  attrs = {
-      gen_ai_attributes.GEN_AI_AGENT_NAME: agent_name,
-      GEN_AI_INPUT_TYPE: _get_modality_from_content(user_content),
-  }
-  _agent_request_size.record(size, attributes=attrs)
+  try:
+    size = _get_content_size(user_content)
+    attrs = {
+        gen_ai_attributes.GEN_AI_AGENT_NAME: agent_name,
+        GEN_AI_INPUT_TYPE: _get_modality_from_content(user_content),
+    }
+    _agent_request_size.record(size, attributes=attrs)
+  except Exception:  # pylint: disable=broad-exception-caught
+    logger.exception(
+        "Failed to record agent request size for agent %s", agent_name
+    )
 
 
 def record_agent_invocation_duration(
@@ -85,49 +90,64 @@ def record_agent_invocation_duration(
     error: Exception | None = None,
 ):
   """Records the duration of the agent invocation."""
-  response_content: types.Content | None = None
-  for event in reversed(events):
-    if event.author == agent_name and event.content:
-      response_content = event.content
-      break
+  try:
+    response_content: types.Content | None = None
+    for event in reversed(events):
+      if event.author == agent_name and event.content:
+        response_content = event.content
+        break
 
-  attrs = {
-      gen_ai_attributes.GEN_AI_AGENT_NAME: agent_name,
-      GEN_AI_INPUT_TYPE: _get_modality_from_content(user_content),
-      gen_ai_attributes.GEN_AI_OUTPUT_TYPE: _get_modality_from_content(
-          response_content
-      ),
-  }
-  if error is not None:
-    attrs[error_attributes.ERROR_TYPE] = type(error).__name__
-  _agent_invocation_duration.record(elapsed_ms, attributes=attrs)
+    attrs = {
+        gen_ai_attributes.GEN_AI_AGENT_NAME: agent_name,
+        GEN_AI_INPUT_TYPE: _get_modality_from_content(user_content),
+        gen_ai_attributes.GEN_AI_OUTPUT_TYPE: _get_modality_from_content(
+            response_content
+        ),
+    }
+    if error is not None:
+      attrs[error_attributes.ERROR_TYPE] = type(error).__name__
+    _agent_invocation_duration.record(elapsed_ms, attributes=attrs)
+  except Exception:  # pylint: disable=broad-exception-caught
+    logger.exception(
+        "Failed to record agent invocation duration for agent %s", agent_name
+    )
 
 
 def record_agent_response_size(agent_name: str, events: list[Event]):
   """Records the size of the agent response by extracting content from events."""
-  response_content: types.Content | None = None
-  for event in reversed(events):
-    # Need to look for author matching agent_name and having content
-    if event.author == agent_name and event.content:
-      response_content = event.content
-      break
+  try:
+    response_content: types.Content | None = None
+    for event in reversed(events):
+      # Need to look for author matching agent_name and having content
+      if event.author == agent_name and event.content:
+        response_content = event.content
+        break
 
-  size = _get_content_size(response_content)
-  attrs = {
-      gen_ai_attributes.GEN_AI_AGENT_NAME: agent_name,
-      gen_ai_attributes.GEN_AI_OUTPUT_TYPE: _get_modality_from_content(
-          response_content
-      ),
-  }
-  _agent_response_size.record(size, attributes=attrs)
+    size = _get_content_size(response_content)
+    attrs = {
+        gen_ai_attributes.GEN_AI_AGENT_NAME: agent_name,
+        gen_ai_attributes.GEN_AI_OUTPUT_TYPE: _get_modality_from_content(
+            response_content
+        ),
+    }
+    _agent_response_size.record(size, attributes=attrs)
+  except Exception:  # pylint: disable=broad-exception-caught
+    logger.exception(
+        "Failed to record agent response size for agent %s", agent_name
+    )
 
 
 def record_agent_workflow_steps(agent_name: str, steps_count: int):
   """Records the number of steps in the agent workflow."""
-  attrs = {
-      gen_ai_attributes.GEN_AI_AGENT_NAME: agent_name,
-  }
-  _agent_workflow_steps.record(steps_count, attributes=attrs)
+  try:
+    attrs = {
+        gen_ai_attributes.GEN_AI_AGENT_NAME: agent_name,
+    }
+    _agent_workflow_steps.record(steps_count, attributes=attrs)
+  except Exception:  # pylint: disable=broad-exception-caught
+    logger.exception(
+        "Failed to record agent workflow steps for agent %s", agent_name
+    )
 
 
 def record_tool_execution_duration(
@@ -139,18 +159,23 @@ def record_tool_execution_duration(
     error: Exception | None = None,
 ):
   """Records the duration of the tool execution."""
-  attrs = {
-      gen_ai_attributes.GEN_AI_AGENT_NAME: agent_name,
-      gen_ai_attributes.GEN_AI_TOOL_NAME: tool_name,
-      GEN_AI_INPUT_TYPE: _get_modality_from_content(input_content),
-  }
-  if error is not None:
-    attrs[error_attributes.ERROR_TYPE] = type(error).__name__
-  else:
-    attrs[gen_ai_attributes.GEN_AI_OUTPUT_TYPE] = _get_modality_from_content(
-        output_content
+  try:
+    attrs = {
+        gen_ai_attributes.GEN_AI_AGENT_NAME: agent_name,
+        gen_ai_attributes.GEN_AI_TOOL_NAME: tool_name,
+        GEN_AI_INPUT_TYPE: _get_modality_from_content(input_content),
+    }
+    if error is not None:
+      attrs[error_attributes.ERROR_TYPE] = type(error).__name__
+    else:
+      attrs[gen_ai_attributes.GEN_AI_OUTPUT_TYPE] = _get_modality_from_content(
+          output_content
+      )
+    _tool_execution_duration.record(elapsed_ms, attributes=attrs)
+  except Exception:  # pylint: disable=broad-exception-caught
+    logger.exception(
+        "Failed to record tool execution duration for tool %s", tool_name
     )
-  _tool_execution_duration.record(elapsed_ms, attributes=attrs)
 
 
 # Helper functions copied from metrics_plugin.py

@@ -257,6 +257,7 @@ def _serialize_value(value: Any) -> Optional[Any]:
     try:
       dumped = value.model_dump(
           exclude_none=True,
+          exclude_unset=True,
           exclude_defaults=True,
           by_alias=True,
       )

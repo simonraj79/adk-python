@@ -1,1026 +1,878 @@
 # AI Coding Assistant Context
 
-This document provides context for AI coding assistants (Claude Code, Gemini
-CLI, GitHub Copilot, Cursor, etc.) to understand the ADK Python project and
-assist with development.
+This document provides context for AI coding assistants (Antigravity, Gemini CLI, etc.) to understand the ADK Python project and assist with development.
+
+## Skills index — when to invoke which
+
+The repository ships seven task-scoped skills under `.agents/skills/`. Each
+folder contains a `SKILL.md` with YAML frontmatter (`name`, `description`)
+and supporting reference docs. The `description` field is the
+auto-activation trigger — when the user's request matches a skill's
+triggers, read the matching `SKILL.md` first and follow it. For tasks
+that span multiple skills, layer them (e.g., `adk-workflow` to build,
+then `adk-style` to polish, then `adk-debug` to verify).
+
+| Skill | Invoke when… | Auto-trigger |
+|---|---|---|
+| **`adk-architecture`** | You need to understand or design ADK's runtime: event flow, state management, `BaseNode`, `Workflow`, `NodeRunner`, `Context`, checkpoint/resume, observability, LLM context orchestration. Use for "how does X work?", "design of…", core API changes. | yes |
+| **`adk-workflow`** | You are **building** an agent or workflow: defining `LlmAgent` / `FunctionNode` / `LlmAgentWrapper` / `JoinNode` / `ParallelWorker`, wiring `Edge`s, conditional routing, fan-out/fan-in, retry, HITL via `RequestInput`, parallel workers, MCP tools, session state, `mode='task'` / `mode='single_turn'`. The day-to-day "make a new agent" skill. | yes |
+| **`adk-debug`** | You are debugging or verifying agent behavior: inspecting sessions, tracing event flow, tool-call issues, LLM/model problems, choosing between `adk web` (browser UI + REST) and `adk run` (CLI). Always consult before adding print-statement debugging. | yes |
+| **`adk-style`** | You are writing or reviewing code/tests: Python idioms, imports, typing, Pydantic v2 patterns, formatting, logging, file organization, ADK testing rules. Apply on every code edit before commit. | yes |
+| **`adk-sample-creator`** | The user wants to add a new sample under `contributing/` (e.g., dynamic nodes, fan-out/fan-in, standalone agents). Covers required folder/file shape (`agent.py`, `README.md`) and naming. | yes |
+| **`adk-git`** | Any git operation — commit, push, pull, rebase, branch, PR, cherry-pick. Documents the project's Conventional Commits format (`<type>(<scope>): <description>`). Consult before composing any commit message. | yes |
+| **`adk-setup`** | The user is setting up a local dev environment from scratch: Python 3.11+, `uv` package manager, venv, dependency install. Required for contributors getting started. | **no — explicit only** (skill sets `disable-model-invocation: true`; do not volunteer it unless the user asks for setup help) |
+
+### Common skill combinations
+
+- **Building a new agent or workflow** → `adk-workflow` (build) + `adk-style` (polish) + `adk-debug` (verify) + `adk-git` (commit).
+- **Designing a framework-level change** → `adk-architecture` (design) + `adk-style` (implement) + `adk-debug` (verify) + `adk-git` (commit).
+- **Adding a contributing sample** → `adk-sample-creator` (scaffold) + `adk-workflow` (logic) + `adk-style` (polish).
+- **Diagnosing a misbehaving demo** → `adk-debug` first; reach for `adk-architecture` only if the issue is in the runtime, not the demo.
 
 ## Project Overview
 
-The Agent Development Kit (ADK) is an open-source, code-first Python toolkit for
-building, evaluating, and deploying sophisticated AI agents with flexibility and
-control. While optimized for Gemini and the Google ecosystem, ADK is
-model-agnostic, deployment-agnostic, and is built for compatibility with other
-frameworks. ADK was designed to make agent development feel more like software
-development, to make it easier for developers to create, deploy, and orchestrate
-agentic architectures that range from simple tasks to complex workflows.
+The Agent Development Kit (ADK) is an open-source, code-first Python toolkit for building, evaluating, and deploying sophisticated AI agents.
 
 ### Key Components
 
--   **Agent** - Blueprint defining identity, instructions, and tools
-    (`LlmAgent`, `LoopAgent`, `ParallelAgent`, `SequentialAgent`, etc.)
--   **Runner** - Execution engine that orchestrates agent execution. It manages
-    the 'Reason-Act' loop, processes messages within a session, generates
-    events, calls LLMs, executes tools, and handles multi-agent coordination. It
-    interacts with various services like session management, artifact storage,
-    and memory, and integrates with application-wide plugins. The runner
-    provides different execution modes: `run_async` for asynchronous execution
-    in production, `run_live` for bidirectional streaming interaction, and
-    `run` for synchronous execution suitable for local testing and debugging. At
-    the end of each invocation, it can perform event compaction to manage
-    session history size.
--   **Tool** - Functions/capabilities agents can call (Python functions, OpenAPI
-    specs, MCP tools, Google API tools)
--   **Session** - Conversation state management (in-memory, Vertex AI,
-    Spanner-backed)
--   **Memory** - Long-term recall across sessions
+- **Agent**: Blueprint defining identity, instructions, and tools.
+- **Runner**: Stateless execution engine that orchestrates agent execution.
+- **Tool**: Functions/capabilities agents can call.
+- **Session**: Conversation state management.
+- **Memory**: Long-term recall across sessions.
+- **Workflow** (ADK 2.0): Graph-based orchestration of complex, multi-step agent interactions.
+- **BaseNode** (ADK 2.0): Contract for all nodes, supporting output streaming and human-in-the-loop steps.
+- **Context** (ADK 2.0): Holds execution state and telemetry context mapped 1:1 to nodes.
 
-### How the Runner Works
-
-The Runner is the stateless orchestration engine that manages agent execution.
-It does not hold conversation history in memory; instead, it relies on services
-like `SessionService`, `ArtifactService`, and `MemoryService` for persistence.
-
-**Invocation Lifecycle:**
-
-Each call to `runner.run_async()` or `runner.run()` processes a single user
-turn, known as an **invocation**.
-
-1.  **Session Retrieval:** When `run_async()` is called with a `session_id`, the
-    runner fetches the session state, including all conversation events, from
-    the `SessionService`.
-2.  **Context Creation:** It creates an `InvocationContext` containing the
-    session, the new user message, and references to persistence services.
-3.  **Agent Execution:** The runner calls `agent.run_async()` with this context.
-    The agent then enters its reason-act loop, which may involve:
-    *   Calling an LLM for reasoning.
-    *   Executing tools (function calling).
-    *   Generating text or audio responses.
-    *   Transferring control to sub-agents.
-4.  **Event Streaming & Persistence:** Each step in the agent's execution (LLM
-    call, tool call, tool response, model response) generates `Event` objects.
-    The runner streams these events back to the caller and simultaneously
-    appends them to the session via `SessionService`.
-5.  **Invocation Completion:** Once the agent has produced its final response
-    for the turn (e.g., a text response to the user), the agent's execution loop
-    finishes.
-6.  **Event Compaction:** If event compaction is configured, the runner may
-    summarize older events in the session to manage context window limits,
-    appending a `CompactedEvent` to the session.
-7.  **Next Turn:** When the user sends another message, a new `run_async()`
-    invocation begins, repeating the cycle by loading the session, which now
-    includes the events from all prior turns.
+For details on how the Runner works and the invocation lifecycle, please refer to the `adk-architecture` skill and the referenced documentation therein.
 
 ## Project Architecture
 
-Please refer to
-[ADK Project Overview and Architecture](https://github.com/google/adk-python/blob/main/contributing/adk_project_overview_and_architecture.md)
-for details.
-
-### Source Structure
-
-```
-src/google/adk/
-├── agents/          # Agent implementations (LlmAgent, LoopAgent, ParallelAgent, etc.)
-├── runners.py       # Core Runner orchestration class
-├── tools/           # Tool ecosystem (50+ files)
-│   ├── google_api_tool/
-│   ├── bigtable/, bigquery/, spanner/
-│   ├── openapi_tool/
-│   └── mcp_tool/    # Model Context Protocol
-├── models/          # LLM integrations (Gemini, Anthropic, LiteLLM)
-├── sessions/        # Session management (in-memory, Vertex AI, Spanner)
-├── memory/          # Long-term memory services
-├── evaluation/      # Evaluation framework (47 files)
-├── cli/             # CLI tools and web UI
-├── flows/           # Execution flow orchestration
-├── a2a/             # Agent-to-Agent protocol
-├── telemetry/       # Observability and tracing
-└── utils/           # Utility functions
-```
-
-### Test Structure
-
-```
-tests/
-├── unittests/       # 2600+ unit tests across 236+ files
-│   ├── agents/
-│   ├── tools/
-│   ├── models/
-│   ├── evaluation/
-│   ├── a2a/
-│   └── ...
-└── integration/     # Integration tests
-```
-
-### ADK Live (Bidi-streaming)
-
--   ADK live feature can be accessed from runner.run_live(...) and corresponding
-    FAST api endpoint.
--   ADK live feature is built on top of
-    [Gemini Live API](https://cloud.google.com/vertex-ai/generative-ai/docs/live-api).
-    We integrate Gemini Live API through
-    [GenAI SDK](https://github.com/googleapis/python-genai).
--   ADK live related configs are in
-    [run_config.py](https://github.com/google/adk-python/blob/main/src/google/adk/agents/run_config.py).
--   ADK live under multi-agent scenario: we convert the audio into text. This
-    text will be passed to next agent as context.
--   Most logics are in
-    [base_llm_flow.py](https://github.com/google/adk-python/blob/main/src/google/adk/flows/llm_flows/base_llm_flow.py)
-    and
-    [gemini_llm_connection.py](https://github.com/google/adk-python/blob/main/src/google/adk/models/gemini_llm_connection.py).
--   Input transcription and output transcription should be added to session as
-    Event.
--   User audio or model audio should be saved into artifacts with a reference in
-    Event to it.
--   Tests are in
-    [tests/unittests/streaming](https://github.com/google/adk-python/tree/main/tests/unittests/streaming).
-
-### Agent Structure Convention (Required)
-
-**All agent directories must follow this structure:** `my_agent/ ├──
-__init__.py # MUST contain: from . import agent └── agent.py # MUST define:
-root_agent = Agent(...) OR app = App(...)`
-
-**Choose one pattern based on your needs:**
-
-**Option 1 - Simple Agent (for basic agents without plugins):** ```python from
-google.adk.agents import Agent from google.adk.tools import google_search
-
-root_agent = Agent( name="search_assistant", model="gemini-2.5-flash",
-instruction="You are a helpful assistant.", description="An assistant that can
-search the web.", tools=[google_search] ) ```
-
-**Option 2 - App Pattern (when you need plugins, event compaction, custom
-configuration):** ```python from google.adk import Agent from google.adk.apps
-import App from google.adk.plugins import ContextFilterPlugin
-
-root_agent = Agent( name="my_agent", model="gemini-2.5-flash", instruction="You
-are a helpful assistant.", tools=[...], )
-
-app = App( name="my_app", root_agent=root_agent, plugins=[
-ContextFilterPlugin(num_invocations_to_keep=3), ], ) ```
-
-**Rationale:** This structure allows the ADK CLI (`adk web`, `adk run`, etc.) to
-automatically discover and load agents without additional configuration.
-
-### Agent Instruction Best Practices (Required)
-
-**ALWAYS refer to this section and the official ADK samples in
-`contributing/samples/` when writing agent instructions.**
-
-#### Keep Instructions Concise and Action-Oriented
-
-Agent instructions should be **direct, minimal, and focused on constraints** —
-not verbose methodology explanations. The LLM already understands common agentic
-patterns (ReAct, planning, etc.). Your job is to **trigger** the right behaviour
-with the fewest tokens, not to teach the LLM what ReAct is.
-
-**Good instruction pattern:**
-```
-You are a ReAct web research agent. You answer questions by looping:
-REASON what you need → ACT by calling web_search → OBSERVE the results → decide if sufficient.
-Stop as soon as you have a complete answer. Use at most 3 searches.
-```
-
-**Bad instruction pattern (too verbose):**
-```
-You are a ReAct (Reason + Act) Web Research Agent. You answer questions by
-iterating through a Reason → Act → Observe loop until you have enough information.
-
-## Your ReAct Loop
-For every user question, follow this cycle:
-
-### REASON (think before you act)
-Before each search, think step-by-step out loud:
-- What specific information do I still need?
-- What is the best search query to find it?
-...
-(40+ more lines explaining what ReAct is)
-```
-
-#### Let Tool Docstrings Do the Heavy Lifting
-
-Tool docstrings are part of the LLM's context. They should explain **how and
-when** to use each tool. The agent instruction should focus on **workflow,
-constraints, and output format** — not repeat what the tool docstrings already
-say.
-
-#### Insights and Gotchas
-
-1.  **Don't teach the LLM patterns it already knows.** Writing "A ReAct agent
-    loops: Reason → Act → Observe → Reason → Act → ..." wastes tokens. The LLM
-    knows ReAct. Just say "You are a ReAct agent" and specify constraints.
-
-2.  **Avoid meta-commentary in instructions.** Sections like "How You Differ
-    from a ReAct Agent" or "Your Core Capability: Context Engineering" are
-    documentation for humans, not actionable instructions for the LLM. Put these
-    in your README or design docs, not in the prompt.
-
-3.  **Emoji and rich formatting in instructions are noise.** Using ✅ ❌ markers,
-    elaborate markdown headers, and worked examples bloat the system prompt.
-    Use plain text with minimal structure.
-
-4.  **The official ADK `google_search_agent` instruction is one sentence.**
-    This is the gold standard for simplicity. Start simple, add constraints only
-    when the agent misbehaves during testing.
-
-5.  **Verbose prompts waste context window and can confuse the LLM.** Every
-    token in your instruction competes with the user's conversation history
-    and tool outputs for context window space. Shorter instructions leave more
-    room for the actual work.
-
-6.  **Workflow steps should be terse.** Instead of multi-paragraph step
-    descriptions, use a numbered list:
-    `1. PLAN: Decompose into 2-3 sub-questions.`
-    `2. EXECUTE: Search then save_research_note for each.`
-    `3. SYNTHESISE: get_research_notes, cross-reference, write report.`
-
-7.  **Test and iterate.** Start with a minimal instruction, run the agent, and
-    only add constraints when you observe unwanted behaviour. This is more
-    effective than front-loading a verbose prompt.
-
-### ADK-First Development (Required)
-
-**ALWAYS use ADK's built-in features before writing custom code.** The whole
-point of ADK is declarative agent configuration — not reimplementing primitives
-that the framework already provides.
-
-#### ADK Feature Map
-
-Before writing custom code, check if ADK already provides it:
-
-| You need... | ADK provides... | Don't... |
-|---|---|---|
-| Web search | `google_search` built-in tool | Write a custom `web_search()` with `genai.Client` |
-| State between tool calls | `ToolContext.state` | Build your own state store |
-| Conversation history | `SessionService` | Manage chat history manually |
-| Multi-agent orchestration | `sub_agents` parameter | Build a custom router |
-| Serial execution | `SequentialAgent` | Enforce ordering via instructions alone |
-| Parallel execution | `ParallelAgent` | Run agents manually in threads |
-| Iterative loops | `LoopAgent` | Write custom loop logic |
-| Code execution + math + charts | `code_executor=BuiltInCodeExecutor()` | Write `calculator.py` with hand-coded math functions |
-| Agent callable as a typed tool | `AgentTool(agent=X, input_schema=..., output_schema=...)` | Wrap an agent with a custom dispatcher |
-| Passing data between agents | `output_key="foo"` + `{foo?}` injection in the next agent's instruction | Manually copy state with custom helpers |
-| Returning an image/file from an agent | `tool_context.save_artifact(name, Part.from_bytes(...))` | `print()` raw bytes or base64 strings |
-| Loading an agent from YAML at runtime | `config_agent_utils.from_config(path)` (experimental — see gotchas) | Build your own YAML loader |
-| Building a new agent from a generated spec | Either `from_config` (YAML path) or `Agent(**spec)` in Python | Generate + `exec()` Python source |
-| Explicit plan-then-act reasoning | `planner=PlanReActPlanner()` or `BuiltInPlanner(thinking_config=...)` | Embed multi-paragraph "think step by step" blocks in instructions |
-
-#### Use Built-in Tools
-
-ADK provides ready-to-use tools in `google.adk.tools`:
-- `google_search` — Google Search grounding (auto-invoked by Gemini)
-- `BuiltInCodeExecutor` — sandboxed code execution
-
-**Correct pattern (ADK built-in):**
-```python
-from google.adk.agents import Agent
-from google.adk.tools.google_search_tool import google_search
-
-root_agent = Agent(
-    name="my_agent",
-    model="gemini-2.5-flash",
-    instruction="You answer questions using Google Search.",
-    tools=[google_search],
-)
-```
-
-**Anti-pattern (custom reimplementation):**
-```python
-import os
-from google import genai
-from google.genai import types
-
-async def web_search(query: str) -> str:
-    client = genai.Client(api_key=os.environ.get("GOOGLE_API_KEY"))
-    response = await client.aio.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=f"Search for: {query}",
-        config=types.GenerateContentConfig(
-            tools=[types.Tool(google_search=types.GoogleSearch())],
-        ),
-    )
-    return response.text
-```
-
-The built-in tool handles API keys, model routing, and search grounding
-internally. The custom version adds ~20 lines of code that duplicate what ADK
-already does.
-
-#### Mixing Built-in Tools with Custom Tools
-
-By default, ADK built-in tools like `google_search` cannot be combined with
-custom function tools in the same agent. To mix them, use
-`bypass_multi_tools_limit=True`:
-
-```python
-from google.adk.agents import Agent
-from google.adk.tools.google_search_tool import GoogleSearchTool
-from google.adk.tools.tool_context import ToolContext
-
-def save_note(topic: str, finding: str, tool_context: ToolContext) -> str:
-    """Save a finding to the scratchpad."""
-    if "notes" not in tool_context.state:
-        tool_context.state["notes"] = []
-    tool_context.state["notes"] = tool_context.state["notes"] + [
-        {"topic": topic, "finding": finding}
-    ]
-    return "Saved."
-
-root_agent = Agent(
-    name="researcher",
-    model="gemini-2.5-flash",
-    instruction="Search the web and save key findings to your scratchpad.",
-    tools=[
-        GoogleSearchTool(bypass_multi_tools_limit=True),
-        save_note,
-    ],
-)
-```
-
-This converts the built-in search into a function-calling tool that coexists
-with custom tools. See `contributing/samples/built_in_multi_tools/` for the
-official reference.
-
-#### Use Workflow Agents for Flow Control
-
-ADK provides workflow agents that enforce execution patterns architecturally
-— don't rely solely on instructions to control flow:
-
-- **`SequentialAgent`** — runs sub-agents one after another, in order
-- **`ParallelAgent`** — runs sub-agents simultaneously
-- **`LoopAgent`** — runs sub-agents in a loop until a condition is met
-
-These are more reliable than instructing a single agent to "do step 1, then
-step 2, then step 3" because the flow is enforced by the framework, not by
-the LLM's interpretation of the instruction.
-
-#### Insights and Gotchas
-
-1.  **The official `google_search_agent` sample is 15 lines.** If your agent is
-    significantly longer and does the same thing, you're probably reimplementing
-    ADK features. Check `contributing/samples/` for reference implementations.
-
-2.  **Built-in tools handle infrastructure you don't see.** `google_search`
-    handles API key management, model version routing (Gemini 1.x vs 2.x), and
-    search grounding type selection automatically. Custom reimplementations
-    miss these edge cases.
-
-3.  **`bypass_multi_tools_limit=True` unlocks composition.** When you need an
-    agent to use BOTH built-in tools (like `google_search`) AND custom function
-    tools (like a scratchpad), use `GoogleSearchTool(bypass_multi_tools_limit=
-    True)`. Without this flag, Gemini restricts the agent to only one tool type.
-    See `contributing/samples/built_in_multi_tools/` for the pattern.
-
-4.  **`ToolContext.state` is your scratchpad.** For any agent that needs to
-    accumulate context across tool calls, use `ToolContext.state` — don't build
-    custom state management.
-
-5.  **`sub_agents` is your orchestrator.** For multi-agent systems, use the
-    `sub_agents` parameter on `Agent`. ADK handles routing based on agent
-    `description` fields. Don't build custom routing logic.
-
-6.  **Align agent levels with ADK features.** Each level in Google's agent
-    taxonomy maps to specific ADK capabilities:
-    - Level 1 (Connected): `Agent` + built-in tools
-    - Level 2 (Strategic): `Agent` + `GoogleSearchTool(bypass_multi_tools_limit
-      =True)` + custom tools + `ToolContext.state`
-    - Level 3 (Multi-Agent): `Agent` + `sub_agents` (or `AgentTool` when the
-      coordinator needs typed returns to compose)
-    - Level 4 (Self-Evolving): L3 + a creator sub-agent that writes specs into
-      `state.capabilities`, re-hydrated as `AgentTool`s by a
-      `before_agent_callback` each turn
-
-7.  **Custom tool functions are for business logic only.** Write custom tools
-    when you need domain-specific logic (e.g., `save_research_note`). Don't
-    write custom tools that wrap ADK built-ins.
-
-8.  **Check `contributing/samples/` BEFORE writing any agent.** There are 100+
-    official samples covering common patterns. Find the closest one and adapt
-    it — don't start from scratch.
-
-9.  **ADK is declarative — work with it.** The framework's power comes from
-    configuration over code. If you're writing plumbing (API clients, state
-    stores, routers, execution loops), you're fighting the framework. Step back
-    and look for the ADK feature that does it for you.
-
-10. **`AgentTool` returns text only — charts reach the user via the
-    Artifacts sidebar, not inline chat.** When a wrapped agent uses
-    `BuiltInCodeExecutor` + matplotlib to draw a chart,
-    `AgentTool._run_async_impl` merges only `p.text` from the child's last
-    content (`agent_tool.py:272-274`). `inline_data` image parts are
-    **dropped** from the tool result — so `plt.show()` inside the sandbox
-    does not produce an inline chart bubble when the producing agent is
-    wrapped as an AgentTool. The compensating mechanism is Gemini's
-    code_execution auto-save: any matplotlib figure produced in the
-    sandbox is saved with a timestamp name (e.g. `YYYYMMDD_HHMMSS.png`)
-    and flows through `ForwardingArtifactService` (`agent_tool.py:233`)
-    into the parent session's artifact service, where `adk web` renders
-    it in the **Artifacts** sidebar. The parent LLM never sees the chart.
-    Note: `tool_context` is **not** accessible inside the sandbox —
-    `tool_context.save_artifact(...)` in Python code executed by
-    `BuiltInCodeExecutor` fails because the sandbox is server-side in
-    Gemini and has no ADK namespace. To see the chart inline in chat,
-    don't wrap the chart-producing agent as an AgentTool; make it a
-    `sub_agent` so its events (including `inline_data`) land directly on
-    the top-level event stream — but you lose coordinator orchestration
-    after the transfer.
-
-11. **`AgentTool` creates a fresh session per call — don't rely on child
-    history.** Each invocation instantiates a new `InMemorySessionService`
-    (`agent_tool.py:234`). The child sees only the args you pass and a
-    *snapshot* of the parent's state (`agent_tool.py:240-249`). If the child
-    needs context from prior turns, pass it explicitly in args or via shared
-    state — don't assume the child can "remember" a previous conversation.
-    State writes from the child stream back through `state_delta` events, so
-    round-trip communication works.
-
-12. **Don't wrap an agent that has `sub_agents` as an `AgentTool`.** An agent
-    with both a parent routing to it via `AgentTool` *and* its own `sub_agents`
-    has two valid delegation paths; the LLM silently picks one under pressure,
-    usually the wrong one. Rule: wrap **leaf** agents (no `sub_agents`) as
-    tools. Use `sub_agents` OR `AgentTool` on the same agent, not both.
-
-13. **`output_key` + `{state_key?}` injection replaces custom save/get tools.**
-    Setting `output_key="foo"` on an `LlmAgent` auto-writes its final text to
-    `state.foo` (`llm_agent.py:859`). Reading it is `{foo?}` inside the next
-    agent's instruction string — the `?` marks it optional so a missing key
-    renders empty instead of raising. This pair replaces custom
-    `save_finding`/`get_findings` tool pairs for single-value hand-offs. Use
-    `ToolContext.state` + a custom tool only for list accumulation (multi-
-    call append).
-
-14. **`BuiltInCodeExecutor` is stateful and sandboxed — optimize around that.**
-    Variables, DataFrames, and figures persist across turns within a session,
-    so follow-up queries can reuse them. But the sandbox is Gemini-server-
-    side: no `pip install`, no internet from inside, fixed library set (io,
-    math, re, matplotlib, numpy, pandas, scipy). If the agent needs a package
-    outside that set, the code won't run — either pick a different tool or
-    switch to `ContainerCodeExecutor` (local, requires Docker) or a cloud
-    executor. Requires Gemini 2.0+ (`built_in_code_executor.py:46-47`).
-
-15. **Never use `UnsafeLocalCodeExecutor` for LLM-generated code.** It does
-    `exec(code, globals_, globals_)` in a subprocess (`unsafe_local_code_
-    executor.py:45`) with no filesystem, network, or import sandbox. Process
-    isolation ≠ security isolation. For local-safe execution, use
-    `ContainerCodeExecutor`; for zero-setup, use `BuiltInCodeExecutor`.
-
-16. **`config_agent_utils.from_config` is `@experimental`.** The YAML-to-live-
-    agent loader (`config_agent_utils.py:34`) is gated by
-    `FeatureName.AGENT_CONFIG`. For production, consider building `Agent(**spec)`
-    directly in Python from a validated dict — it's non-experimental, produces
-    the same live object, and lets you keep the YAML as an audit-only artifact.
-    The `level_4_agent` takes this route.
-
-17. **Dynamic tools must rebuild from a fixed base, not accumulate.** When you
-    add tools to a coordinator via `before_agent_callback` (e.g., re-hydrating
-    runtime-created specialists from `state.capabilities`), do:
-    `agent.tools = list(FIXED_TOOLS) + hydrate(state)` on every call — don't
-    `agent.tools.append(...)`. Appending leaks tools from one session into the
-    next because the `Agent` object is module-level. Rebuilding ensures session
-    isolation. See `level_4_agent/agent.py:_rehydrate_runtime_tools`.
-
-18. **Runtime agent creation has non-negotiable safety rules.** If a system
-    creates agents at runtime (Level 4+), enforce: (a) a tool allowlist
-    validated before `Agent(...)` construction; (b) never
-    `UnsafeLocalCodeExecutor` — only sandboxed executors; (c) a HITL
-    confirmation gate (prompt-level works; `tool_human_in_the_loop_config/`
-    is the framework-level pattern); (d) name-based dedupe so a looping
-    coordinator can't spawn unbounded copies. All four must be in place
-    before demoing Level 4 behavior publicly.
-
-19. **`AgentTool(skip_summarization=True)` suppresses final text emission
-    — use it only for programmatic consumers.** With this flag, the
-    coordinator's turn ends at the function_response; the tool's output
-    does **not** become a visible text event in `adk web`. The output is
-    still accessible via the Function Responses panel but it never
-    renders as a chat bubble. Symptom: a wrapped agent whose purpose is
-    to produce the final user-facing reply (e.g. a report writer) runs
-    successfully, its output is present in the trace, but the chat
-    stream ends with no assistant bubble. Fix: drop
-    `skip_summarization=True` and add a prompt rule on the coordinator
-    telling it to reproduce the writer's output verbatim. Costs one
-    extra coordinator LLM call per turn; worth it when the user needs to
-    see the text. Keep the flag when the tool's output is consumed
-    programmatically (passed to another tool, parsed by the coordinator,
-    etc.) — the original purpose of the flag is to prevent the
-    coordinator from rewriting already-finalised text.
-
-20. **Inside `BuiltInCodeExecutor`, `plt.show()` vs `plt.savefig(name)`
-    have different UX semantics — pick one per chart, never mix.**
-    `plt.show()` makes Gemini emit the figure as an `inline_data` Part,
-    which renders inline in `adk web`'s chat stream — provided the
-    chart-producing agent is **not** wrapped as an AgentTool (see gotcha
-    #10). `plt.savefig("chart.png")` writes a named artifact visible in
-    the Artifacts sidebar regardless of AgentTool wrapping, via
-    `ForwardingArtifactService`. If you call both, or if a later code
-    cell closes/re-saves the figure, Gemini will save a second blank
-    version of the same artifact — the Artifacts tab then defaults to
-    showing the blank version and the real chart hides under "Version:
-    0". Instruction-level fix: require exactly one chart block ending in
-    `plt.tight_layout(); plt.show()` with no subsequent `plt.*` calls.
-
-21. **Gemini 2.5 Pro + `BuiltInCodeExecutor` + AFC can hang indefinitely
-    on multi-step numeric+chart prompts.** Observed a 6-minute no-return
-    with `AFC is enabled with max remote calls: 10` on a three-step
-    prompt (calculate totals, compute percentages, produce a stacked bar
-    chart). Gemini 2.5 Flash handles the same prompt in ~30s. **Rule:**
-    put code-exec agents on Flash. Reserve Pro for meta-reasoning roles
-    (coordinator routing, agent-creator spec design) where the model
-    isn't going through AFC + code_execution rounds. If you must use Pro
-    on a code-exec leaf, simplify the prompt to single-step and monitor
-    wall time aggressively.
-
-22. **MCP tool invocations appear in ADK traces as `build <tool_name>`
-    spans — use the timing pattern to diagnose cold start vs upstream
-    latency vs rate limiting.** Each `build` span is one
-    `McpTool._run_async_impl()` → `session.call_tool()` round trip
-    (`mcp_tool.py:373, 414`). The first call per session pays the
-    stdio-subprocess cold-start cost (Node.js/`tsx` boot + MCP
-    `initialize` handshake), typically 5–15s. Subsequent calls reuse the
-    `MCPSessionManager`-pooled session and are usually <200ms. Three
-    patterns to read from a trace: (a) first slow, rest fast → healthy
-    cold start; (b) all slow → upstream server is slow (or the MCP
-    server implements a rate limiter — check its source); (c) fast then
-    slow → rate limiter kicked in between calls, not a bug in ADK. If
-    you need to eliminate the cold-start visible delay, pre-warm the
-    toolset from a `before_agent_callback` on the root agent before the
-    user's first turn.
-
-23. **`InMemoryMemoryService` / `InMemorySessionService` / `ForwardingArtifactService`
-    are fresh per `AgentTool` call.** `AgentTool` constructs a new
-    `Runner` with these services on every invocation (`agent_tool.py:230-235`).
-    The child agent's artifact writes DO propagate to the parent session
-    via `ForwardingArtifactService`, but its session events do **not** —
-    the parent sees only the text summary via `p.text` merging (#10
-    above). Consequence: you cannot rely on the child's event history
-    across multiple `AgentTool` invocations in the same parent turn.
-    For multi-turn continuity between a coordinator and a specialist,
-    use `output_key` + `{state_key?}` injection (#13), not the child's
-    session.
-
-24. **A built-in tool (`google_search`, `BuiltInCodeExecutor`) on an
-    agent that is registered as a `sub_agent` will fail with HTTP 400
-    "Built-in tools and Function Calling cannot be combined in the same
-    request."** When ADK transfers control into a `sub_agent`,
-    `agent_transfer.py:44-66` auto-injects a `transfer_to_agent`
-    function tool (so the sub-agent can transfer back to the parent or
-    to peer sub-agents — see `_get_transfer_targets`,
-    `agent_transfer.py:156-174`). At request time the sub-agent
-    therefore has *both* a built-in tool and a function tool in its
-    `tools=[...]` list, which Gemini's API forbids. There is no warning
-    at agent-construction time; the failure surfaces only on the first
-    real LLM call. **Two correct fixes, in order of preference:**
-    (a) **`bypass_multi_tools_limit=True`** on the built-in tool's
-    constructor — for `google_search` use
-    `tools=[GoogleSearchTool(bypass_multi_tools_limit=True)]` instead
-    of the default `google_search` singleton. The flag is documented at
-    `src/google/adk/tools/google_search_tool.py:42-49` and exists for
-    exactly this scenario. Same flag, same reason as `level_2_agent`'s
-    use (which mixes `google_search` with explicit user-defined function
-    tools). (b) **Wrap the built-in-using agent as `AgentTool`, not
-    `sub_agent`.** `AgentTool`-wrapped agents do NOT get the
-    `transfer_to_agent` auto-injection because they are not in the
-    parent's `sub_agents` list; they appear in `tools` instead. This is
-    the pattern `level_4_agent` and `level_4a_agent` use for their
-    `data_fetcher_agent`. Pick (a) when the sub-agent genuinely needs
-    bidirectional transfer affordances (peer/parent transfer); pick
-    (b) when one-way "call and return text" is enough. **Do not** try
-    to silence this by removing the built-in tool and re-implementing
-    its behavior in a custom function tool — that's the anti-pattern
-    flagged in the ADK Feature Map at `:267`. The whole point of
-    `bypass_multi_tools_limit` is that this combination is supported,
-    just gated behind an explicit opt-in.
-
+For detailed architecture patterns, component descriptions, and core interfaces, please refer to the **`adk-architecture`** skill at `.agents/skills/adk-architecture/SKILL.md`.
 
 ## Development Setup
 
-### Requirements
+The project uses `uv` for package management and Python 3.11+. Please refer to the **`adk-setup`** skill at `.agents/skills/adk-setup/SKILL.md` for detailed instructions.
 
-**Minimum requirements:**
+---
 
-- Python 3.10+ (**Python 3.11+ strongly recommended** for best performance)
-- `uv` package manager (**required** - faster than pip/venv)
+## Local fork (simonraj79/adk-python) — additions
 
-**Install uv if not already installed:** `bash curl -LsSf
-https://astral.sh/uv/install.sh | sh`
+Everything above this divider is upstream. Everything below is specific to
+this fork and should be preserved across upstream re-baselines.
 
-### Setup Instructions
+### Active branch
 
-**Standard setup for development:** ```bash
+- `v2-migration` — current development branch, baselined on the `v2.0.0b1`
+  upstream tag.
+- `main` — frozen on v1.31, kept as safety net. Do not work on `main`.
+- `backup/pre-v2-migration` — branch + tag preserving the pre-migration
+  `main` HEAD.
 
-# Create virtual environment with Python 3.11
+### Repository layout (this fork)
 
-uv venv --python "python3.11" ".venv" source .venv/bin/activate
+In addition to upstream framework code under `src/google/adk/`, this fork
+holds **local agent demos** for teaching purposes. Both v1 archives and
+v2 rewrites coexist so learners can compare approaches side by side:
 
-# Install all dependencies for development
+- `V1_*` folders (e.g., `V1_level_1_agent/`, `V1_level_1a_agent/`) —
+  **archived v1 demos**, reference only. Source is intact but they were
+  written against ADK 1.31. They still run on v2 in most cases (the
+  loader is backwards-compatible for the `LlmAgent` shape) and serve
+  as a "before" exhibit for each v2 rewrite.
+- `level_*_agent/` folders — **v2 rewrites**. Currently populated:
+  `level_1_agent/`, `level_1a_agent/`. The remaining slots (`level_2`,
+  `level_3`, `level_4`, `level_4a`) are written one at a time, in
+  order, and each one should highlight a specific v2 idiom (leaf
+  fast-path, `RunConfig`-driven Live config, `Workflow(BaseNode)`
+  graphs, dynamic-node spawning, etc.) rather than mechanically
+  copying the v1 logic.
 
-uv sync --all-extras ```
+### Agent levels — what each demo teaches
 
-**Minimal setup for testing only (matches CI):** `bash uv sync --extra test`
+Nine demos under this fork. Six follow the **capability ladder**
+(L1 → L1a → L2 → L3 → L4 → L4a), each introducing one new v2 idiom on
+top of the previous. Three more (`level_2b`, `level_3b`,
+`level_2c`) are **single-axis variants** that demonstrate specific
+ADK 2.0 *primitives* in isolation — they don't extend the capability
+ladder, they make a particular framework feature legible. Folders are
+`level_*_agent/` for the v2 rewrites; the v1 originals live alongside
+in `V1_level_*_agent/` for before/after comparison.
 
-**Virtual Environment Usage (Required):** - **Always use** `.venv/bin/python` or
-`.venv/bin/pytest` directly - **Or activate** with `source .venv/bin/activate`
-before running commands - **Never use** `python -m venv` - always create with
-`uv venv` if missing
+**ADK 2.0 launch video coverage**: the variants `level_2b`,
+`level_3b`, and `level_2c` collectively cover the three pillars
+Google highlighted in the ADK 2.0 launch (graph workflows,
+collaborative `mode='task'`/`mode='single_turn'`, dynamic
+HITL workflows). The mapping is one variant per pillar; see each
+variant's section below for the full pedagogical hook.
 
-**Rationale:** `uv` is significantly faster and ensures consistent dependency
-resolution across the team.
+#### Level 1 — Connected Problem-Solver (`level_1_agent/`)
 
-### Building
+**Capability**: a single LLM agent that connects to one external tool
+(Google Search) to answer questions requiring real-time information.
 
-```bash
-# Build wheel
-uv build
+**v2 idioms genuinely in use**:
+- `Agent` (alias for `LlmAgent`) as a leaf — runs on v2's
+  Mesh-bypass fast path (`CHANGELOG-v2.md`: "Optimized execution by
+  bypassing the Mesh for leaf single-turn `LlmAgent` instances").
+- `tools=[google_search]` — Gemini built-in (no auto-swap needed
+  because there's only one tool).
+- `output_key="last_answer"` — v2's state-delta-on-events flushing,
+  so the response is observable in the State panel and as
+  `Event.actions.state_delta`.
 
-# Install local build for testing
-pip install dist/google_adk-<version>-py3-none-any.whl
+**Single file**: `agent.py`. Sample query: *"What's the latest from
+JPMorgan on AI agents?"*.
+
+#### Level 1a — Voice variant of Level 1 (`level_1a_agent/`)
+
+**Capability**: same one-tool shape as L1 but running on a Gemini Live
+model so the user can speak the question and the agent speaks back.
+
+**v2 idioms genuinely in use**:
+- Model declared as a plain string (`gemini-3.1-flash-live-preview`),
+  no `Gemini(...)` wrapper. Voice and modality config moved off the
+  agent and onto `RunConfig` (`run_config.py:195`) — same agent file
+  can use Zephyr in one session and Kore in another via the Live
+  Flags panel.
+- `after_model_callback` (`_suppress_telemetry_only_responses`) that
+  rewrites Live's per-chunk `usage_metadata` and
+  `live_session_resumption_update` messages into empty
+  `LlmResponse()`s, triggering the framework's event-skip
+  early-return at `base_llm_flow.py:1023-1033`. Without this, a
+  single voice turn produces 200+ empty bubbles in adk-web's chat
+  panel (one per audio chunk's token-count telemetry). See
+  AGENTS.md gotcha entry.
+
+**Two failure modes documented in the docstring**: native-audio Gemini
+API models fail audio-input negotiation with adk-web's bidi worklet;
+`gemini-3.1-flash-live-preview` (half-cascade) is the v1-proven
+working path on Gemini API. Native audio works on Vertex.
+
+**Single file**: `agent.py`. To run: `adk web .`, pick `level_1a_agent`,
+**click the mic icon** (typing fails — bidi-only Live model has no
+`generateContent` endpoint).
+
+#### Level 2 — Strategic Problem-Solver (`level_2_agent/`)
+
+**Capability**: planning + parallel execution. The agent decomposes a
+question into sub-questions, fans them out concurrently, and
+synthesises a brief.
+
+**v2 idioms genuinely in use**:
+- `Workflow(BaseNode)` graph-orchestration runtime (the v2 headline
+  feature — `CHANGELOG-v2.md`).
+- Edge declarations: `("START", process_input, classify, route_input)`
+  + dict routing `(route_input, {"greeting": greeter, "research": planner})`.
+- `output_schema` on classifier (Pydantic `Literal[...]` for
+  routing) + `output_key` for instruction injection downstream.
+- `ctx.run_node()` dynamic fan-out — the planner LLM decides how
+  many sub-questions to spawn at runtime; `fan_out_research`
+  spawns one researcher per sub-question via dynamic node
+  scheduling (`CHANGELOG-v2.md`: "DefaultNodeScheduler for
+  standalone node resume").
+- `Event(state={...})` for inter-node data flow — *replaces* v1's
+  `save_research_note` / `get_research_notes` custom scratchpad
+  tools. Pure framework state.
+- `@node(rerun_on_resume=True)` on the dynamic-fan-out orchestrator
+  so it's HITL-resumable.
+
+**Single file**: `agent.py`. Sample queries: *"hi"* (greeting branch),
+*"how is solid-state battery research progressing across LFP, sulfide,
+and oxide chemistries?"* (3 sub-questions, parallel).
+
+#### Level 2b — Minimal Graph Router (`level_2b_agent/`)
+
+**Capability**: Level 2 (strategic / context engineering via a graph),
+minimal shape — classify → route → handler. **Variant**, not a new tier.
+
+**Use case**: customer support triage. A 4-way `Literal` classifier
+(`GREETING` / `BUG` / `BILLING` / `FEATURE`) dispatches to a focused
+handler `LlmAgent` per route. Inspired by the `graph_router` demo in
+the ADK 2.0 launch video — the canonical illustration of "routing
+moves out of the prompt and into the graph, so it's deterministic."
+
+**v2 idioms genuinely in use**:
+- `Workflow(BaseNode)` with **dict routing map** on a Pydantic
+  `Literal[...]` classifier output (no `__DEFAULT__` fallback needed —
+  the schema rejects unknown values).
+- LLM agents embedded directly in `edges=[...]`, auto-wrapped as nodes.
+- `Event(state={"request": ...})` from `process_input` → handlers read
+  via `{request}` instruction injection.
+- `output_key="last_response"` on each handler for state-delta
+  observability.
+
+**"Lead agent handles greetings inline" — graph form**: instead of a
+prompt branch (L3/L4 idiom), greetings are an explicit `GREETING` route
+on the classifier dispatched to a small `greet_user` agent. Same
+convention, expressed in graph syntax.
+
+**Single file**: `agent.py`. Sample queries: *"hi"*, *"the dashboard
+shows 500 errors every time I open the analytics page"*, *"how much
+does the Pro plan cost and what features are included?"*, *"it would be
+great if you could add dark mode to the dashboard"*.
+
+#### Level 2c — Dynamic Workflow + HITL Pause/Resume (`level_2c_agent/`)
+
+**Capability**: Level 2 (strategic / context engineering via a graph),
+with a **framework-enforced human-in-the-loop gate**. **Variant**, not
+a new tier.
+
+**Use case**: refund processing. Under $100 auto-approves; at or above
+$100 pauses for manager approval, then either issues the refund or
+records the rejection. Inspired by the `refund_approval` demo in the
+ADK 2.0 launch video — the canonical illustration of the third v2
+pillar (*"dynamic workflows with human-in-the-loop and automatic
+checkpointing for durable, resumable workflows"*).
+
+**Why this differs from L4's HITL**: L4's `agent_creator` HITL is
+*LLM-discretionary* (the `mode='task'` model decides whether to ask).
+L2c's HITL is *framework-enforced* — the gate function literally
+returns a `RequestInput` and the runner halts. Different guarantees:
+L4 is flexible, L2c is enforceable. Both have legitimate uses; L2c is
+the pattern for compliance gates ("every refund ≥ $100 must be signed
+off").
+
+**v2 idioms genuinely in use**:
+- `RequestInput(message=, response_schema=, payload=, interrupt_id=)`
+  from `google.adk.events.request_input` — the framework's HITL
+  primitive. Halts execution; on the wire it shows up as an
+  `adk_request_input` function call with `longRunningToolIds`.
+- `@node(rerun_on_resume=True)` on the gate — re-executes with
+  `ctx.resume_inputs` populated on user response, so one function
+  handles both ask and decide paths.
+- `App(root_agent=..., resumability_config=ResumabilityConfig(
+  is_resumable=True))` — durable checkpointing. Export both `app`
+  and `root_agent`; the loader picks `app` first.
+- `output_schema=RefundRequest` + `output_key="refund_request"` on
+  the intake LLM → typed parse, stored in state for downstream
+  function-node parameter-name resolution.
+- `Event(state={...}, output=...)` from the gate to update state AND
+  pass output in one event.
+
+**Single file**: `agent.py`. Sample queries: *"Process a $50 refund
+for customer C-001 — wrong size shipped"* (auto-approve path),
+*"Refund $350 to customer C-002 — defective laptop returned"* (HITL
+pause path; resume in `adk web` by replying 'yes' or 'no').
+
+#### Level 3 — Collaborative Multi-Agent System (`level_3_agent/`)
+
+**Capability**: a coordinator delegates work to a team of specialist
+sub-agents (search / analyst / writer), each with a distinct role and
+non-overlapping tools.
+
+**v2 idioms genuinely in use**:
+- `sub_agents=[...]` + `mode='single_turn'` on each specialist —
+  framework auto-derives `_SingleTurnAgentTool` instances on the
+  coordinator at `model_post_init` time (`llm_agent.py:982-994`).
+  This is the v2 idiom that *replaces* v1's manual
+  `tools=[AgentTool(agent=X), ...]` wrapping. The
+  `request_task_<name>` delegation tool is auto-generated.
+- `disallow_transfer_to_parent=True` and
+  `disallow_transfer_to_peers=True` on every specialist — required
+  because `agent_transfer.py:152-188` injects a `transfer_to_agent`
+  function tool that conflicts with `google_search` (built-in /
+  function combo Gemini rejects). Caught only by end-to-end tool
+  calls, not by static load checks. See AGENTS.md migration pattern
+  #2's "critical sub-pattern" callout.
+- Pydantic `input_schema` / `output_schema` on every sub-agent —
+  typed call-and-return contracts that *replace* v1's prose-only
+  ("save a note with topic, finding, source") instructions.
+- `PlanReActPlanner()` on the coordinator — visible
+  `/PLANNING/ /REASONING/ /ACTION/` blocks in the chat panel,
+  showing the multi-agent orchestration logic inline.
+- `output_schema=Brief` on `report_writer_agent` (no built-in tools
+  → `set_model_response` injection works without conflict).
+
+**Single file**: `agent.py`. Sample query: *"compare mRNA vs
+viral-vector vaccine platforms"* (multi-source delegation).
+
+#### Level 3b — Dual-Mode Coordinator (`level_3b_agent/`)
+
+**Capability**: Level 3 (delegation to specialists), with **mixed
+modes** on peer specialists. **Variant**, not a new tier.
+
+**Use case**: travel planning. Coordinator delegates to
+`weather_checker` (`mode='single_turn'`, autonomous one-shot) and
+`flight_booker` (`mode='task'`, allowed to ask the user clarifying
+questions mid-task). Inspired by the `travel_planner` demo in the ADK
+2.0 launch video — fills the "task-mode peer specialist" gap that L3
+(single_turn-only) and L4 (task only on `agent_creator`) leave open.
+
+**v2 idioms genuinely in use**:
+- `sub_agents=[weather_checker, flight_booker]` with **two different
+  modes** on peers under one coordinator. Framework auto-creates
+  `request_task_weather_checker` and `request_task_flight_booker`.
+- `input_schema` / `output_schema` Pydantic models on each specialist
+  for typed coordinator↔specialist contracts; `finish_task` validates
+  the booker's structured output.
+- **`mode='task'` HITL clarification** — the booker pauses with
+  `branch: "task:..."` until the user replies, then resumes. Verified
+  via the trace `What date would you like to depart?` → workflow
+  pause.
+- `disallow_transfer_to_parent=True` + `disallow_transfer_to_peers=True`
+  on both specialists — same gotcha #24 hygiene as L3.
+- Function tools only (`get_weather`, `search_flights`,
+  `book_flight`) — no built-ins, so the `FinishTaskTool` injection
+  from `mode='task'` doesn't trigger gotcha #24.
+
+**Key design choice**: `date` deliberately omitted from
+`FlightBookingInput` schema so the booker MUST ask the user. Same
+trick the video uses — putting date in the schema would let the
+coordinator hallucinate one.
+
+**Two files**: `agent.py` (coordinator + 2 specialists + Pydantic
+schemas) + `tools.py` (mock weather/flight functions). Sample queries:
+*"what's the weather in Paris?"* (single_turn path), *"book me a
+flight from SFO to CDG"* (task-mode pause for date), *"I'm going to
+Tokyo, check the weather and book a flight from SFO"* (chained
+mixed-mode in one turn).
+
+#### Level 4 — Self-Evolving System (`level_4_agent/`)
+
+**Capability**: meta-reasoning + dynamic agent creation. The
+coordinator routes to a fixed BI team (data_fetcher / analyst /
+report_writer), but if it detects a capability gap it transfers to
+`agent_creator` which builds a new specialist on demand. Runtime
+specialists persist across server restarts via the
+`runtime_agents/` YAML library on disk.
+
+**v2 idioms genuinely in use** (everything from L3, plus):
+- `code_executor=BuiltInCodeExecutor()` on `analyst_agent` — Gemini's
+  hosted Python sandbox, separate from `tools=[]`. Pre-imports
+  pandas + matplotlib + numpy.
+- `BuiltInPlanner(thinking_config=ThinkingConfig(include_thoughts=True))`
+  on `analyst_agent` — Gemini's native thinking surfaced as separate
+  THOUGHT events. Analyst plans cell layout BEFORE writing code,
+  defeating the v1 "blank PNG" gotcha (multi-cell figure drift).
+- `mode='task'` on `agent_creator` for multi-turn HITL — the creator
+  can ask "shall I proceed?" and wait for the user's reply, then
+  call `create_specialist` and `finish_task` to auto-return to the
+  coordinator. v2's structured equivalent of the v1 "transfer to
+  sub_agent and beg the LLM to transfer back" pattern.
+- `gemini-3.1-pro-preview` model on `agent_creator` — needed for the
+  chained tool decision (draft → confirm → call create_specialist
+  → call finish_task). Flash exhibits empty-STOP responses on
+  this chain. Confirmed via Context7 model card.
+- `disallow_transfer_to_parent=True` on `agent_creator` too —
+  narrows its tool surface from `[transfer_to_agent,
+  create_specialist, finish_task]` to `[create_specialist,
+  finish_task]`, eliminating tool-choice paralysis.
+- `before_agent_callback` on the coordinator —
+  `_rehydrate_runtime_tools` rebuilds `root_agent.tools` every turn
+  as `_INITIAL_TOOLS + runtime_tools` (auto-derived sub_agent tools
+  + per-spec runtime AgentTools loaded from session state AND the
+  on-disk YAML library).
+- `PlanReActPlanner()` on the coordinator — visible meta-reasoning
+  during routing decisions (e.g., "step 2: does any runtime
+  specialist's description match? if so, call THAT one; do NOT
+  recreate").
+- Runtime specialists wrap as `AgentTool` (NOT `sub_agents`)
+  because v2's `sub_agents → _SingleTurnAgentTool` auto-derivation
+  is init-time only — mutating sub_agents post-init won't register
+  new tools. **Pedagogical split: fixed teams use `sub_agents`;
+  runtime teams use `AgentTool`.**
+- Restart-aware persistence: `has_capability` checks both
+  in-session state AND the on-disk YAML library, so a fresh session
+  asked to "build f1_data_agent" sees the existing YAML and
+  short-circuits rather than silently overwriting.
+
+**Multi-file structure**:
+- `agent.py` — coordinator + 4 sub-agents wired with v2 idioms.
+- `safety.py` — non-negotiable allowlist of tool names runtime
+  specialists may use (validate_spec rejects anything else).
+- `registry.py` — capability persistence across turns AND restarts;
+  `has_capability` is disk-aware; `hydrate_capabilities` returns
+  `state ∪ disk` AgentTools deduped by name (state wins).
+- `creator_tools.py` — `create_specialist`: validate → smoke-test →
+  persist to state → write YAML audit copy.
+- `tools.py` — safe AST-based `calculator` (rejects all injection
+  attempts in unit tests).
+- `runtime_agents/*.yaml` — disk library of runtime specialists,
+  reloaded on every `before_agent_callback`. Survives `adk web`
+  restart.
+
+**Allowlist (4 tools)**: `google_search`, `get_current_date`,
+`calculator`, `load_web_page`.
+
+**Sample queries**: *"hi"* (greeting), *"give me a board update on
+NVIDIA's revenue trend"* (fixed-team analytical with chart),
+*"build a specialist that pulls F1 race results"* (capability gap →
+HITL creation).
+
+#### Level 4a — Self-Evolving System over MCP (`level_4a_agent/`)
+
+**Capability**: structurally identical to L4, but `data_fetcher_agent`
+gains a third tool source — **gahmen-mcp**, a domain-specific MCP
+server providing data.gov.sg + SingStat (Department of Statistics
+Singapore) data. The diff vs L4 is intentionally narrow.
+
+**v2 idioms genuinely in use** (everything from L4, plus):
+- `McpToolset(connection_params=StdioConnectionParams(...),
+  tool_filter=[...])` — v2's MCP primitive. `tool_filter` narrows
+  the toolset to the 8 read-only `datagovsg_*` / `singstat_*` tools
+  (download orchestration tools deliberately excluded).
+- `StdioConnectionParams` launches the gahmen-mcp server via
+  `npx tsx vendor/gahmen-mcp/src/stdio_entry.ts` — a 15-line
+  TypeScript wrapper that adapts the upstream Smithery
+  `createStatelessServer` factory to `StdioServerTransport`.
+- `data_fetcher_agent` has 3 tool sources at runtime: 10 function
+  tools sent to Gemini after auto-swap (`GoogleSearchTool(bypass=True)` →
+  `GoogleSearchAgentTool` + `load_web_page` + 8× `MCPTool`s).
+  Source routing is LLM-driven via instruction.
+- Runtime allowlist sentinel pattern: 8 MCP tool names map to a
+  `_MCP_SENTINEL` placeholder; `safety.resolve_tools()` swaps each
+  set of MCP names per-spec into a fresh `McpToolset(tool_filter=...)`.
+  Each runtime specialist gets only the MCP tools it asked for —
+  enforced at the framework boundary, not just at spec-validation
+  time.
+- Graceful degradation: if `vendor/gahmen-mcp/` is missing, the
+  framework logs `Failed to get tools from toolset McpToolset` and
+  the rest of the BI team continues to work — the MCP-using
+  specialists fail at first tool call, but `google_search` /
+  `load_web_page` remain available. v2 resilience moment.
+
+**Prerequisite**: vendor the gahmen-mcp server. From inside
+`level_4a_agent/`:
+```powershell
+git clone https://github.com/<your-fork>/gahmen-mcp.git vendor/gahmen-mcp
+cd vendor\gahmen-mcp
+npm install
+# the stdio_entry.ts wrapper is already in place if you cloned this fork
 ```
 
-### Running Agents Locally
+**Multi-file structure** (delta vs L4):
+- `agent.py` — narrow extension: top docstring, +1 import, +1 tool
+  on `data_fetcher_agent`, instruction enumerates the 8 MCP
+  allowlist additions, name/description say "level_4a".
+- `safety.py` — extends L4 allowlist with 8 MCP sentinels +
+  `resolve_tools` MCP-narrowing path.
+- `mcp_toolset.py` — **new file**: gahmen-mcp wiring (`McpToolset`
+  + `StdioConnectionParams`, `tool_filter` to the read-only set).
+- `creator_tools.py`, `registry.py`, `tools.py`, `__init__.py` —
+  identical to L4 (the registry routes through `safety.resolve_tools`
+  so MCP "just works").
+- `vendor/gahmen-mcp/` — the cloned + npm-installed MCP server,
+  with our `src/stdio_entry.ts` wrapper. Gitignored.
 
-**For interactive development and debugging:** ```bash
+**Allowlist (12 tools)**: L4's four (`google_search`,
+`get_current_date`, `calculator`, `load_web_page`) + 5 datagovsg_* +
+3 singstat_* = 12.
 
-# Launch web UI (recommended for development)
+**Sample query**: *"I want to understand Singapore's labour market —
+can you pull the resident unemployment rate trend over the last
+several years from SingStat and give me a brief?"* — verified
+end-to-end; data_fetcher's LLM correctly picked `singstat_search_resources`
+then `singstat_get_table_data`, analyst rendered a 34-year chart with
+crisis-by-crisis annotations, writer produced typed Brief.
 
-adk web path/to/agents_dir ```
+### v1 → v2 migration patterns
 
-**For CLI-based testing:** ```bash
+The v2 thesis in one sentence: **every v2 primitive replaces a v1
+"please-LLM-follow-this-prompt" caveat with a structural guarantee.**
+When migrating a v1 demo, scan for these anti-patterns and apply the
+listed v2 replacement. Each pattern below is grounded in either the
+`adk-workflow` / `adk-architecture` skills, an upstream `contributing/`
+sample, or a `CHANGELOG-v2.md` highlight — cited inline.
 
-# Interactive CLI (prompts for user input)
+#### 1. Graph workflow replaces "prompt-driven multi-step plan"
 
-adk run path/to/my_agent ```
+**v1 anti-pattern**: a single `LlmAgent` with a long `instruction` like
+*"1. classify the message, 2. call the right handler, 3. never skip
+steps, 4. respond in the requested format"*. The control flow lives
+inside the prompt; the LLM may skip a step, pick the wrong handler, or
+just respond conversationally without calling any tool.
 
-**For API/production mode:** ```bash
+**v2 replacement**: `Workflow(name=..., edges=[...])` with explicit
+nodes and edges. The classifier becomes one node, the router a function
+node returning `Event(route=...)`, the handlers separate nodes — and
+control flow lives in code, not prose.
 
-# Start FastAPI server
+**Migration recipe**:
+1. Identify the steps in the v1 instruction. Each numbered step usually
+   becomes a node.
+2. Make the classification step its own `Agent` with a Pydantic
+   `output_schema` (e.g., `Literal["bug", "billing", "feature"]`) and
+   `output_key` so downstream nodes read the decision from state.
+3. Add a tiny function node `def route(node_input: dict): return
+   Event(route=node_input["category"])`.
+4. Wire branches with dict routing: `(route, {"bug": handle_bug,
+   "billing": handle_billing, "feature": handle_feature})`.
+5. Delete every "first do X, then do Y, never skip" sentence from the
+   remaining prompts — the graph enforces it now.
 
-adk api_server path/to/agents_dir ```
+**Why**: routing decisions belong in code, where they're deterministic
+and inspectable. The `level_2_agent` rewrite is the canonical example
+in this repo (`level_2_agent/agent.py`); the upstream reference is
+`contributing/workflow_samples/loop/agent.py`.
 
-**For running evaluations:** ```bash
+#### 2. `mode='task'` / `mode='single_turn'` replace manual sub-agent handoff
 
-# Run evaluation set against agent
+**v1 anti-pattern**: a coordinator `Agent` with `sub_agents=[...]` and
+prompt instructions like *"after the specialist finishes, take control
+back and respond to the user."* In practice, control often stuck inside
+the sub-agent or the coordinator missed the return.
 
-adk eval path/to/my_agent path/to/eval_set.json ```
+**v2 replacement**: set `mode='task'` or `mode='single_turn'` on the
+sub-agent. Both delegate via the `request_task_{name}` tool (instead of
+`transfer_to_agent`) and **auto-return to the coordinator** on finish:
 
-## ADK: Style Guides
+| Mode             | User can chat with sub-agent? | Use for                                              |
+|------------------|-------------------------------|------------------------------------------------------|
+| `'chat'` (default) | yes (full transfer)           | General assistants, escalation                       |
+| `'task'`           | yes (multi-turn, can clarify) | Sub-agent that may need follow-up info               |
+| `'single_turn'`    | no (autonomous, one shot)     | Pure utility specialists (look-up, format, classify) |
 
-### Python Style Guide
+**Migration recipe**:
+1. For each sub-agent, ask: *does the user need to chat with it
+   directly?* If no, set `mode='single_turn'`. If only for clarifying
+   questions, set `mode='task'`. Otherwise leave `mode` unset (chat).
+2. If the sub-agent has `output_schema`, `task` and `single_turn` use
+   the schema as the structured return contract automatically — drop
+   any "respond in this JSON shape" prompt instructions.
+3. Delete coordinator prompt sentences telling it to "take control
+   back" — auto-return handles it.
 
-The project follows the Google Python Style Guide. Key conventions are enforced
-using `pylint` with the provided `pylintrc` configuration file. Here are some of
-the key style points:
+**Why**: stable coordinator/specialist topology. Source:
+`adk-workflow` skill ("Agent Modes: Chat, Task, and Single-Turn",
+references/task-mode.md); enforced at
+`src/google/adk/agents/llm_agent.py:312` (the `mode` Literal).
 
-*   **Indentation**: 2 spaces.
-*   **Line Length**: Maximum 80 characters.
-*   **Naming Conventions**:
-    *   `function_and_variable_names`: `snake_case`
-    *   `ClassNames`: `CamelCase`
-    *   `CONSTANTS`: `UPPERCASE_SNAKE_CASE`
-*   **Docstrings**: Required for all public modules, functions, classes, and
-    methods.
-*   **Imports**: Organized and sorted.
-*   **Error Handling**: Specific exceptions should be caught, not general ones
-    like `Exception`.
+**Critical sub-pattern — sub-agents with built-in tools**: if a
+`single_turn` / `task` sub-agent uses a built-in tool like
+`google_search`, also set `disallow_transfer_to_parent=True` and
+`disallow_transfer_to_peers=True` on the sub-agent. By default ADK
+injects a `transfer_to_agent` function tool on every sub-agent whose
+parent transfer is allowed (`agent_transfer.py:152-188`). That
+function tool then conflicts with the built-in (Gemini's "Built-in
+tools and Function Calling cannot be combined" — the v1 gotcha #24
+situation, very much alive in v2). `mode` alone does NOT suppress this
+injection — it's a separate code path. The disallow flags are
+correct anyway for the call-and-return pattern: `single_turn`
+sub-agents auto-return via `request_task` and should never transfer.
+This bug typically surfaces only at request time (the static loader
+sees no conflict because the injection happens at request build), so
+end-to-end tool-call tests are the only reliable way to catch it.
 
-### Autoformat (Required Before Committing)
+#### 3. `@node` + `RequestInput` + `ctx.resume_inputs` replace ad-hoc HITL
 
-**Always run** before committing code: `bash ./autoformat.sh`
+**v1 anti-pattern**: a custom tool that returned a string like
+*"Please ask the user to approve and then call this tool again with
+their answer"*, plus prompt instructions to "wait for the user." No
+checkpoint, no resumability — if the process restarted, state was lost.
 
-**Manual formatting** (if needed): ```bash
+**v2 replacement**: a `@node`-decorated function that yields
+`RequestInput(message=..., response_schema=...)` to pause execution.
+The framework checkpoints, the UI surfaces the prompt, and on resume
+the user's answer arrives at `ctx.resume_inputs` (note: the canonical
+attribute is `resume_inputs`, **not** `resume_data` — confirmed at
+`src/google/adk/runners.py:437` and `workflow/_workflow.py:224`).
 
-# Format imports
-
-isort src/ tests/ contributing/
-
-# Format code style
-
-pyink --config pyproject.toml src/ tests/ contributing/ ```
-
-**Check formatting** without making changes: `bash pyink --check --diff --config
-pyproject.toml src/ isort --check src/`
-
-**Formatting Standards (Enforced by CI):** - **Formatter:** `pyink`
-(Google-style Python formatter) - **Line length:** 80 characters maximum -
-**Indentation:** 2 spaces (never tabs) - **Import sorter:** `isort` with Google
-profile - **Linter:** `pylint` with Google Python Style Guide
-
-**Rationale:** Consistent formatting eliminates style debates and makes code
-reviews focus on logic rather than style.
-
-### In ADK source
-
-Below styles applies to the ADK source code (under `src/` folder of the GitHub
-repo).
-
-#### Use relative imports (Required)
+**Migration recipe** (canonical example: `level_2c_agent/agent.py`,
+the refund-approval workflow):
 
 ```python
-# DO - Use relative imports
-from ..agents.llm_agent import LlmAgent
+from google.adk import Context, Event
+from google.adk.events.request_input import RequestInput
+from google.adk.workflow import node
 
-# DON'T - No absolute imports
-from google.adk.agents.llm_agent import LlmAgent
+@node(rerun_on_resume=True)
+async def gate(ctx: Context, refund_request: dict):
+    amount = float(refund_request["amount_usd"])
+
+    # Path 1: under threshold — auto-approve.
+    if amount < 100:
+        yield Event(state={"decision": {"approved": True, ...}},
+                    output={"approved": True, ...})
+        return
+
+    # Path 2: at/above threshold — branch on whether we've already
+    # received the user's response. With rerun_on_resume=True, the
+    # function fully RE-EXECUTES on resume, so we check
+    # ctx.resume_inputs at the top of the relevant branch:
+    if ctx.resume_inputs:
+        response = list(ctx.resume_inputs.values())[0]
+        approved = str(response).strip().lower() in ("yes", "y")
+        yield Event(state={"decision": {"approved": approved, ...}},
+                    output={"approved": approved, ...})
+        return
+
+    # First execution above threshold — emit RequestInput. The
+    # framework halts the workflow until a human responds; on
+    # response, this whole function re-executes with
+    # ctx.resume_inputs populated.
+    yield RequestInput(
+        interrupt_id="manager_approval",
+        message=f"Approve refund of ${amount:.2f}?",
+        response_schema={"type": "string"},
+        payload=refund_request,
+    )
 ```
 
-**Rationale:** Relative imports make the code more maintainable and avoid
-circular import issues in large codebases.
+**The branch-on-resume_inputs pattern is mandatory** when
+`rerun_on_resume=True`. A naive *"yield RequestInput then read
+ctx.resume_inputs on the next line"* does NOT work — the function
+re-executes from the top on resume, so any code after the yield is
+unreachable on the first run and re-runs from line 1 on the second.
 
-#### Import from module, not from `__init__.py` (Required)
+**Resumable vs non-resumable**:
 
 ```python
-# DO - Import directly from module
-from ..agents.llm_agent import LlmAgent
+from google.adk.apps.app import App, ResumabilityConfig
 
-# DON'T - Import from __init__.py
-from ..agents import LlmAgent
+# Required for compliance gates that must survive a server restart.
+# Loader picks `app` over `root_agent` when both are exported.
+app = App(
+    name="my_workflow",
+    root_agent=root_agent,
+    resumability_config=ResumabilityConfig(is_resumable=True),
+)
 ```
 
-**Rationale:** Direct module imports make dependencies explicit and improve IDE
-navigation and refactoring.
+For simple one-shot HITL, the non-resumable mode replays the session
+events from START on resume — no `App` needed. For *durable*
+(survives server restart) HITL, use `App + ResumabilityConfig` as
+above. L2c uses the durable form — refund approvals shouldn't lose
+state if the manager comes back from lunch and the server has been
+recycled.
 
-#### Always do `from __future__ import annotations` (Required)
+**On the wire**: `RequestInput` shows up as a function call to a
+synthetic tool named `adk_request_input`, with the workflow's
+`longRunningToolIds` field flagging the suspension. `adk web` hooks
+this to a chat-style prompt; custom clients respond with a
+`FunctionResponse` keyed to the same `interrupt_id`.
 
-**Rule:** Every source file must include `from __future__ import annotations`
-immediately after the license header, before any other imports.
+**Why**: durable, resumable HITL is a v2 framework guarantee, not a
+prompt convention. Source: `adk-workflow` skill ("Human-in-the-Loop",
+references/human-in-the-loop.md); canonical demo at
+`level_2c_agent/agent.py` (verified end-to-end via `adk run` for the
+auto-approve path and the HITL pause; resume verified interactively
+in `adk web`).
 
+#### 4. `RunConfig` replaces `Gemini(model=..., speech_config=...)` for voice
+
+**v1 anti-pattern**: voice / Live config baked onto the agent itself:
 ```python
-# Copyright 2026 Google LLC
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-from __future__ import annotations  # REQUIRED - Always include this
-
-# ... rest of imports ...
+model=Gemini(
+    model="gemini-3.1-flash-live-preview",
+    speech_config=types.SpeechConfig(voice_config=...),
+)
 ```
+Same agent file couldn't run different voices in different sessions.
 
-**Rationale:** This enables forward-referencing classes without quotes,
-improving code readability and type hint support (PEP 563).
+**v2 replacement**: agent declares only the model id string; voice and
+all Live runtime knobs live on `RunConfig`
+(`src/google/adk/agents/run_config.py:195`). The web UI's "Live Flags"
+panel exposes them at runtime; programmatic callers pass a `RunConfig`
+to `runner.run_live(run_config=...)`.
 
-### In ADK tests
+| RunConfig field                    | What it controls                                           |
+|------------------------------------|------------------------------------------------------------|
+| `speech_config`                    | Prebuilt voice (Zephyr, Kore, Puck, …)                     |
+| `response_modalities`              | `["AUDIO"]` / `["TEXT"]`                                   |
+| `output_audio_transcription`       | Transcribe model's speech (default on)                     |
+| `input_audio_transcription`        | Transcribe user's speech (default on)                      |
+| `enable_affective_dialog`          | Native-audio only — emotion-aware responses                |
+| `proactivity`                      | Native-audio only — model speaks unprompted when relevant  |
+| `session_resumption`               | Reconnect-after-disconnect (Vertex only on Gemini API)     |
 
-#### Use absolute imports (Required)
+**Migration recipe**:
+1. Replace `model=Gemini(model="…", speech_config=…)` with `model="…"`
+   (just the id string).
+2. Drop the `from google.adk.models.google_llm import Gemini` import.
+3. If the demo is for `adk web`, voice picking is automatic via the
+   Live Flags panel — no agent change needed.
 
-**Rule:** Test code must use absolute imports (`google.adk.*`) to match how
-users import ADK.
+**Caveat (Gemini API only)**: native-audio Live models
+(`gemini-2.5-flash-native-audio-*`) currently fail audio-input
+negotiation with `adk web`'s bidi worklet on the Gemini API backend —
+the connection establishes but no audio is transcribed. Use
+`gemini-3.1-flash-live-preview` (half-cascade) on Gemini API; native
+audio works on Vertex. Documented in the `level_1a_agent/agent.py`
+docstring with the upgrade path.
 
+#### 5. Framework state replaces custom `save_X` / `get_X` scratchpad tools
+
+**v1 anti-pattern**: a pair of custom tools wrapping
+`tool_context.state` to let one agent's findings flow to another:
 ```python
-# DO - Use absolute imports
-from google.adk.agents.llm_agent import LlmAgent
-
-# DON'T - No relative imports in tests
-from ..agents.llm_agent import LlmAgent
+def save_research_note(...): tool_context.state["notes"] = ...
+def get_research_notes(...): return tool_context.state["notes"]
 ```
-
-**Rationale:** Tests should exercise the same import paths that users will use,
-catching issues with the public API.
-
-## ADK: Local Testing
-
-### Unit Tests
-
-**Quick start:** Run all tests with: `bash pytest tests/unittests`
-
-**Recommended:** Match CI configuration before submitting PRs: `bash uv sync
---extra test && pytest tests/unittests`
-
-**Additional options:** ```bash
-
-# Run tests in parallel for faster execution
-
-pytest tests/unittests -n auto
-
-# Run a specific test file during development
-
-pytest tests/unittests/agents/test_llm_agent.py
-
-```
-
-### Testing Philosophy
-
-**Use real code over mocks:** ADK tests should use real implementations as much
-as possible instead of mocking. Only mock external dependencies like network
-calls or cloud services.
-
-**Test interface behavior, not implementation details:** Tests should verify
-that the public API behaves correctly, not how it's implemented internally. This
-makes tests resilient to refactoring and ensures the contract with users remains
-intact.
-
-**Test Requirements:** - Fast and isolated tests where possible - Use real ADK
-components; mock only external dependencies (LLM APIs, cloud services, etc.) -
-Focus on testing public interfaces and behavior, not internal implementation -
-Descriptive test names that explain what behavior is being tested - High
-coverage for new features, edge cases, and error conditions - Location:
-`tests/unittests/` following source structure
-
-## Docstring and comments
-
-### Comments - Explaining the Why, Not the What
-
-Philosophy: Well-written code should be largely self-documenting. Comments serve
-a different purpose: they should explain the complex algorithms, non-obvious
-business logic, or the rationale behind a particular implementation choice—the
-things the code cannot express on its own. Avoid comments that merely restate
-what the code does (e.g., # increment i above i += 1).
-
-Style: Comments should be written as complete sentences. Block comments must
-begin with a # followed by a single space.
-
-## Versioning
-
-ADK adherence to Semantic Versioning 2.0.0
-
-Core Principle: The adk-python project strictly adheres to the Semantic
-Versioning 2.0.0 specification. All release versions will follow the
-MAJOR.MINOR.PATCH format.
-
-### Breaking Change
-
-A breaking change is any modification that introduces backward-incompatible
-changes to the public API. In the context of the ADK, this means a change that
-could force a developer using the framework to alter their existing code to
-upgrade to the new version. The public API is not limited to just the Python
-function and class signatures; it also encompasses data schemas for stored
-information (like evaluation datasets), the command-line interface (CLI), and
-the data format used for server communications.
-
-### Public API Surface Definition
-
-The "public API" of ADK is a broad contract that extends beyond its Python
-function signatures. A breaking change in any of the following areas can disrupt
-user workflows and the wider ecosystem of agents and tools built with ADK. The
-analysis of the breaking changes introduced in v1.0.0 demonstrates the expansive
-nature of this contract. For the purposes of versioning, the ADK Public API
-Surface is defined as:
-
--   All public classes, methods, and functions in the google.adk namespace.
-
--   The names, required parameters, and expected behavior of all built-in Tools
-    (e.g., google_search, BuiltInCodeExecutor).
-
--   The structure and schema of persisted data, including Session data, Memory,
-    and Evaluation datasets.
-
--   The JSON request/response format of the ADK API server(FastAPI server) used
-    by adk web, including field casing conventions.
-
--   The command-line interface (CLI) commands, arguments, and flags (e.g., adk
-    deploy).
-
--   The expected file structure for agent definitions that are loaded by the
-    framework (e.g., the agent.py convention).
-
-#### Checklist for Breaking Changes:
-
-The following changes are considered breaking and necessitate a MAJOR version
-bump.
-
--   API Signature Change: Renaming, removing, or altering the required
-    parameters of any public class, method, or function (e.g., the removal of
-    the list_events method from BaseSessionService).
-
--   Architectural Shift: A fundamental change to a core component's behavior
-    (e.g., making all service methods async, which requires consumers to use
-    await).
-
--   Data Schema Change: A non-additive change to a persisted data schema that
-    renders old data unreadable or invalid (e.g., the redesign of the
-    MemoryService and evaluation dataset schemas).
-
--   Tool Interface Change: Renaming a built-in tool, changing its required
-    parameters, or altering its fundamental purpose (e.g., replacing
-    BuiltInCodeExecutionTool with BuiltInCodeExecutor and moving it from the
-    tools parameter to the code_executor parameter of an Agent).
-
--   Configuration Change: Altering the required structure of configuration files
-    or agent definition files that the framework loads (e.g., the simplification
-    of the agent.py structure for MCPToolset).
-
--   Wire Format Change: Modifying the data format for API server interactions
-    (e.g., the switch from snake_case to camelCase for all JSON payloads).
-
--   Dependency Removal: Removing support for a previously integrated third-party
-    library or tool type.
-
-## Commit Message Format (Required)
-
-**All commits must** follow
-[Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) format.
-
-**Format:** ``` <type>(<scope>): <description>
-
-[optional body]
-
-[optional footer] ```
-
-**Common types:** `feat`, `fix`, `refactor`, `docs`, `test`, `chore`
-
-**Examples:** ``` feat(agents): Add support for App pattern with plugins
-
-fix(sessions): Prevent memory leak in session cleanup
-
-refactor(tools): Unify environment variable enabled checks ```
-
-**Rationale:** Conventional commits enable automated changelog generation and
-version management.
-
-## Key Files and Locations
-
-Quick reference to important project files:
-
--   **Main config:** `pyproject.toml` (uses `flit_core` build backend)
--   **Dependencies:** `uv.lock` (managed by `uv`)
--   **Linting:** `pylintrc` (Google Python Style Guide)
--   **Auto-format:** `autoformat.sh` (runs isort + pyink)
--   **CLI entry point:** `src/google/adk/cli/cli_tools_click.py`
--   **Web UI backend:** `src/google/adk/cli/adk_web_server.py`
--   **Main exports:** `src/google/adk/__init__.py` (exports Agent, Runner)
--   **Examples:** `contributing/samples/` (100+ agent implementations)
-
-## Additional Resources
-
-- **Documentation:** https://google.github.io/adk-docs
-- **Samples:** https://github.com/google/adk-samples
-- **Architecture Details:** `contributing/adk_project_overview_and_architecture.md`
-- **Contributing Guide:** `CONTRIBUTING.md`
-- **LLM Context:** `llms.txt` (summarized), `llms-full.txt` (comprehensive)
-
-## Python Tips
-
-### General Python Best Practices
-
-*   **Constants:** Use immutable global constant collections (tuple, frozenset, immutabledict) to avoid hard-to-find bugs. Prefer constants over wild string/int literals, especially for dictionary keys, pathnames, and enums.
-*   **Naming:** Name mappings like `value_by_key` to enhance readability in lookups (e.g., `item = item_by_id[id]`).
-*   **Readability:** Use f-strings for concise string formatting, but use lazy-evaluated `%`-based templates for logging. Use `repr()` or `pprint.pformat()` for human-readable debug messages. Use `_` as a separator in numeric literals to improve readability.
-*   **Comprehensions:** Use list, set, and dict comprehensions for building collections concisely.
-*   **Iteration:** Iterate directly over containers without indices. Use `enumerate()` when you need the index, `dict.items()` for keys and values, and `zip()` for parallel iteration.
-*   **Built-ins:** Leverage built-in functions like `all()`, `any()`, `reversed()`, `sum()`, etc., to write more concise and efficient code.
-*   **Flattening Lists:** Use `itertools.chain.from_iterable()` to flatten a list of lists efficiently without unnecessary copying.
-*   **String Methods:** Use `startswith()` and `endswith()` with a tuple of strings to check for multiple prefixes or suffixes at once.
-*   **Decorators:** Use decorators to add common functionality (like logging, timing, caching) to functions without modifying their core logic. Use `functools.wraps()` to preserve the original function's metadata.
-*   **Context Managers:** Use `with` statements and context managers (from `contextlib` or custom classes with `__enter__`/`__exit__`) to ensure resources are properly initialized and torn down, even in the presence of exceptions.
-*   **Else Clauses:** Utilize the `else` clause in `try/except` blocks (runs if no exception), and in `for/while` loops (runs if the loop completes without a `break`) to write more expressive and less error-prone code.
-*   **Single Assignment:** Prefer single-assignment form (assign to a variable once) over assign-and-mutate to reduce bugs and improve readability. Use conditional expressions where appropriate.
-*   **Equality vs. Identity:** Use `is` or `is not` for singleton comparisons (e.g., `None`, `True`, `False`). Use `==` for value comparison.
-*   **Object Comparisons:** When implementing custom classes, be careful with `__eq__`. Return `NotImplemented` for unhandled types. Consider edge cases like subclasses and hashing. Prefer using `attrs` or `dataclasses` to handle this automatically.
-*   **Hashing:** If objects are equal, their hashes must be equal. Ensure attributes used in `__hash__` are immutable. Disable hashing with `__hash__ = None` if custom `__eq__` is implemented without a proper `__hash__`.
-*   **`__init__()` vs. `__new__()`:** `__new__()` creates the object, `__init__()` initializes it. For immutable types, modifications must happen in `__new__()`.
-*   **Default Arguments:** NEVER use mutable default arguments. Use `None` as a sentinel value instead.
-*   **`__add__()` vs. `__iadd__()`:** `x += y` (in-place add) can modify the object in-place if `__iadd__` is implemented (like for lists), while `x = x + y` creates a new object. This matters when multiple variables reference the same object.
-*   **Properties:** Use `@property` to create getters and setters only when needed, maintaining a simple attribute access syntax. Avoid properties for computationally expensive operations or those that can fail.
-*   **Modules for Namespacing:** Use modules as the primary mechanism for grouping and namespacing code elements, not classes. Avoid `@staticmethod` and methods that don't use `self`.
-*   **Argument Passing:** Python is call-by-value, where the values are object references (pointers). Assignment binds a name to an object. Modifying a mutable object through one name affects all names bound to it.
-*   **Keyword/Positional Arguments:** Use `*` to force keyword-only arguments and `/` to force positional-only arguments. This can prevent argument transposition errors and make APIs clearer, especially for functions with multiple arguments of the same type.
-*   **Type Hinting:** Annotate code with types to improve readability, debuggability, and maintainability. Use abstract types from `collections.abc` for container annotations (e.g., `Sequence`, `Mapping`, `Iterable`). Annotate return values, including `None`. Choose the most appropriate abstract type for function arguments and return types.
-*   **`NewType`:** Use `typing.NewType` to create distinct types from primitives (like `int` or `str`) to prevent argument transposition and improve type safety.
-*   **`__repr__()` vs. `__str__()`:** Implement `__repr__()` for unambiguous, developer-focused string representations, ideally evaluable. Implement `__str__()` for human-readable output. `__str__()` defaults to `__repr__()`.
-*   **F-string Debug:** Use `f"{expr=}"` for concise debug printing, showing both the expression and its value.
-
-### Libraries and Tools
-
-*   **`collections.Counter`:** Use for efficiently counting hashable objects in an iterable.
-*   **`collections.defaultdict`:** Useful for avoiding key checks when initializing dictionary values, e.g., appending to lists.
-*   **`heapq`:** Use `heapq.nlargest()` and `heapq.nsmallest()` for efficiently finding the top/bottom N items. Use `heapq.merge()` to merge multiple sorted iterables.
-*   **`attrs` / `dataclasses`:** Use these libraries to easily define simple classes with boilerplate methods like `__init__`, `__repr__`, `__eq__`, etc., automatically generated.
-*   **NumPy:** Use NumPy for efficient array computing, element-wise operations, math functions, filtering, and aggregations on numerical data.
-*   **Pandas:** When constructing DataFrames row by row, append to a list of dicts and call `pd.DataFrame()` once to avoid inefficient copying. Use `TypedDict` or `dataclasses` for intermediate row data.
-*   **Flags:** Use libraries like `argparse` or `click` for command-line flag parsing. Access flag values in a type-safe manner.
-*   **Serialization:** For cross-language serialization, consider JSON (built-in), Protocol Buffers, or msgpack. For Python serialization with validation, use `pydantic` for runtime validation and automatic (de)serialization, or `cattrs` for performance-focused (de)serialization with `dataclasses` or `attrs`.
-*   **Regular Expressions:** Use `re.VERBOSE` to make complex regexes more readable with whitespace and comments. Choose the right method (`re.search`, `re.fullmatch`). Avoid regexes for simple string checks (`in`, `startswith`, `endswith`). Compile regexes used multiple times with `re.compile()`.
-*   **Caching:** Use `functools.lru_cache` with care. Prefer immutable return types. Be cautious when memoizing methods, as it can lead to memory leaks if the instance is part of the cache key; consider `functools.cached_property`.
-*   **Pickle:** Avoid using `pickle` due to security risks and compatibility issues. Prefer JSON, Protocol Buffers, or msgpack for serialization.
-*   **Multiprocessing:** Be aware of potential issues with `multiprocessing` on some platforms, especially concerning `fork`. Consider alternatives like threads (`concurrent.futures.ThreadPoolExecutor`) or `asyncio` for I/O-bound tasks.
-*   **Debugging:** Use `IPython.embed()` or `pdb.set_trace()` to drop into an interactive shell for debugging. Use visual debuggers if available. Log with context, including inputs and exception info using `logging.exception()` or `exc_info=True`.
-*   **Property-Based Testing & Fuzzing:** Use `hypothesis` for property-based testing that generates test cases automatically. For coverage-guided fuzzing, consider `atheris` or `python-afl`.
-
-### Testing
-
-*   **Assertions:** Use pytest's native `assert` statements with informative expressions. Pytest automatically provides detailed failure messages showing the values involved. Add custom messages with `assert condition, "helpful message"` when the expression alone isn't clear.
-*   **Custom Assertions:** Write reusable helper functions (not methods) for repeated complex checks. Use `pytest.fail("message")` to explicitly fail a test with a custom message.
-*   **Parameterized Tests:** Use `@pytest.mark.parametrize` to reduce duplication when running the same test logic with different inputs. This is more idiomatic than the `parameterized` library.
-*   **Fixtures:** Use pytest fixtures (with `@pytest.fixture`) for test setup, teardown, and dependency injection. Fixtures are cleaner than class-based setup methods and can be easily shared across tests.
-*   **Mocking:** Use `mock.create_autospec()` with `spec_set=True` to create mocks that match the original object's interface, preventing typos and API mismatch issues. Use context managers (`with mock.patch(...)`) to manage mock lifecycles and ensure patches are stopped. Prefer injecting dependencies via fixtures over patching.
-*   **Asserting Mock Calls:** Use `mock.ANY` and other matchers for partial argument matching when asserting mock calls (e.g., `assert_called_once_with`).
-*   **Temporary Files:** Use pytest's `tmp_path` and `tmp_path_factory` fixtures for creating isolated and automatically cleaned-up temporary files/directories. These are preferred over the `tempfile` module in pytest tests.
-*   **Avoid Randomness:** Do not use random number generators to create inputs for unit tests. This leads to flaky, hard-to-debug tests. Instead, use deterministic, easy-to-reason-about inputs that cover specific behaviors.
-*   **Test Invariants:** Focus tests on the invariant behaviors of public APIs, not implementation details.
-*   **Test Organization:** Prefer simple test functions over class-based tests unless you need to share fixtures across multiple test methods in a class. Use descriptive test names that explain the behavior being tested.
-
-### Error Handling
-
-*   **Re-raising Exceptions:** Use a bare `raise` to re-raise the current exception, preserving the original stack trace. Use `raise NewException from original_exception` to chain exceptions, providing context. Use `raise NewException from None` to suppress the original exception's context.
-*   **Exception Messages:** Always include a descriptive message when raising exceptions.
-*   **Converting Exceptions to Strings:** `str(e)` can be uninformative. `repr(e)` is often better. For full details including tracebacks and chained exceptions, use functions from the `traceback` module (e.g., `traceback.format_exception(e)`, `traceback.format_exc()`).
-*   **Terminating Programs:** Use `sys.exit()` for expected terminations. Uncaught non-`SystemExit` exceptions should signal bugs. Avoid functions that cause immediate, unclean exits like `os.abort()`.
-*   **Returning None:** Be consistent. If a function can return a value, all paths should return a value (use `return None` explicitly). Bare `return` is only for early exit in conceptually void functions (annotated with `-> None`).
+The LLM had to remember to call `save_X` after every step.
+
+**v2 replacement**: `Event(state={...})` from any node + `{key?}`
+instruction injection in the next agent. No tools, no LLM compliance
+risk, fewer round-trips.
+
+**Migration recipe**:
+1. Replace `save_research_note(topic, finding, source)` with
+   `yield Event(state={"findings": findings_md})` from the function
+   node that *produces* the data.
+2. Replace `get_research_notes()` with `{findings?}` in the
+   downstream agent's `instruction`.
+3. Delete both custom tools and remove them from `tools=[...]`.
+4. If the agent that produced the findings was an LLM agent, use
+   `output_key="findings"` on it instead of an explicit
+   `Event(state=...)` — same effect, one fewer node.
+
+**Why**: state is now a first-class workflow primitive with delta
+flushing onto yielded events (`CHANGELOG-v2.md`: "Supported flushing
+state/artifact deltas onto yielded events"). The `level_2_agent`
+rewrite drops two custom tools by applying this pattern.
+
+#### 6. Leaf `LlmAgent` is the fast path — don't force-fit `Workflow`
+
+**v1 → v2 cargo-cult risk**: not every v1 `LlmAgent` should become a
+`Workflow` graph in v2. For a single-tool, single-turn agent (e.g.,
+Level 1's "google search and answer"), wrapping in a `Workflow`
+*disables* the v2 leaf optimisation:
+
+> Optimized execution by bypassing the Mesh for leaf single-turn
+> `LlmAgent` instances. — `CHANGELOG-v2.md`
+
+**Rule of thumb**: keep an agent as a leaf `LlmAgent` if **all** of:
+- One LLM call per turn (no internal multi-step plan).
+- One tool or zero tools.
+- No branching control flow (no greeting carve-out, no classification).
+
+Promote to `Workflow` only when the v1 prompt was doing real
+orchestration that should be deterministic. The `level_1_agent` and
+`level_1a_agent` v2 rewrites stay as `LlmAgent`; the `level_2_agent`
+rewrite becomes a `Workflow` because its v1 prompt was doing
+PLAN/EXECUTE/SYNTHESISE orchestration.
+
+#### 7. `output_schema` + tools no longer needs a workaround
+
+**v1 anti-pattern**: combining `output_schema` with `tools` failed at
+the LLM layer (Gemini refused `googleSearch` + function tools in one
+request without `bypass_multi_tools_limit=True`, and even with it,
+structured output was incompatible).
+
+**v2 replacement**: just set both. The framework now uses an internal
+`set_model_response` shim (see
+`contributing/samples/output_schema_with_tools/agent.py`) so an agent
+can ground via `google_search` *and* return a typed Pydantic object.
+
+**Migration recipe**: drop `bypass_multi_tools_limit=True` from
+`GoogleSearchTool(...)` calls; use the bare `google_search` built-in
+import. Add `output_schema=YourModel` if you want structured output.
+
+#### Gotchas during migration
+
+| Pitfall | What happens | Fix |
+|---|---|---|
+| Agent with `output_schema=Foo` feeds a function node typed `node_input: Foo` | `node_input` is actually a **`dict`**, not a Pydantic instance | Type-hint as `dict` and access by key, OR call `Foo.model_validate(node_input)` inside the node |
+| `route` node's `Event(route=...)` value doesn't match a key in the routing dict | Workflow halts with no obvious error | Make the classifier's `output_schema` use a `Literal["..."]` so the route values are constrained at the Pydantic boundary |
+| START outputs `types.Content`, but downstream function hint is `: str` | v2 auto-extracts `.parts[0].text` for `: str` hints — works, but doesn't generalise to multimodal input | If your demo accepts images/audio, hint as `: types.Content` and inspect `parts` explicitly |
+| `parallel_worker=True` on an LLM agent receives a single value (not a list) | Worker produces no output, JoinNode hangs | `parallel_worker` requires the predecessor to output a `list`. For runtime-determined N (e.g., LLM-decided sub-question count), use `ctx.run_node()` inside an `@node` orchestrator instead — see `contributing/workflow_samples/dynamic_fan_out_fan_in/agent.py` |
+| Dynamic-fan-out orchestrator without `@node(rerun_on_resume=True)` | If a worker hits HITL, the orchestrator can't resume cleanly | Always decorate dynamic orchestrators with `rerun_on_resume=True`. Lazy-scan dedup ensures only the missing workers re-run on resume (`CHANGELOG-v2.md`) |
+| Different terminal nodes write to different `output_key`s | Downstream consumers must inspect which branch ran to find the user-facing text | Use the **same** `output_key` (e.g., `"last_brief"`) on every terminal LLM agent across branches |
+| Auto-discovery picks up the `__pycache__` of a deleted demo | Demo appears in `adk web .` picker but loader fails with "No root_agent found" | Delete the orphan `__pycache__` (and `.adk/` session db) when emptying a `level_*_agent/` slot |
+| Pre-existing agent samples (`from google.adk.agents.llm_agent import LlmAgent`) vs modern (`from google.adk import Agent`) | Both work in v2; mixing them across files looks messy | For new demos use `from google.adk import Agent` (matches `contributing/samples/google_search_agent/agent.py`); preserve original imports when re-baselining upstream |
+| Sub-agent (`mode='single_turn'` / `'task'`) with `tools=[google_search]` (or any built-in) | Runtime error: "Built-in tools and Function Calling cannot be combined." Setting `mode` alone is **not** enough — `transfer_to_agent` is auto-injected on sub-agents from a separate code path (`agent_transfer.py:152-188`) | Set `disallow_transfer_to_parent=True` and `disallow_transfer_to_peers=True` on the sub-agent. This is the v2 form of v1's gotcha #24 — caught only by end-to-end tool-call tests, not by static load checks. Applies equally to `code_executor=BuiltInCodeExecutor()` (which is also a built-in surface, even though it's not in `tools=[]`) |
+| Sub-agent on Gemini API has both `output_schema=...` and a built-in tool | Runtime error: "Built-in tools and Function Calling cannot be combined." `_OutputSchemaRequestProcessor` injects a `set_model_response` function tool because `can_use_output_schema_with_tools()` returns True only on Vertex (`utils/output_schema_utils.py:31-52`) | Drop `output_schema` on the sub-agent that uses the built-in tool; let it return free text. Keep `output_schema` on downstream sub-agents that don't use built-in tools (analyst, writer, etc.) |
+| `mode='task'` agent with `tools=[...]` returns `finish_reason=STOP` and zero output tokens after multi-turn HITL on Flash | The Flash model can't reliably make chained tool decisions when the agent has 3+ overlapping tools (e.g., `transfer_to_agent` + `create_specialist` + `finish_task` all signaling "I'm done"). Empirical pattern: first turn drafts a spec (works), user replies "yes proceed" → empty STOP. Conversation history poisons subsequent turns with the same empty-pattern | Two-step fix: (1) set `disallow_transfer_to_parent=True` and `disallow_transfer_to_peers=True` to suppress the redundant `transfer_to_agent` injection, narrowing the tool surface to `[create_specialist, finish_task]`. (2) Upgrade the model to `gemini-3.1-pro-preview` (or `gemini-2.5-pro`) for the agent doing chained tool decisions — Pro 3.1 is described in the model card as supporting "compositional function calling" natively. Confirmed working on the Level 4 `agent_creator` |
+| Coordinator's LLM ignores runtime specialists loaded from disk by `before_agent_callback` | The framework hydration is fine — the coordinator's tool list does include the disk specialists. But if the coordinator's *instruction* says runtime specialists "may appear if created earlier in the session", the LLM treats anything from a prior session as "not in this session, must recreate" | Rewrite the instruction to mention persistence explicitly ("PERSISTENT — across server restarts, via `runtime_agents/` library") and add an explicit decision-checklist step ("if a runtime specialist's description matches, call THAT specialist — do NOT recreate") before the gap-detection branch. Otherwise the disk-aware `has_capability` rejection is the only thing stopping needless recreation, costing a wasted creator round-trip every time |
+| `adk web --reload_agents` silently misses a file change on Windows | The watchdog handler logs "Change detected" for files that get rewritten, but very-fast successive edits or saves through certain editors don't always trigger an event. Symptom: agent edits don't take effect, callback runs with stale code, behaviour diverges from source | **Do not rely on `--reload_agents` for development.** Standard workflow is kill-and-restart between every edit + test cycle (see "Local conventions" above for the kill snippet). It adds ~3 seconds per cycle but eliminates an entire class of "is the live agent the same as my source?" debugging. If you DO want to use hot-reload, prove it's working with a temporary `print()` in your callback before trusting it |
+| Live (bidi audio) agent's chat panel fills with 200+ empty bubbles per voice turn | Gemini Live emits one LLM message per audio chunk, each carrying `usage_metadata` (token counting telemetry). Session resumption (when enabled in Live Flags) adds another stream of `live_session_resumption_update` messages. ADK's runtime emits an Event for each (`base_llm_flow.py:_postprocess_live`), even when there is no user-visible content. v2.0.0b1's adk-web chat panel renders one bubble per Event — so a single voice turn produces 200+ empty bubbles, drowning the actual transcription events. **Important**: `after_model_callback` does NOT fire in Live mode (the Live path goes through `_postprocess_live` which constructs events directly from `LlmResponse`, bypassing `_handle_after_model_callback`). A callback-based fix is silently dead code. Plugins' `on_event_callback` fires but cannot drop events — `runners.py` checks `event.partial` on the **original** event before plugin invocation, so plugin mutation cannot prevent persistence | **Subclass `LlmAgent` and override `_run_live_impl` to filter telemetry-only events from the yielded stream.** The override is structurally identical to the parent's (`llm_agent.py:527-535`) plus one `if _is_telemetry_only_event(event): continue` check. "Telemetry-only" = has `usage_metadata` or `live_session_resumption_update` but no `content`/`error_code`/`interrupted`/`turn_complete`/`input_transcription`/`output_transcription`/`grounding_metadata`. See `level_1a_agent/agent.py` for the implementation (`_LiveTelemetryFilteringAgent`). This is the only agent-level fix that actually works for the Live event stream |
+| Pydantic `Field(default_factory=list)` on an `input_schema` / `output_schema` field | Runtime error: `"Object of type _HAS_DEFAULT_FACTORY_CLASS is not JSON serializable"` when ADK generates the Gemini function declaration. The Pydantic v2 sentinel for `default_factory` doesn't survive `json.dumps()` | Use `Field(description=...)` (no default) and require the caller to pass an explicit value. For "optional list" semantics, document in the description: "Pass an empty list if not applicable." Do **not** use `default_factory=...` or `default=[]` on schemas that get sent to Gemini |
+| `mode='task'` agent with `input_schema=...` and multi-turn user dialogue | Validation error: `"Input should be a valid dictionary or instance of <Schema>"` on the second user turn. v2 enforces `input_schema` on **every** user turn within the task, not just the initial coordinator-delegated call (input is `types.Content`, fails Pydantic validation) | Drop `input_schema` on `task`-mode agents that need multi-turn HITL ("draft → ask user → wait for yes/no → continue"). The agent's instruction documents the expected shape; v2 uses the default flexible input. `input_schema` is only safe on `single_turn` agents (which only ever receive the structured initial call) |
+| Instruction text contains accidental `{var}` literal patterns (e.g., f-string examples in a docstring) | Runtime error: `"Context variable not found: 'var'."` ADK's instruction templater (`utils/instructions_utils.py:124`) regex-matches `{anything}` and tries to look up `anything` in session state. There is **no escape syntax** for literal braces | Rewrite the instruction without `{var}` patterns. For example, `f"chart artists: {n_artists}"` → `print("chart artists:", n_artists)` (comma form). Or use `?` to make missing vars resolve to empty: `{n_artists?}`. The first form is preferred when the brace is not meant to be templated at all |
+
+#### Migration ordering (this fork)
+
+When rewriting v1 demos as v2, follow this order so each rewrite has a
+clear teaching focus and doesn't reach for primitives the previous
+levels haven't introduced:
+
+1. **Level 1** — leaf `LlmAgent` fast path; `output_key` for state delta.
+2. **Level 1a** — same shape, voice; `RunConfig`-driven Live config.
+3. **Level 2** — `Workflow` graph; classifier + dict routing; dynamic
+   fan-out via `ctx.run_node()`; `Event(state=...)` + `{key?}`
+   instruction injection replacing custom scratchpad tools.
+4. **Level 3** — sub-agent delegation with `mode='task'` /
+   `mode='single_turn'`; auto-return to coordinator; `AgentTool` for
+   call-and-return orchestration.
+5. **Level 4** — meta-reasoning + dynamic agent creation; runtime node
+   spawning from a registry; safety allowlist as a node, not a
+   prompt rule. Coordinator gets `PlanReActPlanner()` for visible
+   meta-reasoning; `agent_creator` runs on `gemini-3.1-pro-preview`
+   for chained tool decisions; all sub-agents with built-in tools
+   set `disallow_transfer_to_*` flags to suppress
+   `transfer_to_agent` injection.
+6. **Level 4a** — Level 4 + MCP toolset (`McpToolset` /
+   `StdioConnectionParams`). Structurally a narrow extension of L4:
+   `data_fetcher_agent` gains a third tool source (gahmen-mcp for
+   Singapore Government data) alongside `google_search` and
+   `load_web_page`. Runtime safety allowlist gains 8 MCP sentinel
+   entries that resolve to per-spec narrowed `McpToolset` via
+   `tool_filter`. **Prerequisite**: vendor the gahmen-mcp server at
+   `level_4a_agent/vendor/gahmen-mcp/` with a stdio entry wrapper
+   (`src/stdio_entry.ts` adapting `createStatelessServer` to
+   `StdioServerTransport`); without it the agent loads but MCP tool
+   calls fail at subprocess launch. The framework error is graceful
+   (logged, not crashing) — a teachable v2 resilience moment.
+
+### V1_* auto-discovery
+
+The V1_* folders have no `__init__.py`, but ADK 2.0's loader treats them
+as PEP 420 namespace packages and finds `agent.py` directly. They appear
+in the `adk web .` picker alongside the v2 rewrites — that's a feature
+(live before/after reference), not a bug. To hide a V1 demo without
+deleting it, rename its `agent.py` (e.g., `agent.py.v1ref`).
+
+### Migration history (informal)
+
+The v1.31 → v2.0.0b1 transition is recorded in:
+
+- `backup/pre-v2-migration` — branch + tag preserving the pre-migration
+  `main` HEAD.
+- The git log on `v2-migration` — commit `d26f7cf6` added the original
+  v1 demos; commit `fc6ccf4b` archived them as `V1_*`. Levels 1a, 4,
+  and 4a were deleted outright in that archive (not renamed) — they
+  must be restored from `git show 18b3b909:level_1a_agent/agent.py`
+  etc. before being prefixed `V1_`. This was done for `level_1a` when
+  its v2 rewrite landed; do the same for 4 / 4a when their rewrites
+  begin.
+
+There is no formal migration plan document — earlier versions of this
+file referenced `migration/v2_migration_plan.md`, which never made it
+into the repo.
+
+### Local conventions
+
+- **Dev workflow: kill the server and restart before every test, do
+  NOT rely on `--reload_agents`.** ADK caches agent modules in
+  `sys.modules` after first load. The `--reload_agents` flag exists
+  but its file watcher is unreliable on Windows — we observed silent
+  missed-changes twice in one session (no "Change detected" log
+  entry, callback running with stale code, behaviour diverging from
+  the on-disk source). The reliable sequence after every edit:
+  ```powershell
+  # PowerShell on Windows
+  netstat -ano | Select-String ":8000.*LISTENING" | ForEach-Object {
+      ($_ -split "\s+")[-1] | ForEach-Object { taskkill /PID $_ /F }
+  }
+  adk web .
+  ```
+  Or in the Bash tool: `netstat -ano | grep :8000 | grep LISTENING | awk '{print $5}' | head -1 | xargs -I {} taskkill //PID {} //F` then re-launch. Adds ~3 seconds to the
+  edit/test loop but eliminates the entire "is the live agent the same
+  as my source?" debugging class. If you DO want hot reload, prove it's
+  working by adding a temporary `print()` to the callback and checking
+  the log before trusting it.
+- Don't edit `src/google/adk/` locally to fix a demo — fix the demo.
+- Don't merge `v2-migration` into `main` until all v2 demos are written
+  and validated.
+- When rewriting a v1 demo as v2: first restore the v1 source from git
+  into a `V1_<name>/` folder (if not already archived), then write the
+  fresh v2 version in `<name>/`. Don't copy v1 source into the v2 slot
+  — write from scratch using v2 idioms. Walk through the **"v1 → v2
+  migration patterns"** section above to identify which patterns apply
+  before writing code; cross-reference with the `adk-workflow` and
+  `adk-architecture` skills for the framework-level details.
+- The v1-era `AGENT_LEVELS.md` ladder is historical; the v2 rewrites
+  should reuse the *taxonomy* (Level 1 = connected, Level 2 =
+  strategic, etc.) but redesign the *implementation* around v2
+  primitives. The v1 ladder is preserved in git at commit `18b3b909`
+  if needed as reference.
