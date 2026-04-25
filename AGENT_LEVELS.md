@@ -202,36 +202,72 @@ Exactly one tool call when external info is needed. No planning, no loops, no st
 
 ## Level 2 — `level_2_agent` (Strategic Problem-Solver)
 
-> **v2 wiring update**: this is the level that changed the most.
-> v1 was a single `LlmAgent` with a long instruction *asking* the LLM
-> to follow PLAN/EXECUTE/SYNTHESISE steps, plus two custom scratchpad
-> tools (`save_research_note` / `get_research_notes`). v2 expresses
-> the same workflow as a **`Workflow(BaseNode)` graph**:
+> **v2 wiring update**: this is the level that changed the most. Two
+> separate redesigns:
+>
+> **(1) Use case rebrand: research assistant → student day planner.**
+> The taxonomy ("strategic planning + context engineering") is
+> unchanged, but the demo pivoted from a research bot (which produced
+> walls of text most learners never read) to a *student day planner*:
+> the user describes commitments and goals, the agent extracts study
+> topics, fans out parallel topic research, and assembles a
+> Pomodoro-paced markdown timetable. Same shape as research
+> (decompose → look up → assemble) but the output is concretely
+> useful and the user describes their day naturally.
+>
+> **(2) Wiring overhaul.** v1 was a single `LlmAgent` with a long
+> instruction *asking* the LLM to follow PLAN/EXECUTE/SYNTHESISE
+> steps, plus two custom scratchpad tools (`save_research_note` /
+> `get_research_notes`). v2 expresses the same workflow as a
+> **`Workflow(BaseNode)` graph**:
 >
 > ```
-> START → process_input → classify → ┬── greeting → greeter → END
->                                    └── research → planner →
->                                       fan_out_research → writer → END
+> START → process_input → classify → ┬── quick → quick_answerer → END
+>                                    └── plan  → anchor_today →
+>                                                task_planner →
+>                                                fan_out_research →
+>                                                schedule_writer → END
 > ```
 >
-> - **Classifier + dict routing** replace the v1 instruction's
->   "if greeting, respond directly" prose branch.
-> - **Dynamic fan-out via `ctx.run_node()`** replaces the v1
->   prompt-driven sub-question loop. The planner LLM decides how many
->   sub-questions to spawn at runtime; one researcher per sub-question
->   runs concurrently. Pattern lifted from
->   `contributing/workflow_samples/dynamic_fan_out_fan_in/`.
+> - **2-way classifier + inline greeting handling** — there is no
+>   dedicated greeter node. Greetings ("hi", "hello", "what can you
+>   do?") are classified as `quick` and routed to the
+>   `quick_answerer`, whose instruction handles them as a special
+>   case (introduces the agent + suggests two example queries).
+>   Same idiom as Level 3 and Level 4 where the lead agent handles
+>   greetings inline rather than via a routed sub-agent. Cleaner
+>   graph viz (no greeter dead-end), consistent pattern across the
+>   ladder.
+> - **`anchor_today` function node** stashes today's date in state
+>   (`today`, `today_human` keys). The planner LLM reads it via
+>   `{today_human?}` instruction injection and computes concrete
+>   dates ("Friday May 1", "Wednesday April 29") from the user's
+>   relative references — no `get_current_date` tool call needed.
+> - **Dynamic fan-out via `ctx.run_node()`** — the planner emits a
+>   `study_topics: list[str]` (1-3 items, runtime-decided); one
+>   researcher per topic spawns concurrently with `google_search`.
+>   Pattern from `contributing/workflow_samples/dynamic_fan_out_fan_in/`.
 > - **`Event(state={...})` + `{key?}` instruction injection** replaces
 >   `save_research_note` / `get_research_notes` custom tools. The
->   orchestrator writes findings to `state["findings"]`; the writer
->   reads via `{findings?}`. Fewer tools, no LLM compliance risk.
+>   orchestrator writes `commitments` and `topic_briefs` to state;
+>   the writer reads via `{commitments?}` and `{topic_briefs?}`.
+>   Fewer tools, no LLM compliance risk.
 > - **`@node(rerun_on_resume=True)`** on the dynamic-fan-out
 >   orchestrator so it's HITL-resumable.
+> - **The `[NO DEFAULT]` warning on the route node is benign here.**
+>   Pydantic's `Literal["quick", "plan"]` constraint on the
+>   classifier's `output_schema` rejects any other value at the
+>   schema layer before reaching `route_input`, so no dead-end is
+>   reachable. Adding a `__DEFAULT__` fallback that points at one
+>   of the two named routes is rejected by graph validation as a
+>   duplicate edge; adding a no-op fallback node would be
+>   structural noise for no behavioural gain.
 >
 > v2 source at `level_2_agent/agent.py`. Compare side-by-side with
-> `V1_level_2_agent/agent.py` — the v1 prompt's "1. PLAN: 2. EXECUTE:
-> 3. SYNTHESISE:" instruction collapses into a graph that *enforces*
-> those steps structurally rather than relying on the LLM to follow them.
+> `V1_level_2_agent/agent.py` — the v1 prompt's "1. PLAN: 2.
+> EXECUTE: 3. SYNTHESISE:" instruction collapses into a graph that
+> *enforces* those steps structurally rather than relying on the
+> LLM to follow them.
 
 **Taxonomy:** Level 2 — The Strategic Problem-Solver
 
@@ -307,6 +343,188 @@ User → PLAN (decompose) → EXECUTE (search + save) × 2–3
 ```
 
 The loop is the new thing at L2. A single agent executes N search-and-save cycles, accumulating findings in `ToolContext.state["research_notes"]`, then a final synthesis step reads the whole scratchpad and produces the structured brief.
+
+---
+
+## Level 2b — `level_2b_agent` (Minimal Graph Router)
+
+> **Variant of Level 2.** Same capability tier (strategic / context
+> engineering via a graph), minimal shape: classify → route → handler.
+> No fan-out, no parallel research, no synthesis. The point is to show
+> the v2 graph routing primitive **in isolation**, without the
+> dynamic-fan-out richness that makes the canonical L2 information-dense.
+
+**Not a new taxonomy level.** New ADK 2.0 *primitives* are absorbed as
+`Na/Nb/Nc` variants of the closest capability tier; they don't inflate
+the L0–L4 ladder. Same rationale as L4a (MCP variant of L4) and L1a
+(voice variant of L1).
+
+**Inspired by** the `graph_router` demo in the *ADK 2.0 launch* video.
+The video's pedagogical message: in v1 you'd cram "first classify, then
+call the right handler, never skip steps" into one giant prompt and
+**hope** the LLM followed it; in v2 the routing logic moves out of the
+prompt and **into the graph**, so it's deterministic. This file is the
+project's canonical illustration of that lesson.
+
+**Use case**: customer support triage. The user sends a message; the
+classifier emits one of four categories (`GREETING` / `BUG` / `BILLING`
+/ `FEATURE`); the routing dict dispatches to a focused handler agent
+that responds in-character for its category.
+
+**v2 idioms genuinely in use**:
+- `Workflow(BaseNode)` graph orchestration with **dict routing map**
+  on the classifier output (`(route_input, {"BUG": bug_handler, ...})`).
+- `output_schema=` Pydantic class with `Literal[...]` field — the
+  framework rejects any value outside the enum at the schema layer, so
+  no `__DEFAULT__` fallback edge is needed.
+- LLM agents embedded directly in `edges=[...]` — auto-wrapped as nodes
+  per the canonical v2 pattern (`adk-workflow` skill: "Place `Agent`
+  instances directly in workflow edges").
+- `Event(state={...})` from `process_input` to stash the user's request
+  for handler `{request}` template injection.
+- `output_key="last_response"` on each handler for state-delta
+  observability.
+
+**"Lead agent handles greetings inline" idiom — graph form**:
+`AGENT_LEVELS.md` documents the convention that the agent the user
+talks to handles greetings inline rather than via a dedicated greeter
+sub-agent. In a coordinator-LlmAgent shape (L3, L4), that's a prompt
+branch. In a Workflow shape, the equivalent is **a `GREETING` route on
+the classifier**: the classifier is the "lead" the user's first
+message hits, and a small `greet_user` agent handles only that route.
+Same idiom, expressed in graph form. Avoids fighting `output_schema`
+(greetings have no category to emit) and keeps the graph viz honest.
+
+### Graph
+
+```
+START
+  ↓
+process_input  (function node — stash request in state)
+  ↓
+classify       (LlmAgent — output_schema=TicketCategory)
+  ↓
+route_input    (function node — emits Event(route=...))
+  ├── "GREETING" → greet_user      → END
+  ├── "BUG"      → bug_handler     → END
+  ├── "BILLING"  → billing_handler → END
+  └── "FEATURE"  → feature_handler → END
+```
+
+### Sample queries (verified end-to-end with `adk run --jsonl`)
+
+- *"hi"* → GREETING → `greet_user` introduces capabilities + 3 example queries.
+- *"the dashboard shows 500 errors every time I open the analytics page"* → BUG → `bug_handler` asks for repro / browser / OS / severity.
+- *"how much does the Pro plan cost and what features are included?"* → BILLING → `billing_handler` quotes Pro pricing + storage + SSO + 20% annual discount.
+- *"it would be great if you could add dark mode to the dashboard"* → FEATURE → `feature_handler` thanks the user, asks one use-case clarifier, sets backlog expectations.
+
+**Demonstrates**: the v2 graph routing primitive on its own, without
+the additional planning/fan-out machinery of the canonical L2. A clean
+stepping-stone *into* L2 for readers who find the day-planner
+information-dense. v2 source: `level_2b_agent/agent.py`.
+
+---
+
+## Level 2c — `level_2c_agent` (Dynamic Workflow + HITL Pause/Resume)
+
+> **Variant of Level 2.** Same capability tier (strategic / context
+> engineering via a graph). The new axis is **framework-enforced
+> human-in-the-loop**: a `@node` function returns `RequestInput`, the
+> runner physically halts the workflow until a human responds, and
+> `App + ResumabilityConfig(is_resumable=True)` durably checkpoints
+> state so the workflow survives a server restart while waiting.
+
+**Not a new taxonomy level.** New ADK 2.0 *primitives* are absorbed as
+`Na/Nb/Nc` variants of the closest capability tier; they don't inflate
+the L0–L4 ladder. `RequestInput` is a new *primitive*, but the
+underlying capability — workflow orchestration with a deterministic
+gate — sits inside L2's strategic-planning tier. Same rationale as
+L4a (MCP variant) and L1a (voice variant).
+
+**Inspired by** the `refund_approval` demo in the *ADK 2.0 launch*
+video. The video's pedagogical message: in v1, "human-in-the-loop"
+was a prompt-level convention you hoped the LLM honoured; in v2, the
+framework guarantees it — the workflow physically cannot continue
+past `RequestInput` until a real response comes back, and the state
+is durably checkpointed. That guarantee is what enables enterprise
+approval / compliance / fraud-review patterns.
+
+**Use case**: refund processing with a manager-approval gate. Under
+$100 the workflow auto-approves and processes; at or above $100 it
+pauses, asks a manager 'yes' or 'no', then either issues the refund
+or records the rejection.
+
+### How L2c's HITL differs from L4's HITL
+
+| | L4 `agent_creator` | L2c `gate` |
+|---|---|---|
+| **Trigger** | LLM-discretionary — the model in `mode='task'` decides whether to ask | Framework-enforced — `if amount >= 100: return RequestInput(...)` |
+| **Bypass-able by prompt drift?** | Yes (LLM might just decide to commit without asking) | No (the function returns the interrupt; the runner halts) |
+| **Use when** | Clarifying a fuzzy spec — "is this team description right?" | Compliance gates that *must* hold — "every refund ≥ $100 needs sign-off" |
+| **Recovery on restart** | Replay session events | Checkpointed via `ResumabilityConfig(is_resumable=True)` |
+
+Different guarantees → both have legitimate uses. L4's HITL is more
+flexible, L2c's is more enforceable.
+
+### v2 idioms genuinely in use
+
+- **`RequestInput(message=, response_schema=, payload=,
+  interrupt_id=)`** from `google.adk.events.request_input`.
+- **`@node(rerun_on_resume=True)`** on the gate — when the user
+  responds, the gate **re-executes** with `ctx.resume_inputs`
+  populated, letting one function handle both first-run (ask) and
+  post-resume (decide) cases without a follow-up node. Without this
+  flag, the user's response would just *become* the node's output
+  (default `FunctionNode` behaviour), forcing a separate interpreter
+  node downstream.
+- **`App(root_agent=..., resumability_config=ResumabilityConfig(
+  is_resumable=True))`** — durable checkpointing. Both `app` and
+  `root_agent` are exported from `agent.py`; the loader picks `app`
+  when present (per `references/human-in-the-loop.md`).
+- **`output_schema=RefundRequest` + `output_key="refund_request"`**
+  on the intake LLM — turns user free-text into a typed dict, stored
+  in state for downstream function nodes to read via parameter-name
+  resolution (`def gate(refund_request: dict)`).
+- **`Event(state={"decision": ...}, output=...)`** to both update
+  state AND pass the decision down the graph in one event.
+
+### Graph
+
+```
+START
+  ↓
+process_input    (function — stash raw text)
+  ↓
+intake           (LlmAgent — parse → RefundRequest)
+  ↓
+gate             (@node async, rerun_on_resume=True)
+  │ amount < $100 → emit RefundDecision(approved=True), continue
+  │ amount ≥ $100 first run  → yield RequestInput, PAUSE
+  │ amount ≥ $100 resumed    → emit RefundDecision based on response
+  ↓
+process_refund   (@node async — issue refund OR record rejection)
+  ↓
+  END
+```
+
+### Sample queries (verified end-to-end with `adk run --jsonl`)
+
+- *"Process a $50 refund for customer C-001 — wrong size shipped."*
+  → intake parses → gate auto-approves (under threshold) → process_refund mints `RFND-XXXXXXXX` confirmation. **No pause.**
+- *"Refund $350 to customer C-002 — defective laptop returned."*
+  → intake parses → gate emits `adk_request_input` function call with `longRunningToolIds: ["manager_approval"]`. Workflow halts. (Resume verified interactively in `adk web`: reply 'yes' → process; 'no' → reject.)
+
+**On the wire**: `RequestInput` shows up as a function call to a
+synthetic tool `adk_request_input` with the workflow's
+`longRunningToolIds` field flagging the suspension. That's how the
+framework communicates "this isn't a real tool call, this is a HITL
+pause" to clients — `adk web` hooks it to a chat prompt; custom
+clients respond with a `FunctionResponse` keyed to the same id.
+
+**Demonstrates**: the third pillar of ADK 2.0 (dynamic workflows
+with framework-enforced HITL pause/resume + automatic checkpointing).
+v2 source: `level_2c_agent/agent.py` (single-file demo — workflow,
+intake LLM, gate, process_refund, App wrapper all colocated).
 
 ---
 
@@ -446,6 +664,88 @@ The hub-and-spoke shape is the new thing at L3. After every specialist finishes,
 - **`{state_key?}` instruction injection** (read) — `analyst_agent` and `writer_agent` read state directly from their prompts; no read-tool needed.
 
 Two terminal states: the coordinator either routes to `writer_agent` for a structured brief, or — for a simple factual question that one search already answered — replies directly without invoking the writer.
+
+---
+
+## Level 3b — `level_3b_agent` (Dual-Mode Coordinator: Travel Planner)
+
+> **Variant of Level 3.** Same capability tier (delegation to a fixed
+> team of specialists). The new axis is which **mode** each peer
+> specialist uses: one `mode='single_turn'` (autonomous) and one
+> `mode='task'` (allowed to ask the user clarifying questions
+> mid-task). Our canonical L3 only uses `single_turn`; only L4's
+> `agent_creator` uses `mode='task'`. L3b fills the gap by demonstrating
+> both modes side-by-side on peer specialists.
+
+**Not a new taxonomy level.** Same rationale as L4a / L1a / L2b: new
+ADK 2.0 *primitives* are absorbed as `Na/Nb/Nc` variants of the
+closest capability tier; they don't inflate the L0–L4 ladder.
+
+**Inspired by** the `travel_planner` demo in the *ADK 2.0 launch* video
+("the moment the task completes, it will again auto return"). Same
+shape as the canonical mixed-mode example in
+`.agents/skills/adk-workflow/references/task-mode.md:188-232`.
+
+**Use case**: travel planning. The coordinator delegates to:
+- `weather_checker` — `mode='single_turn'`, autonomous one-shot. Looks
+  up current + 3-day forecast for one city, returns a structured
+  `WeatherForecast`, control auto-returns to the coordinator.
+- `flight_booker` — `mode='task'`, multi-turn. Receives `origin` and
+  `destination` only (no `date`), asks the user for the departure
+  date, presents flight options, books the chosen one, returns a
+  structured `FlightBooking` via `finish_task`.
+
+**v2 idioms genuinely in use**:
+- `sub_agents=[...]` with **mixed modes** on peer specialists. The
+  framework auto-creates `request_task_weather_checker` and
+  `request_task_flight_booker` tools on the coordinator.
+- `input_schema` / `output_schema` Pydantic models on each specialist
+  for typed coordinator↔specialist contracts.
+- `mode='task'` HITL clarification — the booker pauses with
+  `branch: "task:..."` until the user replies, then resumes naturally.
+- `disallow_transfer_to_parent=True` + `disallow_transfer_to_peers=True`
+  on both specialists — same gotcha #24 hygiene as L3 (suppresses the
+  framework's auto-injection of `transfer_to_agent`).
+- `PlanReActPlanner()` on the coordinator — same rationale as L3.
+
+**Key design choice** — `date` deliberately omitted from
+`FlightBookingInput`: forces the booker to ASK the user. If `date`
+were in the schema, the coordinator's LLM might guess one. Omitting
+it is the pedagogical hook for `mode='task'` — the framework gives the
+agent a legitimate reason to interrupt and ask. Same trick the video
+uses ("What is the exact date?").
+
+**Tool/mode compatibility note** — L3b uses **only function tools**
+(`get_weather`, `search_flights`, `book_flight`). No built-ins like
+`google_search`, so gotcha #24 doesn't apply: a `mode='task'` agent's
+auto-injected `FinishTaskTool` plus 2 function tools is fine; it only
+becomes a problem when mixed with built-in tools. (For an L3-style
+agent that *does* mix built-ins with `mode='task'`, see `AGENTS.md`
+gotcha #24 — set `bypass_multi_tools_limit=True` to opt into the
+auto-swap.)
+
+### Sample queries (verified end-to-end with `adk run --jsonl`)
+
+- *"hi"* / *"what can you do?"* → coordinator handles inline; no
+  delegation.
+- *"what's the weather in Paris today?"* → coordinator:
+  `request_task_weather_checker(city="Paris")` → autonomous run, auto-
+  return → coordinator emits final `WeatherForecast` summary.
+- *"book me a flight from SFO to CDG"* → coordinator:
+  `request_task_flight_booker(origin="SFO", destination="CDG")` →
+  booker asks *"What date would you like to depart?"* → workflow
+  pauses for user input. (Multi-turn — verify in `adk web`.)
+- *"I'm going to Tokyo. Check the weather there, then book a flight
+  from SFO."* → coordinator chains both:
+  `weather_checker(Tokyo)` runs to completion (autonomous), then
+  `flight_booker(SFO, Tokyo)` opens and asks for date. **Both modes
+  in a single coordinator turn.**
+
+**Demonstrates**: peer-specialist `mode='task'` HITL clarification,
+mixed-mode chaining under one coordinator, the auto-injected
+`request_task_<name>` / `set_model_response` / `finish_task` tool
+trio in action. v2 source: `level_3b_agent/agent.py` +
+`level_3b_agent/tools.py`.
 
 ---
 
@@ -631,25 +931,67 @@ Full design and rationale: [`New Agents/LEVEL_4A_MCP_PLAN.md`](New%20Agents/LEVE
 
 ---
 
-## How Each Level Adds Capabilities
+## How Each Level Adds Capabilities (v2)
+
+The table below reflects the **v2 wiring** (post-migration). The
+**capability ladder** in row 1 is taxonomy-stable across v1 and v2 —
+it's the underlying abilities, not the framework primitives. The rest
+of the rows describe how each capability is implemented in v2.
 
 | | Level 0 | Level 1 | Level 2 | Level 3 | Level 4 | Level 4a (variant) |
 |---|---|---|---|---|---|---|
-| **New capability** | Brain only | + Tools | + Planning + Context engineering | + Delegation to sub-agents | + Meta-reasoning + dynamic agent creation | = Level 4 capabilities, scoped to a domain-specific MCP data source |
-| **Question type** | Static knowledge | Simple, single-fact | Complex, multi-part | Complex, multi-domain | Any, even requiring capabilities not in the starting team | Same as L4, but analytical questions are answered against Singapore government datasets |
-| **Tool calls** | 0 | 1 per question | Multiple, chained | Multiple, distributed across agents | Multiple, through AgentTools + dynamically-added specialists | Same as L4; fetcher calls MCP tools instead of `google_search` |
-| **Planning** | ❌ | ❌ | ✅ Upfront decomposition | ✅ Upfront + delegation | ✅ Upfront + delegation + team-composition decisions | ✅ Same as L4 |
-| **State** | ❌ | ❌ | ✅ `ToolContext.state` scratchpad | ✅ Shared across agents via `output_key` + `{state_key?}` injection + `ToolContext.state` | ✅ L3 state + `state.capabilities` registry for runtime specialists | ✅ Same as L4 |
-| **Search tool** | — | `google_search` built-in | `GoogleSearchTool(bypass_multi_tools_limit=True)` + custom function tools — `multiple_tools=True` triggers ADK's auto-swap at `llm_agent.py:151-157` to `GoogleSearchAgentTool` | Plain `google_search` built-in (inside `search_agent`) — works directly because the agent is wrapped as `AgentTool`, so no `transfer_to_agent` auto-injection, so no built-in + function conflict | `google_search` built-in (inside `data_fetcher_agent`) — same AgentTool pattern as L3 | **`McpToolset(connection_params=StdioConnectionParams(...))`** over `gahmen-mcp` (data.gov.sg + SingStat) — no `google_search` |
-| **Code execution** | — | — | — | — | `BuiltInCodeExecutor` on `analyst_agent` (Flash + `BuiltInPlanner` thinking). Charts via single-cell `plt.show()` → framework auto-saves the `inline_data` image to the artifact service (`_code_execution.py:279-318`). Prompt forbids `savefig` / `tool_context.save_artifact` (the latter is a NameError inside the sandbox). | Same as L4. |
-| **Number of agents** | 1 | 1 | 1 | 4 | 5 fixed + N runtime (session-scoped) | Same as L4 (5 fixed + N runtime) |
-| **Output** | Plain text | Plain text | Structured report | Structured report | Structured BI brief + inline matplotlib charts | Same as L4 |
-| **Reasoning mode** | None (no `planner`) | None (no `planner`) | None — planning is prompt-driven, not framework-enforced | **`PlanReActPlanner()` on the coordinator** — explicit Plan → Reason → Act → Final scaffold injected into the prompt, makes the delegation reasoning visible inline | None — meta-reasoning is prompt-driven via the coordinator's instruction | Same as L4 |
-| **Key ADK concept** | Tool discovery | Tool use | Context engineering | **`AgentTool` delegation + `PlanReActPlanner` + `output_key` + instruction state injection** | `AgentTool` + `BuiltInCodeExecutor` + `before_agent_callback` re-hydration | **`McpToolset` + `StdioConnectionParams`** on top of L4's stack; safety allowlist extends to MCP tool names with per-specialist `tool_filter` narrowing |
+| **New capability** | Brain only | + Tools | + Planning + Context engineering | + Delegation to specialists | + Meta-reasoning + dynamic agent creation | = Level 4 capabilities, scoped to a domain-specific MCP data source |
+| **Demo use case** | Pre-trained knowledge only | One-shot search-and-answer | **Student day planner** — extracts commitments, parallel topic research, produces a Pomodoro-paced markdown timetable | Coordinator + 3 specialists (search / analyst / writer) producing a structured Brief | BI agent team with `agent_creator` that spawns new specialists on demand; runtime specialists persist to disk and survive `adk web` restart | Same as L4 with Singapore Government data (data.gov.sg + SingStat) added as a third source on `data_fetcher_agent` |
+| **Question type** | Static knowledge | Simple, single-fact | Greeting OR quick factual ("what's the Pomodoro technique?") OR commitments-driven schedule request | Multi-domain analytical (research → analysis → brief) | Any analytical request; coordinator detects when the team can't cover it and delegates to creator | SG-flavoured analytical (or any L4 question — fetcher picks per query) |
+| **Top-level shape** | `LlmAgent` | Leaf `LlmAgent` (Mesh-bypass fast path in v2) | `Workflow(BaseNode)` graph with edge declarations | `LlmAgent` + `sub_agents=[...]` w/ `mode='single_turn'` | Same as L3, plus `mode='task'` `agent_creator` for HITL | Same as L4 |
+| **Tool calls** | 0 | 1 per question | Multiple, parallel via `ctx.run_node()` dynamic fan-out | Multiple, distributed across `request_task_<name>` calls to specialists | Multiple, through fixed-team specialists + runtime specialists (registered as `AgentTool`s on the coordinator at every turn) | Same as L4; fetcher routes between `google_search` / `load_web_page` / 8 MCP tools per query |
+| **Planning** | ❌ | ❌ | ✅ Graph-enforced upfront decomposition | ✅ LLM-decided runtime routing made visible via `PlanReActPlanner()` | ✅ Same as L3, plus capability-gap detection (meta-reasoning) | ✅ Same as L4 |
+| **State** | ❌ | `output_key` writes `state.last_answer` for delta observability | `Event(state={...})` from function/orchestrator nodes + `{key?}` instruction injection in agents downstream | `output_key` on terminal LLM agents; specialist returns are typed Pydantic objects flowing through coordinator's LLM context | L3 state + `state.capabilities` registry; `before_agent_callback` rebuilds runtime tools from state ∪ disk YAML library each turn | Same as L4 |
+| **Search tool** | — | Plain `google_search` built-in (single tool, no auto-swap needed) | Plain `google_search` on each researcher (worker is alone, no conflict); fan-out wrapper handles parallelism | `google_search` on `search_agent` (single-tool sub-agent in `single_turn` mode + `disallow_transfer_to_*` flags suppresses the v1 gotcha #24 echo) | `GoogleSearchTool(bypass=True)` + `load_web_page` on data_fetcher → auto-swap to `GoogleSearchAgentTool` (function-wrapped) when `multiple_tools=True` | Same as L4 PLUS `McpToolset(connection_params=StdioConnectionParams(...))` over gahmen-mcp narrowed by `tool_filter` to 8 read-only tools |
+| **Code execution** | — | — | — | — | `BuiltInCodeExecutor` on `analyst_agent` (Flash + `BuiltInPlanner` thinking). Charts via single-cell `plt.show()` → framework auto-saves the `inline_data` image to the artifact service (`_code_execution.py`). Hardened prompt forbids `savefig` / `tool_context.save_artifact` (the latter is a NameError inside the sandbox) | Same as L4 |
+| **Delegation primitive** | — | — | n/a (single-agent graph) | `sub_agents=[...]` + `mode='single_turn'` → framework auto-derives `_SingleTurnAgentTool` instances on coordinator. `request_task_<name>` is the auto-generated function tool the coordinator calls | Same as L3 PLUS `mode='task'` on `agent_creator` for multi-turn HITL with auto-return on `finish_task`. Runtime specialists wrap as `AgentTool` (v2 `sub_agents` auto-derivation is init-time only — runtime injection has to use `AgentTool`) | Same as L4 |
+| **Number of agents** | 1 | 1 | 1 graph + 5 LLM agents (classify, quick_answerer, task_planner, schedule_writer, researcher×N dynamic) | 1 coordinator + 3 specialist sub-agents | 1 coordinator + 4 sub-agents (3 fixed-team + creator) + N runtime specialists (session-scoped + disk-persisted) | Same as L4 (4 sub-agents + N runtime) |
+| **Output** | Plain text | Plain text + `state.last_answer` delta | Structured markdown timetable for "plan" route; 2-3 sentence answer for "quick" route | Pydantic `Brief` (typed) | Pydantic `Brief` + matplotlib chart artifact | Same as L4 |
+| **Reasoning mode** | None | None — one-shot question, planner adds cost without quality gain | None on the agents themselves; the *graph itself* enforces the plan-then-act structure (PLAN/EXECUTE/SYNTHESISE collapse into nodes) | **`PlanReActPlanner()` on the coordinator** — `/PLANNING/ /REASONING/ /ACTION/ /FINAL_ANSWER/` blocks visible inline in chat panel | **`PlanReActPlanner()` on the coordinator** + **`BuiltInPlanner(include_thoughts=True)` on `analyst_agent`** (Pro on a code-executor agent hangs under AFC — gotcha #21) | Same as L4 |
+| **HITL** | — | — | — | — | `mode='task'` on `agent_creator` — multi-turn confirmation ("draft spec → ask user → call create_specialist → call finish_task") with auto-return | Same as L4 |
+| **Persistence** | — | — | Session-scoped state via `Event(state={...})` | Session-scoped state via `output_key` | **Cross-restart**: `runtime_agents/*.yaml` library on disk, read on every turn by `before_agent_callback` | Same as L4 |
+| **Key ADK 2.0 concept** | Tool discovery | Leaf-`LlmAgent` fast path; `output_key` state delta | **`Workflow(BaseNode)` graph + `ctx.run_node()` dynamic fan-out + `Event(state=...)` data flow** | **`sub_agents=[...]` + `mode='single_turn'` auto-delegation + `disallow_transfer_to_*` to suppress gotcha #24** | **`mode='task'` HITL + `before_agent_callback` runtime tool hydration + `BuiltInCodeExecutor` charts** | **`McpToolset` + `StdioConnectionParams`** on top of L4's stack; safety allowlist extends to MCP tool names with per-spec `tool_filter` narrowing |
 
-> **Note on "reasoning mode":** None of the levels set `planner=...` on their agents. Gemini 2.5's *native* thinking still runs on every LLM call (thinking tokens are consumed internally), but thoughts are not surfaced and no framework-level plan-then-act scaffold is applied. To convert any agent into an explicit reasoning agent, add either `BuiltInPlanner(thinking_config=types.ThinkingConfig(include_thoughts=True))` (surfaces Gemini's native thinking) or `PlanReActPlanner()` (forces a prompt-level ReAct loop). See `contributing/samples/fields_planner/agent.py` for the canonical example.
+> **Note on "reasoning mode":** at L1/L2 a `planner` adds cost without
+> quality gain — L1 is one-shot, L2 has plan-then-act enforced by the
+> graph itself. L3+ benefits from making the LLM-decided routing
+> visible (`PlanReActPlanner()`) since the routing IS the reasoning.
+> L4's `analyst_agent` uses `BuiltInPlanner` (Gemini's native thinking)
+> rather than `PlanReActPlanner` because: (a) Pro on a
+> `BuiltInCodeExecutor` agent hangs under AFC (gotcha #21), so we use
+> Flash + native thinking instead; (b) the analyst's reasoning is
+> code-cell layout, which native thinking handles well without prompt
+> scaffolding. To wire `PlanReActPlanner()` into any leaf agent, set
+> the `planner=` field; the v2 framework injects the
+> `/PLANNING/ /REASONING/ /ACTION/ /FINAL_ANSWER/` scaffold around
+> the response.
 
-> **Note on variants not in this table:** the table focuses on taxonomy axes. Demo variants that change only one orthogonal thing are documented inline above rather than as extra columns: `level_1a_agent` (L1 + Gemini Live voice; minimum viable voice agent, single tool, no sub-agent transfer) and `level_4a_agent` (L4 + domain-specific MCP data source — this one *is* in the table because it changes multiple axes at once). See the L1a and L4a sections for details. A multi-agent voice variant (`level_3a_agent`) was previously in the repo but removed after neither `gemini-2.5-flash-native-audio-*` nor `gemini-3.1-flash-live-preview` reliably supported the `transfer_to_agent` function call required for sub-agent delegation in audio mode.
+> **Note on variants not in this table:** L1a (Gemini Live voice
+> variant of L1) and L4a (MCP variant of L4) are documented in their
+> own sections above. L4a *is* in the table because it changes
+> multiple axes (tool source, allowlist, vendoring); L1a is not
+> because it only changes one axis (model identifier + a Live-event
+> filtering subclass). A multi-agent voice variant (`level_3a_agent`)
+> was previously in the repo but removed after neither
+> `gemini-2.5-flash-native-audio-*` nor `gemini-3.1-flash-live-preview`
+> reliably supported the `transfer_to_agent` function call required
+> for sub-agent delegation in audio mode.
+
+> **The "lead agent handles greetings inline" pattern is consistent
+> across L2/L3/L4/L4a.** Earlier drafts had a dedicated `greeter`
+> sub-agent on L2 and L3, which made the graph viz noisy and was
+> structurally inconsistent with L4 (where greetings live in the
+> coordinator's instruction prose). Now all four levels follow the
+> same idiom: the lead agent the user actually talks to (L2's
+> `quick_answerer`, L3/L4's coordinator, L4a's coordinator) detects
+> greetings via prompt branching and responds inline with one
+> sentence describing the agent + 2 example queries. Same idiom in
+> different shells (Workflow node vs LlmAgent prompt).
 
 ---
 
