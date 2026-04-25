@@ -90,11 +90,21 @@ v2 rewrites coexist so learners can compare approaches side by side:
 
 ### Agent levels — what each demo teaches
 
-Six demos under this fork, ascending in capability. Each one introduces
-exactly one new v2 idiom on top of the previous, so a learner can read
-them in order and trace a clear capability ladder. Folders are
+Nine demos under this fork. Six follow the **capability ladder**
+(L1 → L1a → L2 → L3 → L4 → L4a), each introducing one new v2 idiom on
+top of the previous. Three more (`level_2b`, `level_3b`,
+`level_2c`) are **single-axis variants** that demonstrate specific
+ADK 2.0 *primitives* in isolation — they don't extend the capability
+ladder, they make a particular framework feature legible. Folders are
 `level_*_agent/` for the v2 rewrites; the v1 originals live alongside
 in `V1_level_*_agent/` for before/after comparison.
+
+**ADK 2.0 launch video coverage**: the variants `level_2b`,
+`level_3b`, and `level_2c` collectively cover the three pillars
+Google highlighted in the ADK 2.0 launch (graph workflows,
+collaborative `mode='task'`/`mode='single_turn'`, dynamic
+HITL workflows). The mapping is one variant per pillar; see each
+variant's section below for the full pedagogical hook.
 
 #### Level 1 — Connected Problem-Solver (`level_1_agent/`)
 
@@ -171,6 +181,80 @@ synthesises a brief.
 *"how is solid-state battery research progressing across LFP, sulfide,
 and oxide chemistries?"* (3 sub-questions, parallel).
 
+#### Level 2b — Minimal Graph Router (`level_2b_agent/`)
+
+**Capability**: Level 2 (strategic / context engineering via a graph),
+minimal shape — classify → route → handler. **Variant**, not a new tier.
+
+**Use case**: customer support triage. A 4-way `Literal` classifier
+(`GREETING` / `BUG` / `BILLING` / `FEATURE`) dispatches to a focused
+handler `LlmAgent` per route. Inspired by the `graph_router` demo in
+the ADK 2.0 launch video — the canonical illustration of "routing
+moves out of the prompt and into the graph, so it's deterministic."
+
+**v2 idioms genuinely in use**:
+- `Workflow(BaseNode)` with **dict routing map** on a Pydantic
+  `Literal[...]` classifier output (no `__DEFAULT__` fallback needed —
+  the schema rejects unknown values).
+- LLM agents embedded directly in `edges=[...]`, auto-wrapped as nodes.
+- `Event(state={"request": ...})` from `process_input` → handlers read
+  via `{request}` instruction injection.
+- `output_key="last_response"` on each handler for state-delta
+  observability.
+
+**"Lead agent handles greetings inline" — graph form**: instead of a
+prompt branch (L3/L4 idiom), greetings are an explicit `GREETING` route
+on the classifier dispatched to a small `greet_user` agent. Same
+convention, expressed in graph syntax.
+
+**Single file**: `agent.py`. Sample queries: *"hi"*, *"the dashboard
+shows 500 errors every time I open the analytics page"*, *"how much
+does the Pro plan cost and what features are included?"*, *"it would be
+great if you could add dark mode to the dashboard"*.
+
+#### Level 2c — Dynamic Workflow + HITL Pause/Resume (`level_2c_agent/`)
+
+**Capability**: Level 2 (strategic / context engineering via a graph),
+with a **framework-enforced human-in-the-loop gate**. **Variant**, not
+a new tier.
+
+**Use case**: refund processing. Under $100 auto-approves; at or above
+$100 pauses for manager approval, then either issues the refund or
+records the rejection. Inspired by the `refund_approval` demo in the
+ADK 2.0 launch video — the canonical illustration of the third v2
+pillar (*"dynamic workflows with human-in-the-loop and automatic
+checkpointing for durable, resumable workflows"*).
+
+**Why this differs from L4's HITL**: L4's `agent_creator` HITL is
+*LLM-discretionary* (the `mode='task'` model decides whether to ask).
+L2c's HITL is *framework-enforced* — the gate function literally
+returns a `RequestInput` and the runner halts. Different guarantees:
+L4 is flexible, L2c is enforceable. Both have legitimate uses; L2c is
+the pattern for compliance gates ("every refund ≥ $100 must be signed
+off").
+
+**v2 idioms genuinely in use**:
+- `RequestInput(message=, response_schema=, payload=, interrupt_id=)`
+  from `google.adk.events.request_input` — the framework's HITL
+  primitive. Halts execution; on the wire it shows up as an
+  `adk_request_input` function call with `longRunningToolIds`.
+- `@node(rerun_on_resume=True)` on the gate — re-executes with
+  `ctx.resume_inputs` populated on user response, so one function
+  handles both ask and decide paths.
+- `App(root_agent=..., resumability_config=ResumabilityConfig(
+  is_resumable=True))` — durable checkpointing. Export both `app`
+  and `root_agent`; the loader picks `app` first.
+- `output_schema=RefundRequest` + `output_key="refund_request"` on
+  the intake LLM → typed parse, stored in state for downstream
+  function-node parameter-name resolution.
+- `Event(state={...}, output=...)` from the gate to update state AND
+  pass output in one event.
+
+**Single file**: `agent.py`. Sample queries: *"Process a $50 refund
+for customer C-001 — wrong size shipped"* (auto-approve path),
+*"Refund $350 to customer C-002 — defective laptop returned"* (HITL
+pause path; resume in `adk web` by replying 'yes' or 'no').
+
 #### Level 3 — Collaborative Multi-Agent System (`level_3_agent/`)
 
 **Capability**: a coordinator delegates work to a team of specialist
@@ -202,6 +286,47 @@ non-overlapping tools.
 
 **Single file**: `agent.py`. Sample query: *"compare mRNA vs
 viral-vector vaccine platforms"* (multi-source delegation).
+
+#### Level 3b — Dual-Mode Coordinator (`level_3b_agent/`)
+
+**Capability**: Level 3 (delegation to specialists), with **mixed
+modes** on peer specialists. **Variant**, not a new tier.
+
+**Use case**: travel planning. Coordinator delegates to
+`weather_checker` (`mode='single_turn'`, autonomous one-shot) and
+`flight_booker` (`mode='task'`, allowed to ask the user clarifying
+questions mid-task). Inspired by the `travel_planner` demo in the ADK
+2.0 launch video — fills the "task-mode peer specialist" gap that L3
+(single_turn-only) and L4 (task only on `agent_creator`) leave open.
+
+**v2 idioms genuinely in use**:
+- `sub_agents=[weather_checker, flight_booker]` with **two different
+  modes** on peers under one coordinator. Framework auto-creates
+  `request_task_weather_checker` and `request_task_flight_booker`.
+- `input_schema` / `output_schema` Pydantic models on each specialist
+  for typed coordinator↔specialist contracts; `finish_task` validates
+  the booker's structured output.
+- **`mode='task'` HITL clarification** — the booker pauses with
+  `branch: "task:..."` until the user replies, then resumes. Verified
+  via the trace `What date would you like to depart?` → workflow
+  pause.
+- `disallow_transfer_to_parent=True` + `disallow_transfer_to_peers=True`
+  on both specialists — same gotcha #24 hygiene as L3.
+- Function tools only (`get_weather`, `search_flights`,
+  `book_flight`) — no built-ins, so the `FinishTaskTool` injection
+  from `mode='task'` doesn't trigger gotcha #24.
+
+**Key design choice**: `date` deliberately omitted from
+`FlightBookingInput` schema so the booker MUST ask the user. Same
+trick the video uses — putting date in the schema would let the
+coordinator hallucinate one.
+
+**Two files**: `agent.py` (coordinator + 2 specialists + Pydantic
+schemas) + `tools.py` (mock weather/flight functions). Sample queries:
+*"what's the weather in Paris?"* (single_turn path), *"book me a
+flight from SFO to CDG"* (task-mode pause for date), *"I'm going to
+Tokyo, check the weather and book a flight from SFO"* (chained
+mixed-mode in one turn).
 
 #### Level 4 — Self-Evolving System (`level_4_agent/`)
 
@@ -443,36 +568,86 @@ the user's answer arrives at `ctx.resume_inputs` (note: the canonical
 attribute is `resume_inputs`, **not** `resume_data` — confirmed at
 `src/google/adk/runners.py:437` and `workflow/_workflow.py:224`).
 
-**Migration recipe**:
+**Migration recipe** (canonical example: `level_2c_agent/agent.py`,
+the refund-approval workflow):
+
 ```python
 from google.adk import Context, Event
-from google.adk.events import RequestInput
+from google.adk.events.request_input import RequestInput
 from google.adk.workflow import node
 
 @node(rerun_on_resume=True)
-async def approval_gate(ctx: Context, node_input: dict):
-    if node_input["amount"] <= 100:
-        yield Event(state={"decision": "auto_approved"})
+async def gate(ctx: Context, refund_request: dict):
+    amount = float(refund_request["amount_usd"])
+
+    # Path 1: under threshold — auto-approve.
+    if amount < 100:
+        yield Event(state={"decision": {"approved": True, ...}},
+                    output={"approved": True, ...})
         return
-    # Pause until human responds. ctx.resume_inputs will be populated
-    # with their answer when execution resumes.
+
+    # Path 2: at/above threshold — branch on whether we've already
+    # received the user's response. With rerun_on_resume=True, the
+    # function fully RE-EXECUTES on resume, so we check
+    # ctx.resume_inputs at the top of the relevant branch:
+    if ctx.resume_inputs:
+        response = list(ctx.resume_inputs.values())[0]
+        approved = str(response).strip().lower() in ("yes", "y")
+        yield Event(state={"decision": {"approved": approved, ...}},
+                    output={"approved": approved, ...})
+        return
+
+    # First execution above threshold — emit RequestInput. The
+    # framework halts the workflow until a human responds; on
+    # response, this whole function re-executes with
+    # ctx.resume_inputs populated.
     yield RequestInput(
-        message=f"Approve refund of ${node_input['amount']}?",
-        response_schema={"type": "string", "enum": ["yes", "no"]},
+        interrupt_id="manager_approval",
+        message=f"Approve refund of ${amount:.2f}?",
+        response_schema={"type": "string"},
+        payload=refund_request,
     )
-    decision = ctx.resume_inputs  # human's answer
-    yield Event(state={"decision": decision})
 ```
 
-For multi-step HITL, wrap the workflow in an `App` with
-`ResumabilityConfig(is_resumable=True)` so state survives process
-restart. For simple one-shot HITL, the non-resumable mode replays the
-session events from START — no `App` needed.
+**The branch-on-resume_inputs pattern is mandatory** when
+`rerun_on_resume=True`. A naive *"yield RequestInput then read
+ctx.resume_inputs on the next line"* does NOT work — the function
+re-executes from the top on resume, so any code after the yield is
+unreachable on the first run and re-runs from line 1 on the second.
+
+**Resumable vs non-resumable**:
+
+```python
+from google.adk.apps.app import App, ResumabilityConfig
+
+# Required for compliance gates that must survive a server restart.
+# Loader picks `app` over `root_agent` when both are exported.
+app = App(
+    name="my_workflow",
+    root_agent=root_agent,
+    resumability_config=ResumabilityConfig(is_resumable=True),
+)
+```
+
+For simple one-shot HITL, the non-resumable mode replays the session
+events from START on resume — no `App` needed. For *durable*
+(survives server restart) HITL, use `App + ResumabilityConfig` as
+above. L2c uses the durable form — refund approvals shouldn't lose
+state if the manager comes back from lunch and the server has been
+recycled.
+
+**On the wire**: `RequestInput` shows up as a function call to a
+synthetic tool named `adk_request_input`, with the workflow's
+`longRunningToolIds` field flagging the suspension. `adk web` hooks
+this to a chat-style prompt; custom clients respond with a
+`FunctionResponse` keyed to the same `interrupt_id`.
 
 **Why**: durable, resumable HITL is a v2 framework guarantee, not a
 prompt convention. Source: `adk-workflow` skill ("Human-in-the-Loop",
-references/human-in-the-loop.md); checkpoint-resume mechanics in the
-`adk-architecture` skill (`references/architecture/checkpoint-resume.md`).
+references/human-in-the-loop.md); canonical demo at
+`level_2c_agent/agent.py` (verified end-to-end via `adk run` for the
+auto-approve path and the HITL pause; resume verified interactively
+in `adk web`).
 
 #### 4. `RunConfig` replaces `Gemini(model=..., speech_config=...)` for voice
 
