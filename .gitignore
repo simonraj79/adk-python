@@ -99,6 +99,9 @@ Thumbs.db
 *.tmp
 *.temp
 
+# Level 4 agent — runtime-generated specialists (session-scoped, do not commit)
+level_4_agent/runtime_agents/*.yaml
+
 # AI Coding Tools - Project-specific configs
 # Developers should symlink or copy AGENTS.md and add their own overrides locally
 .adk/
@@ -117,5 +120,5 @@ CLAUDE.md
 .bolt/
 .v0/
 
-# Conformance test outputs (timestamped folders from --test mode)
-**/conformance/20*-*-*_*-*-*/
+level_4a_agent/vendor/
+.playwright-mcp/
