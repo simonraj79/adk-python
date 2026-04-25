@@ -95,7 +95,7 @@ root_agent = Workflow(
 adk run path/to/my_agent
 
 # Web UI
-adk web path/to/agents_dir
+adk web .
 ```
 
 ## 📚 Documentation
