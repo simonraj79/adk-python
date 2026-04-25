@@ -1,0 +1,166 @@
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - button "Toggle side panel" [ref=e6] [cursor=pointer]:
+        - img [ref=e7]: menu
+      - generic [ref=e10]:
+        - img [ref=e11]
+        - generic [ref=e12]: Agent Development Kit1.31.1
+        - img [ref=e14] [cursor=pointer]: info_outline
+      - generic [ref=e15]:
+        - button "level_4a_agent" [ref=e16] [cursor=pointer]:
+          - img [ref=e17]: robot_2
+          - generic [ref=e18]: level_4a_agent
+          - img [ref=e19]: arrow_drop_down
+        - generic [ref=e26]:
+          - button [disabled]:
+            - img: edit
+    - generic [ref=e31]:
+      - generic [ref=e32]:
+        - button "[50cb] Using SingStat data, plot Singapore's total pop..." [ref=e138] [cursor=pointer]:
+          - img [ref=e34]: chat
+          - generic [ref=e35]: "[50cb] Using SingStat data, plot Singapore's total pop..."
+          - img [ref=e36]: arrow_drop_down
+        - button "New Session" [ref=e140] [cursor=pointer]:
+          - img [ref=e141]: add_comment
+          - generic [ref=e142]: New Session
+      - button [ref=e38] [cursor=pointer]:
+        - img [ref=e39]: light_mode
+    - button "User menu" [ref=e42] [cursor=pointer]:
+      - img [ref=e43]: account_circle
+  - generic [ref=e50]:
+    - generic [ref=e56]:
+      - tablist [ref=e59]:
+        - generic [ref=e60]:
+          - tab "Info" [selected] [ref=e61] [cursor=pointer]:
+            - generic [ref=e64]: Info
+          - tab "State" [ref=e65] [cursor=pointer]:
+            - generic [ref=e68]: State
+          - tab "Artifacts" [ref=e69] [cursor=pointer]:
+            - generic [ref=e72]: Artifacts
+          - tab "Evals" [ref=e73] [cursor=pointer]:
+            - generic [ref=e76]: Evals
+      - generic [ref=e77]:
+        - tabpanel "Info" [ref=e143]:
+          - generic [ref=e146]:
+            - generic [ref=e147]:
+              - group "Select event" [ref=e148]:
+                - generic [ref=e151]:
+                  - status [ref=e152]: Event 2 of 2
+                  - button "Previous Event" [ref=e153] [cursor=pointer]:
+                    - img [ref=e154]
+                  - button "Next Event" [disabled] [ref=e158]:
+                    - img [ref=e159]
+              - button [ref=e163] [cursor=pointer]:
+                - img [ref=e164]: remove_selection
+            - generic [ref=e167]:
+              - generic [ref=e168]:
+                - button [ref=e169] [cursor=pointer]:
+                  - img [ref=e170]: info
+                - button [ref=e173] [cursor=pointer]:
+                  - img [ref=e174]: input
+                - button [ref=e177] [cursor=pointer]:
+                  - img [ref=e178]: output
+                - button [ref=e181] [cursor=pointer]:
+                  - img [ref=e182]: analytics
+                - button [ref=e185] [cursor=pointer]:
+                  - img [ref=e186]: data_object
+              - generic [ref=e190]:
+                - table [ref=e191]:
+                  - rowgroup [ref=e195]:
+                    - row "Event ID 162a2827-c0d6-4319-9611-28bc13082371" [ref=e196]:
+                      - cell "Event ID" [ref=e197]
+                      - cell "162a2827-c0d6-4319-9611-28bc13082371" [ref=e198]:
+                        - generic [ref=e199]:
+                          - generic [ref=e200]: 162a2827-c0d6-4319-9611-28bc13082371
+                          - button [ref=e201] [cursor=pointer]:
+                            - img [ref=e202]: content_copy
+                    - row "Invocation ID e-fef8da56-4ca0-46f1-86ec-8d3aad5a246a" [ref=e205]:
+                      - cell "Invocation ID" [ref=e206]
+                      - cell "e-fef8da56-4ca0-46f1-86ec-8d3aad5a246a" [ref=e207]:
+                        - generic [ref=e208]:
+                          - generic [ref=e209]: e-fef8da56-4ca0-46f1-86ec-8d3aad5a246a
+                          - button [ref=e210] [cursor=pointer]:
+                            - img [ref=e211]: content_copy
+                    - row "Branch N/A" [ref=e214]:
+                      - cell "Branch" [ref=e215]
+                      - cell "N/A" [ref=e216]:
+                        - generic [ref=e217]:
+                          - generic [ref=e218]: N/A
+                          - button [ref=e219] [cursor=pointer]:
+                            - img [ref=e220]: content_copy
+                    - row "Timestamp 4/23/2026, 8:56:31 PM" [ref=e223]:
+                      - cell "Timestamp" [ref=e224]
+                      - cell "4/23/2026, 8:56:31 PM" [ref=e225]:
+                        - generic [ref=e226]:
+                          - generic [ref=e227]: 4/23/2026, 8:56:31 PM
+                          - button [ref=e228] [cursor=pointer]:
+                            - img [ref=e229]: content_copy
+                    - row "Author level_4a_agent" [ref=e232]:
+                      - cell "Author" [ref=e233]
+                      - cell "level_4a_agent" [ref=e234]:
+                        - generic [ref=e235]:
+                          - generic [ref=e236]: level_4a_agent
+                          - button [ref=e237] [cursor=pointer]:
+                            - img [ref=e238]: content_copy
+                - table "Function Calls" [ref=e241]:
+                  - rowgroup [ref=e245]:
+                    - row "Function Calls" [ref=e246]:
+                      - columnheader "Function Calls" [ref=e247]
+                  - rowgroup [ref=e248]:
+                    - 'row "data_fetcher_agent id: \"adk-6db02b4d-de23-4edd-8443-7f057fafc535\" ► args: request: \"Fetch Singapore''s total population from SingStat for the last 10 available years.\" name: \"data_fetcher_agent\"" [ref=e249]':
+                      - cell "data_fetcher_agent" [ref=e250]
+                      - 'cell "id: \"adk-6db02b4d-de23-4edd-8443-7f057fafc535\" ► args: request: \"Fetch Singapore''s total population from SingStat for the last 10 available years.\" name: \"data_fetcher_agent\"" [ref=e251]':
+                        - generic [ref=e252]:
+                          - generic [ref=e254]:
+                            - generic [ref=e256]: "id: \"adk-6db02b4d-de23-4edd-8443-7f057fafc535\""
+                            - generic [ref=e257]:
+                              - generic [ref=e258] [cursor=pointer]:
+                                - generic [ref=e259]: ►
+                                - text: "args:"
+                              - generic [ref=e264]: "request: \"Fetch Singapore's total population from SingStat for the last 10 available years.\""
+                            - generic [ref=e266]: "name: \"data_fetcher_agent\""
+                          - button [ref=e267] [cursor=pointer]:
+                            - img [ref=e268]: content_copy
+        - tabpanel [ref=e271]
+        - tabpanel [ref=e84]
+        - tabpanel [ref=e85]
+    - generic [ref=e90]:
+      - generic [ref=e91]:
+        - radiogroup [ref=e92]:
+          - radio "Events" [checked] [ref=e93] [cursor=pointer]:
+            - generic [ref=e94]: Events
+          - radio "Traces" [ref=e95] [cursor=pointer]:
+            - generic [ref=e96]: Traces
+        - generic [ref=e98] [cursor=pointer]:
+          - img [ref=e99]: add
+          - generic [ref=e100]: Filter
+        - button "Streaming" [ref=e101]:
+          - img [ref=e102]: radio_button_unchecked
+          - generic [ref=e103]: Streaming
+      - generic [ref=e106]:
+        - generic [ref=e107]:
+          - generic [ref=e272]:
+            - generic [ref=e273]: "#1"
+            - paragraph [ref=e281]: Using SingStat data, plot Singapore's total population for the last 10 available years and compute the compound annual growth rate (CAGR). Return a full BI brief with the chart.
+            - img [ref=e284]: person
+          - generic [ref=e285]:
+            - generic [ref=e286]: "#2"
+            - img [ref=e289]: robot_2
+            - button "data_fetcher_agent" [ref=e294]:
+              - img [ref=e295]: bolt
+              - generic [ref=e296]: data_fetcher_agent
+          - progressbar [ref=e300]
+        - generic [ref=e108]:
+          - generic [ref=e112]:
+            - textbox "Type a message..." [active] [ref=e114]
+            - button [ref=e116] [cursor=pointer]:
+              - img [ref=e117]: send
+          - generic [ref=e120]:
+            - generic [ref=e121]:
+              - button [ref=e122] [cursor=pointer]:
+                - img [ref=e123]: attach_file
+              - button [ref=e126] [cursor=pointer]:
+                - img [ref=e127]: more_vert
+            - button [ref=e133] [cursor=pointer]:
+              - img [ref=e134]: call

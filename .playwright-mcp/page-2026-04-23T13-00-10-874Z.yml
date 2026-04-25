@@ -1,0 +1,186 @@
+- generic [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - generic [ref=e5]:
+        - button "Toggle side panel" [ref=e6] [cursor=pointer]:
+          - img [ref=e7]: menu
+        - generic [ref=e10]:
+          - img [ref=e11]
+          - generic [ref=e12]: Agent Development Kit1.31.1
+          - img [ref=e14] [cursor=pointer]: info_outline
+        - generic [ref=e15]:
+          - button "level_4a_agent" [ref=e16] [cursor=pointer]:
+            - img [ref=e17]: robot_2
+            - generic [ref=e18]: level_4a_agent
+            - img [ref=e19]: arrow_drop_down
+          - generic [ref=e26]:
+            - button [disabled]:
+              - img: edit
+      - generic [ref=e31]:
+        - generic [ref=e32]:
+          - button "[2ee7] I'm going to run many SG labour-market question..." [ref=e516] [cursor=pointer]:
+            - img [ref=e34]: chat
+            - generic [ref=e35]: "[2ee7] I'm going to run many SG labour-market question..."
+            - img [ref=e36]: arrow_drop_down
+          - button "New Session" [ref=e518] [cursor=pointer]:
+            - img [ref=e519]: add_comment
+            - generic [ref=e520]: New Session
+        - button [ref=e38] [cursor=pointer]:
+          - img [ref=e39]: light_mode
+      - button "User menu" [ref=e42] [cursor=pointer]:
+        - img [ref=e43]: account_circle
+    - generic [ref=e50]:
+      - generic [ref=e56]:
+        - tablist [ref=e59]:
+          - generic [ref=e60]:
+            - tab "Info" [selected] [ref=e61] [cursor=pointer]:
+              - generic [ref=e64]: Info
+            - tab "State" [ref=e65] [cursor=pointer]:
+              - generic [ref=e68]: State
+            - tab "Artifacts" [ref=e69] [cursor=pointer]:
+              - generic [ref=e72]: Artifacts
+            - tab "Evals" [ref=e73] [cursor=pointer]:
+              - generic [ref=e76]: Evals
+        - generic [ref=e77]:
+          - tabpanel "Info" [ref=e143]:
+            - generic [ref=e522]:
+              - generic [ref=e523]:
+                - group "Select event" [ref=e524]:
+                  - generic [ref=e527]:
+                    - status [ref=e528]: Event 3 of 3
+                    - button "Previous Event" [ref=e529] [cursor=pointer]:
+                      - img [ref=e530]
+                    - button "Next Event" [disabled] [ref=e534]:
+                      - img [ref=e535]
+                - button [ref=e539] [cursor=pointer]:
+                  - img [ref=e540]: remove_selection
+              - generic [ref=e543]:
+                - generic [ref=e544]:
+                  - button [ref=e545] [cursor=pointer]:
+                    - img [ref=e546]: info
+                  - button [ref=e549] [cursor=pointer]:
+                    - img [ref=e550]: input
+                  - button [ref=e553] [cursor=pointer]:
+                    - img [ref=e554]: output
+                  - button [ref=e557] [cursor=pointer]:
+                    - img [ref=e558]: analytics
+                  - button [ref=e561] [cursor=pointer]:
+                    - img [ref=e562]: data_object
+                - generic [ref=e566]:
+                  - table [ref=e567]:
+                    - rowgroup [ref=e571]:
+                      - row "Event ID a4cbbbc4-da73-4e1c-a2b9-2cf4e9693126" [ref=e572]:
+                        - cell "Event ID" [ref=e573]
+                        - cell "a4cbbbc4-da73-4e1c-a2b9-2cf4e9693126" [ref=e574]:
+                          - generic [ref=e575]:
+                            - generic [ref=e576]: a4cbbbc4-da73-4e1c-a2b9-2cf4e9693126
+                            - button [ref=e577] [cursor=pointer]:
+                              - img [ref=e578]: content_copy
+                      - row "Invocation ID e-c82637f2-093f-494f-8f14-2fd4bb04eea9" [ref=e581]:
+                        - cell "Invocation ID" [ref=e582]
+                        - cell "e-c82637f2-093f-494f-8f14-2fd4bb04eea9" [ref=e583]:
+                          - generic [ref=e584]:
+                            - generic [ref=e585]: e-c82637f2-093f-494f-8f14-2fd4bb04eea9
+                            - button [ref=e586] [cursor=pointer]:
+                              - img [ref=e587]: content_copy
+                      - row "Branch N/A" [ref=e590]:
+                        - cell "Branch" [ref=e591]
+                        - cell "N/A" [ref=e592]:
+                          - generic [ref=e593]:
+                            - generic [ref=e594]: N/A
+                            - button [ref=e595] [cursor=pointer]:
+                              - img [ref=e596]: content_copy
+                      - row "Timestamp 4/23/2026, 9:00:10 PM" [ref=e599]:
+                        - cell "Timestamp" [ref=e600]
+                        - cell "4/23/2026, 9:00:10 PM" [ref=e601]:
+                          - generic [ref=e602]:
+                            - generic [ref=e603]: 4/23/2026, 9:00:10 PM
+                            - button [ref=e604] [cursor=pointer]:
+                              - img [ref=e605]: content_copy
+                      - row "Author level_4a_agent" [ref=e608]:
+                        - cell "Author" [ref=e609]
+                        - cell "level_4a_agent" [ref=e610]:
+                          - generic [ref=e611]:
+                            - generic [ref=e612]: level_4a_agent
+                            - button [ref=e613] [cursor=pointer]:
+                              - img [ref=e614]: content_copy
+                  - table "Actions" [ref=e617]:
+                    - rowgroup [ref=e621]:
+                      - row "Actions" [ref=e622]:
+                        - columnheader "Actions" [ref=e623]
+                    - rowgroup [ref=e624]:
+                      - row "transferToAgent agent_creator" [ref=e625]:
+                        - cell "transferToAgent" [ref=e626]
+                        - cell "agent_creator" [ref=e627]:
+                          - generic [ref=e628]:
+                            - generic [ref=e629]: agent_creator
+                            - button [ref=e630] [cursor=pointer]:
+                              - img [ref=e631]: content_copy
+                  - table "Function Responses" [ref=e634]:
+                    - rowgroup [ref=e638]:
+                      - row "Function Responses" [ref=e639]:
+                        - columnheader "Function Responses" [ref=e640]
+                    - rowgroup [ref=e641]:
+                      - 'row "transfer_to_agent id: \"adk-67527ac7-de54-4104-ada6-4af914812d65\" name: \"transfer_to_agent\" ► response: result: null" [ref=e642]':
+                        - cell "transfer_to_agent" [ref=e643]
+                        - 'cell "id: \"adk-67527ac7-de54-4104-ada6-4af914812d65\" name: \"transfer_to_agent\" ► response: result: null" [ref=e644]':
+                          - generic [ref=e645]:
+                            - generic [ref=e647]:
+                              - generic [ref=e649]: "id: \"adk-67527ac7-de54-4104-ada6-4af914812d65\""
+                              - generic [ref=e651]: "name: \"transfer_to_agent\""
+                              - generic [ref=e652]:
+                                - generic [ref=e653] [cursor=pointer]:
+                                  - generic [ref=e654]: ►
+                                  - text: "response:"
+                                - generic [ref=e659]: "result: null"
+                            - button [ref=e660] [cursor=pointer]:
+                              - img [ref=e661]: content_copy
+          - tabpanel [ref=e271]
+          - tabpanel [ref=e84]
+          - tabpanel [ref=e85]
+      - generic [ref=e90]:
+        - generic [ref=e91]:
+          - radiogroup [ref=e92]:
+            - radio "Events" [checked] [ref=e93] [cursor=pointer]:
+              - generic [ref=e94]: Events
+            - radio "Traces" [ref=e95] [cursor=pointer]:
+              - generic [ref=e96]: Traces
+          - generic [ref=e98] [cursor=pointer]:
+            - img [ref=e99]: add
+            - generic [ref=e100]: Filter
+          - button "Streaming" [ref=e101]:
+            - img [ref=e102]: radio_button_unchecked
+            - generic [ref=e103]: Streaming
+        - generic [ref=e106]:
+          - generic [ref=e107]:
+            - generic [ref=e664]:
+              - generic [ref=e665]: "#1"
+              - paragraph [ref=e673]: I'm going to run many SG labour-market questions today. Please build me a dedicated SingStat labour-market specialist agent that I can use repeatedly, rather than using the generic data_fetcher every time.
+              - img [ref=e676]: person
+            - generic [ref=e677]:
+              - generic [ref=e678]: "#2"
+              - img [ref=e681]: robot_2
+              - button "transfer_to_agent" [ref=e686]:
+                - img [ref=e687]: bolt
+                - generic [ref=e688]: transfer_to_agent
+            - generic [ref=e691]:
+              - generic [ref=e692]: "#3"
+              - img [ref=e695]: robot_2
+              - button "transfer_to_agent" [ref=e699]:
+                - img [ref=e700]: check
+                - generic [ref=e701]: transfer_to_agent
+            - progressbar [ref=e705]
+          - generic [ref=e108]:
+            - generic [ref=e112]:
+              - textbox "Type a message..." [active] [ref=e114]
+              - button [ref=e116] [cursor=pointer]:
+                - img [ref=e117]: send
+            - generic [ref=e120]:
+              - generic [ref=e121]:
+                - button [ref=e122] [cursor=pointer]:
+                  - img [ref=e123]: attach_file
+                - button [ref=e126] [cursor=pointer]:
+                  - img [ref=e127]: more_vert
+              - button [ref=e133] [cursor=pointer]:
+                - img [ref=e134]: call
+  - generic [ref=e715]: Create a new Session

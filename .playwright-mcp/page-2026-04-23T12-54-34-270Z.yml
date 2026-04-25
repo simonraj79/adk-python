@@ -1,0 +1,166 @@
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - button "Toggle side panel" [ref=e6] [cursor=pointer]:
+        - img [ref=e7]: menu
+      - generic [ref=e10]:
+        - img [ref=e11]
+        - generic [ref=e12]: Agent Development Kit1.31.1
+        - img [ref=e14] [cursor=pointer]: info_outline
+      - generic [ref=e15]:
+        - button "level_4a_agent" [ref=e109] [cursor=pointer]:
+          - img [ref=e17]: robot_2
+          - generic [ref=e18]: level_4a_agent
+          - img [ref=e19]: arrow_drop_down
+        - generic [ref=e26]:
+          - button [disabled]:
+            - img: edit
+    - generic [ref=e110]:
+      - generic [ref=e111]:
+        - button "[6882] List the top five data.gov.sg collections." [ref=e196] [cursor=pointer]:
+          - img [ref=e113]: chat
+          - generic [ref=e114]: "[6882] List the top five data.gov.sg collections."
+          - img [ref=e115]: arrow_drop_down
+        - button "New Session" [ref=e198] [cursor=pointer]:
+          - img [ref=e199]: add_comment
+          - generic [ref=e200]: New Session
+      - button [ref=e117] [cursor=pointer]:
+        - img [ref=e118]: light_mode
+    - button "User menu" [ref=e31] [cursor=pointer]:
+      - img [ref=e32]: account_circle
+  - generic [ref=e39]:
+    - generic [ref=e122]:
+      - tablist [ref=e125]:
+        - generic [ref=e126]:
+          - tab "Info" [selected] [ref=e127] [cursor=pointer]:
+            - generic [ref=e130]: Info
+          - tab "State" [ref=e131] [cursor=pointer]:
+            - generic [ref=e134]: State
+          - tab "Artifacts" [ref=e135] [cursor=pointer]:
+            - generic [ref=e138]: Artifacts
+          - tab "Evals" [ref=e139] [cursor=pointer]:
+            - generic [ref=e142]: Evals
+      - generic [ref=e143]:
+        - tabpanel "Info" [ref=e144]:
+          - generic [ref=e202]:
+            - generic [ref=e203]:
+              - group "Select event" [ref=e204]:
+                - generic [ref=e207]:
+                  - status [ref=e208]: Event 2 of 2
+                  - button "Previous Event" [ref=e209] [cursor=pointer]:
+                    - img [ref=e210]
+                  - button "Next Event" [disabled] [ref=e214]:
+                    - img [ref=e215]
+              - button [ref=e219] [cursor=pointer]:
+                - img [ref=e220]: remove_selection
+            - generic [ref=e223]:
+              - generic [ref=e224]:
+                - button [ref=e225] [cursor=pointer]:
+                  - img [ref=e226]: info
+                - button [ref=e229] [cursor=pointer]:
+                  - img [ref=e230]: input
+                - button [ref=e233] [cursor=pointer]:
+                  - img [ref=e234]: output
+                - button [ref=e237] [cursor=pointer]:
+                  - img [ref=e238]: analytics
+                - button [ref=e241] [cursor=pointer]:
+                  - img [ref=e242]: data_object
+              - generic [ref=e246]:
+                - table [ref=e247]:
+                  - rowgroup [ref=e251]:
+                    - row "Event ID e300e035-13e3-4f4f-85cf-3101a0067362" [ref=e252]:
+                      - cell "Event ID" [ref=e253]
+                      - cell "e300e035-13e3-4f4f-85cf-3101a0067362" [ref=e254]:
+                        - generic [ref=e255]:
+                          - generic [ref=e256]: e300e035-13e3-4f4f-85cf-3101a0067362
+                          - button [ref=e257] [cursor=pointer]:
+                            - img [ref=e258]: content_copy
+                    - row "Invocation ID e-f2da862b-2993-4b90-a145-660281077d67" [ref=e261]:
+                      - cell "Invocation ID" [ref=e262]
+                      - cell "e-f2da862b-2993-4b90-a145-660281077d67" [ref=e263]:
+                        - generic [ref=e264]:
+                          - generic [ref=e265]: e-f2da862b-2993-4b90-a145-660281077d67
+                          - button [ref=e266] [cursor=pointer]:
+                            - img [ref=e267]: content_copy
+                    - row "Branch N/A" [ref=e270]:
+                      - cell "Branch" [ref=e271]
+                      - cell "N/A" [ref=e272]:
+                        - generic [ref=e273]:
+                          - generic [ref=e274]: N/A
+                          - button [ref=e275] [cursor=pointer]:
+                            - img [ref=e276]: content_copy
+                    - row "Timestamp 4/23/2026, 8:54:27 PM" [ref=e279]:
+                      - cell "Timestamp" [ref=e280]
+                      - cell "4/23/2026, 8:54:27 PM" [ref=e281]:
+                        - generic [ref=e282]:
+                          - generic [ref=e283]: 4/23/2026, 8:54:27 PM
+                          - button [ref=e284] [cursor=pointer]:
+                            - img [ref=e285]: content_copy
+                    - row "Author level_4a_agent" [ref=e288]:
+                      - cell "Author" [ref=e289]
+                      - cell "level_4a_agent" [ref=e290]:
+                        - generic [ref=e291]:
+                          - generic [ref=e292]: level_4a_agent
+                          - button [ref=e293] [cursor=pointer]:
+                            - img [ref=e294]: content_copy
+                - table "Function Calls" [ref=e297]:
+                  - rowgroup [ref=e301]:
+                    - row "Function Calls" [ref=e302]:
+                      - columnheader "Function Calls" [ref=e303]
+                  - rowgroup [ref=e304]:
+                    - 'row "data_fetcher_agent id: \"adk-2361b83f-6f73-45e1-90ac-cb8efcd81c97\" ► args: request: \"List the top five data.gov.sg collections.\" name: \"data_fetcher_agent\"" [ref=e305]':
+                      - cell "data_fetcher_agent" [ref=e306]
+                      - 'cell "id: \"adk-2361b83f-6f73-45e1-90ac-cb8efcd81c97\" ► args: request: \"List the top five data.gov.sg collections.\" name: \"data_fetcher_agent\"" [ref=e307]':
+                        - generic [ref=e308]:
+                          - generic [ref=e310]:
+                            - generic [ref=e312]: "id: \"adk-2361b83f-6f73-45e1-90ac-cb8efcd81c97\""
+                            - generic [ref=e313]:
+                              - generic [ref=e314] [cursor=pointer]:
+                                - generic [ref=e315]: ►
+                                - text: "args:"
+                              - generic [ref=e320]: "request: \"List the top five data.gov.sg collections.\""
+                            - generic [ref=e322]: "name: \"data_fetcher_agent\""
+                          - button [ref=e323] [cursor=pointer]:
+                            - img [ref=e324]: content_copy
+        - tabpanel [ref=e147]
+        - tabpanel [ref=e148]
+        - tabpanel [ref=e149]
+    - generic [ref=e48]:
+      - generic [ref=e150]:
+        - radiogroup [ref=e151]:
+          - radio "Events" [checked] [ref=e152] [cursor=pointer]:
+            - generic [ref=e153]: Events
+          - radio "Traces" [ref=e154] [cursor=pointer]:
+            - generic [ref=e155]: Traces
+        - generic [ref=e157] [cursor=pointer]:
+          - img [ref=e158]: add
+          - generic [ref=e159]: Filter
+        - button "Streaming" [ref=e160]:
+          - img [ref=e161]: radio_button_unchecked
+          - generic [ref=e162]: Streaming
+      - generic [ref=e165]:
+        - generic [ref=e166]:
+          - generic [ref=e327]:
+            - generic [ref=e328]: "#1"
+            - paragraph [ref=e336]: List the top five data.gov.sg collections.
+            - img [ref=e339]: person
+          - generic [ref=e340]:
+            - generic [ref=e341]: "#2"
+            - img [ref=e344]: robot_2
+            - button "data_fetcher_agent" [ref=e349]:
+              - img [ref=e350]: bolt
+              - generic [ref=e351]: data_fetcher_agent
+          - progressbar [ref=e355]
+        - generic [ref=e167]:
+          - generic [ref=e171]:
+            - textbox "Type a message..." [active] [ref=e173]
+            - button [ref=e175] [cursor=pointer]:
+              - img [ref=e176]: send
+          - generic [ref=e179]:
+            - generic [ref=e180]:
+              - button [ref=e181] [cursor=pointer]:
+                - img [ref=e182]: attach_file
+              - button [ref=e185] [cursor=pointer]:
+                - img [ref=e186]: more_vert
+            - button [ref=e192] [cursor=pointer]:
+              - img [ref=e193]: call

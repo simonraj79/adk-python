@@ -1,0 +1,70 @@
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - button "Toggle side panel" [ref=e6] [cursor=pointer]:
+        - img [ref=e7]: menu
+      - generic [ref=e10]:
+        - img [ref=e11]
+        - generic [ref=e12]: Agent Development Kit1.31.1
+        - img [ref=e14] [cursor=pointer]: info_outline
+      - generic [ref=e15]:
+        - button "level_1a_agent" [ref=e140] [cursor=pointer]:
+          - img [ref=e17]: robot_2
+          - generic [ref=e18]: level_1a_agent
+          - img [ref=e19]: arrow_drop_down
+        - generic [ref=e26]:
+          - button [disabled]:
+            - img: edit
+    - generic [ref=e141]:
+      - button "NEW SESSION" [ref=e143] [cursor=pointer]:
+        - img [ref=e144]: chat
+        - generic [ref=e145]: NEW SESSION
+        - img [ref=e146]: arrow_drop_down
+      - button [ref=e148] [cursor=pointer]:
+        - img [ref=e149]: light_mode
+    - button "User menu" [ref=e31] [cursor=pointer]:
+      - img [ref=e32]: account_circle
+  - generic [ref=e39]:
+    - generic [ref=e153]:
+      - tablist [ref=e156]:
+        - generic [ref=e157]:
+          - tab "Info" [selected] [ref=e158] [cursor=pointer]:
+            - generic [ref=e161]: Info
+          - tab "State" [ref=e162] [cursor=pointer]:
+            - generic [ref=e165]: State
+          - tab "Artifacts" [ref=e166] [cursor=pointer]:
+            - generic [ref=e169]: Artifacts
+          - tab "Evals" [ref=e170] [cursor=pointer]:
+            - generic [ref=e173]: Evals
+      - generic [ref=e174]:
+        - tabpanel "Info" [ref=e175]:
+          - generic [ref=e177]: Select an event or trace span to view details
+        - tabpanel [ref=e178]
+        - tabpanel [ref=e179]
+        - tabpanel [ref=e180]
+    - generic [ref=e48]:
+      - generic [ref=e181]:
+        - radiogroup [ref=e182]:
+          - radio "Events" [checked] [ref=e183] [cursor=pointer]:
+            - generic [ref=e184]: Events
+          - radio "Traces" [ref=e185] [cursor=pointer]:
+            - generic [ref=e186]: Traces
+        - generic [ref=e188] [cursor=pointer]:
+          - img [ref=e189]: add
+          - generic [ref=e190]: Filter
+        - button "Streaming" [ref=e191]:
+          - img [ref=e192]: radio_button_unchecked
+          - generic [ref=e193]: Streaming
+      - generic [ref=e198]:
+        - generic [ref=e202]:
+          - textbox "Type a message..." [active] [ref=e204]
+          - button [ref=e206] [cursor=pointer]:
+            - img [ref=e207]: send
+        - generic [ref=e210]:
+          - generic [ref=e211]:
+            - button [ref=e212] [cursor=pointer]:
+              - img [ref=e213]: attach_file
+            - button [ref=e216] [cursor=pointer]:
+              - img [ref=e217]: more_vert
+          - button [ref=e223] [cursor=pointer]:
+            - img [ref=e224]: call

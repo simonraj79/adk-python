@@ -1,0 +1,46 @@
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - button "Toggle side panel" [ref=e6] [cursor=pointer]:
+        - img [ref=e7]: menu
+      - generic [ref=e10]:
+        - img [ref=e11]
+        - generic [ref=e12]: Agent Development Kit1.31.1
+        - img [ref=e14] [cursor=pointer]: info_outline
+      - generic [ref=e15]:
+        - button "Select an app" [ref=e16] [cursor=pointer]:
+          - img [ref=e17]: robot_2
+          - generic [ref=e18]: Select an app
+          - img [ref=e19]: arrow_drop_down
+        - button [active] [ref=e22] [cursor=pointer]:
+          - img [ref=e23]: account_tree
+        - button [ref=e27] [cursor=pointer]:
+          - img [ref=e28]: edit
+    - button "User menu" [ref=e31] [cursor=pointer]:
+      - img [ref=e32]: account_circle
+  - generic [ref=e50]:
+    - text: Welcome to ADK!
+    - text: Select an agent on the left to begin with.
+  - generic [ref=e54]:
+    - generic [ref=e55]:
+      - generic [ref=e56]:
+        - generic [ref=e57]:
+          - generic [ref=e58]: ✦
+          - text: Agent
+        - generic [ref=e59]:
+          - generic [ref=e60]: ⊷
+          - text: Workflow
+        - generic [ref=e61]:
+          - generic [ref=e62]: ƒ
+          - text: Function
+        - generic [ref=e63]:
+          - generic [ref=e64]: ⌵
+          - text: Join
+        - generic [ref=e65]:
+          - generic [ref=e66]: 🔧
+          - text: Tool
+      - button "Close" [ref=e67] [cursor=pointer]:
+        - img [ref=e68]: close
+    - generic [ref=e73]:
+      - img [ref=e74]: error_outline
+      - paragraph [ref=e75]: Agent structure graph not available.

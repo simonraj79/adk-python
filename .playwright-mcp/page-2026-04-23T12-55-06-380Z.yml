@@ -1,0 +1,248 @@
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - button "Toggle side panel" [ref=e6] [cursor=pointer]:
+        - img [ref=e7]: menu
+      - generic [ref=e10]:
+        - img [ref=e11]
+        - generic [ref=e12]: Agent Development Kit1.31.1
+        - img [ref=e14] [cursor=pointer]: info_outline
+      - generic [ref=e15]:
+        - button "level_4a_agent" [ref=e109] [cursor=pointer]:
+          - img [ref=e17]: robot_2
+          - generic [ref=e18]: level_4a_agent
+          - img [ref=e19]: arrow_drop_down
+        - generic [ref=e26]:
+          - button [disabled]:
+            - img: edit
+    - generic [ref=e110]:
+      - generic [ref=e111]:
+        - button "[6882] List the top five data.gov.sg collections." [ref=e196] [cursor=pointer]:
+          - img [ref=e113]: chat
+          - generic [ref=e114]: "[6882] List the top five data.gov.sg collections."
+          - img [ref=e115]: arrow_drop_down
+        - button "New Session" [ref=e198] [cursor=pointer]:
+          - img [ref=e199]: add_comment
+          - generic [ref=e200]: New Session
+      - button [ref=e117] [cursor=pointer]:
+        - img [ref=e118]: light_mode
+    - button "User menu" [ref=e31] [cursor=pointer]:
+      - img [ref=e32]: account_circle
+  - generic [ref=e39]:
+    - generic [ref=e122]:
+      - tablist [ref=e125]:
+        - generic [ref=e126]:
+          - tab "Info" [selected] [ref=e127] [cursor=pointer]:
+            - generic [ref=e130]: Info
+          - tab "State" [ref=e131] [cursor=pointer]:
+            - generic [ref=e134]: State
+          - tab "Artifacts" [ref=e135] [cursor=pointer]:
+            - generic [ref=e138]: Artifacts
+          - tab "Evals" [ref=e139] [cursor=pointer]:
+            - generic [ref=e142]: Evals
+      - generic [ref=e143]:
+        - tabpanel "Info" [ref=e144]:
+          - generic [ref=e202]:
+            - generic [ref=e203]:
+              - group "Select event" [ref=e204]:
+                - generic [ref=e207]:
+                  - status [ref=e208]: Event 4 of 4
+                  - button "Previous Event" [ref=e209] [cursor=pointer]:
+                    - img [ref=e210]
+                  - button "Next Event" [disabled] [ref=e214]:
+                    - img [ref=e215]
+              - button [ref=e219] [cursor=pointer]:
+                - img [ref=e220]: remove_selection
+            - generic [ref=e223]:
+              - generic [ref=e224]:
+                - button [ref=e225] [cursor=pointer]:
+                  - img [ref=e226]: info
+                - button [ref=e229] [cursor=pointer]:
+                  - img [ref=e230]: input
+                - button [ref=e233] [cursor=pointer]:
+                  - img [ref=e234]: output
+                - button [ref=e237] [cursor=pointer]:
+                  - img [ref=e238]: analytics
+                - button [ref=e241] [cursor=pointer]:
+                  - img [ref=e242]: data_object
+              - generic [ref=e246]:
+                - table [ref=e247]:
+                  - rowgroup [ref=e251]:
+                    - row "Event ID 56251683-ac88-4365-921f-b9e854023b7b" [ref=e362]:
+                      - cell "Event ID" [ref=e253]
+                      - cell "56251683-ac88-4365-921f-b9e854023b7b" [ref=e363]:
+                        - generic [ref=e255]:
+                          - generic [ref=e256]: 56251683-ac88-4365-921f-b9e854023b7b
+                          - button [ref=e257] [cursor=pointer]:
+                            - img [ref=e258]: content_copy
+                    - row "Invocation ID e-f2da862b-2993-4b90-a145-660281077d67" [ref=e261]:
+                      - cell "Invocation ID" [ref=e262]
+                      - cell "e-f2da862b-2993-4b90-a145-660281077d67" [ref=e263]:
+                        - generic [ref=e264]:
+                          - generic [ref=e265]: e-f2da862b-2993-4b90-a145-660281077d67
+                          - button [ref=e266] [cursor=pointer]:
+                            - img [ref=e267]: content_copy
+                    - row "Branch N/A" [ref=e270]:
+                      - cell "Branch" [ref=e271]
+                      - cell "N/A" [ref=e272]:
+                        - generic [ref=e273]:
+                          - generic [ref=e274]: N/A
+                          - button [ref=e275] [cursor=pointer]:
+                            - img [ref=e276]: content_copy
+                    - row "Timestamp 4/23/2026, 8:54:38 PM" [ref=e364]:
+                      - cell "Timestamp" [ref=e280]
+                      - cell "4/23/2026, 8:54:38 PM" [ref=e365]:
+                        - generic [ref=e282]:
+                          - generic [ref=e283]: 4/23/2026, 8:54:38 PM
+                          - button [ref=e284] [cursor=pointer]:
+                            - img [ref=e285]: content_copy
+                    - row "Author level_4a_agent" [ref=e288]:
+                      - cell "Author" [ref=e289]
+                      - cell "level_4a_agent" [ref=e290]:
+                        - generic [ref=e291]:
+                          - generic [ref=e292]: level_4a_agent
+                          - button [ref=e293] [cursor=pointer]:
+                            - img [ref=e294]: content_copy
+                - table "Associated Spans" [ref=e366]:
+                  - rowgroup [ref=e370]:
+                    - row "Associated Spans" [ref=e371]:
+                      - columnheader "Associated Spans" [ref=e372]
+                  - rowgroup [ref=e373]:
+                    - row "generate_content gemini-2.5-flash 6078573226683706000" [ref=e374]:
+                      - cell "generate_content gemini-2.5-flash" [ref=e375]
+                      - cell "6078573226683706000" [ref=e376]:
+                        - generic [ref=e377]:
+                          - link "6078573226683706000" [ref=e378] [cursor=pointer]:
+                            - /url: javascript:void(0)
+                          - button [ref=e379] [cursor=pointer]:
+                            - img [ref=e380]: content_copy
+                    - row "call_llm 14899213643925393000" [ref=e383]:
+                      - cell "call_llm" [ref=e384]
+                      - cell "14899213643925393000" [ref=e385]:
+                        - generic [ref=e386]:
+                          - link "14899213643925393000" [ref=e387] [cursor=pointer]:
+                            - /url: javascript:void(0)
+                          - button [ref=e388] [cursor=pointer]:
+                            - img [ref=e389]: content_copy
+        - tabpanel [ref=e147]
+        - tabpanel [ref=e148]
+        - tabpanel [ref=e149]
+    - generic [ref=e48]:
+      - generic [ref=e150]:
+        - radiogroup [ref=e151]:
+          - radio "Events" [checked] [ref=e152] [cursor=pointer]:
+            - generic [ref=e153]: Events
+          - radio "Traces" [ref=e154] [cursor=pointer]:
+            - generic [ref=e155]: Traces
+        - generic [ref=e157] [cursor=pointer]:
+          - img [ref=e158]: add
+          - generic [ref=e159]: Filter
+        - button "Streaming" [ref=e160]:
+          - img [ref=e161]: radio_button_unchecked
+          - generic [ref=e162]: Streaming
+      - generic [ref=e165]:
+        - generic [ref=e166]:
+          - generic [ref=e327]:
+            - generic [ref=e328]: "#1"
+            - paragraph [ref=e336]: List the top five data.gov.sg collections.
+            - img [ref=e339]: person
+          - generic [ref=e340]:
+            - generic [ref=e341]: "#2"
+            - img [ref=e344]: robot_2
+            - button "data_fetcher_agent" [ref=e349]:
+              - img [ref=e350]: bolt
+              - generic [ref=e351]: data_fetcher_agent
+          - generic [ref=e392]:
+            - generic [ref=e393]: "#3"
+            - img [ref=e396]: robot_2
+            - generic [ref=e398]:
+              - button "data_fetcher_agent" [ref=e400]:
+                - img [ref=e401]: check
+                - generic [ref=e402]: data_fetcher_agent
+              - 'button "State: last_search_result" [ref=e406]':
+                - img [ref=e407]: data_object
+                - generic [ref=e408]: "State: last_search_result"
+          - generic [ref=e411]:
+            - generic [ref=e412]: "#4"
+            - img [ref=e415]: robot_2
+            - generic [ref=e422]:
+              - paragraph [ref=e423]: "Here are the top five data.gov.sg collections:"
+              - list [ref=e424]:
+                - listitem [ref=e425]:
+                  - paragraph [ref=e426]:
+                    - strong [ref=e427]: "Collection ID:"
+                    - text: "471"
+                    - strong [ref=e428]: "Name:"
+                    - text: TradeNet Service Centres & Certified Vendors
+                    - strong [ref=e429]: "Description:"
+                    - text: This data contains information on the location of tradenet service centres and certified vendors
+                    - strong [ref=e430]: "Managed By:"
+                    - text: Singapore Customs
+                    - strong [ref=e431]: "URL:"
+                    - link "https://data.gov.sg/collections/471" [ref=e432] [cursor=pointer]:
+                      - /url: https://data.gov.sg/collections/471
+                - listitem [ref=e433]:
+                  - paragraph [ref=e434]:
+                    - strong [ref=e435]: "Collection ID:"
+                    - text: "295"
+                    - strong [ref=e436]: "Name:"
+                    - text: JTC Business Park Land
+                    - strong [ref=e437]: "Description:"
+                    - text: Land for Business Park usage
+                    - strong [ref=e438]: "Managed By:"
+                    - text: JTC Corporation
+                    - strong [ref=e439]: "URL:"
+                    - link "https://data.gov.sg/collections/295" [ref=e440] [cursor=pointer]:
+                      - /url: https://data.gov.sg/collections/295
+                - listitem [ref=e441]:
+                  - paragraph [ref=e442]:
+                    - strong [ref=e443]: "Collection ID:"
+                    - text: "2066"
+                    - strong [ref=e444]: "Name:"
+                    - text: Channels for Donation, Resale and Repair
+                    - strong [ref=e445]: "Description:"
+                    - text: Channels for Donation, Resale and Repair
+                    - strong [ref=e446]: "Managed By:"
+                    - text: National Environment Agency
+                    - strong [ref=e447]: "URL:"
+                    - link "https://data.gov.sg/collections/2066" [ref=e448] [cursor=pointer]:
+                      - /url: https://data.gov.sg/collections/2066
+                - listitem [ref=e449]:
+                  - paragraph [ref=e450]:
+                    - strong [ref=e451]: "Collection ID:"
+                    - text: "578"
+                    - strong [ref=e452]: "Name:"
+                    - text: Singapore Police Force - (50th National Day Parade) - Special Zone
+                    - strong [ref=e453]: "Description:"
+                    - text: Singapore Police Force - (50th National Day Parade) - Special Zone means the area that is described in the Second Schedule of the Public Order (50th National Day Parade) Notification 2015.
+                    - strong [ref=e454]: "Managed By:"
+                    - text: Singapore Police Force
+                    - strong [ref=e455]: "URL:"
+                    - link "https://data.gov.sg/collections/578" [ref=e456] [cursor=pointer]:
+                      - /url: https://data.gov.sg/collections/578
+                - listitem [ref=e457]:
+                  - paragraph [ref=e458]:
+                    - strong [ref=e459]: "Collection ID:"
+                    - text: "1569"
+                    - strong [ref=e460]: "Name:"
+                    - text: Approval of Land Lots
+                    - strong [ref=e461]: "Description:"
+                    - text: Overview of the corporate performance of SLA on the number of approved land lots. This dataset is updated every six months.
+                    - strong [ref=e462]: "Managed By:"
+                    - text: Singapore Land Authority
+                    - strong [ref=e463]: "URL:"
+                    - link "https://data.gov.sg/collections/1569" [ref=e464] [cursor=pointer]:
+                      - /url: https://data.gov.sg/collections/1569
+        - generic [ref=e167]:
+          - generic [ref=e171]:
+            - textbox "Type a message..." [active] [ref=e173]
+            - button [ref=e175] [cursor=pointer]:
+              - img [ref=e176]: send
+          - generic [ref=e179]:
+            - generic [ref=e180]:
+              - button [ref=e181] [cursor=pointer]:
+                - img [ref=e182]: attach_file
+              - button [ref=e185] [cursor=pointer]:
+                - img [ref=e186]: more_vert
+            - button [ref=e192] [cursor=pointer]:
+              - img [ref=e193]: call

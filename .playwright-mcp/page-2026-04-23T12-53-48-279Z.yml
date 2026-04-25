@@ -1,0 +1,70 @@
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - button "Toggle side panel" [ref=e6] [cursor=pointer]:
+        - img [ref=e7]: menu
+      - generic [ref=e10]:
+        - img [ref=e11]
+        - generic [ref=e12]: Agent Development Kit1.31.1
+        - img [ref=e14] [cursor=pointer]: info_outline
+      - generic [ref=e15]:
+        - button "Select an app" [ref=e16] [cursor=pointer]:
+          - img [ref=e17]: robot_2
+          - generic [ref=e18]: Select an app
+          - img [ref=e19]: arrow_drop_down
+        - button [ref=e22] [cursor=pointer]:
+          - img [ref=e23]: account_tree
+        - button [ref=e27] [cursor=pointer]:
+          - img [ref=e28]: edit
+    - button "User menu" [ref=e31] [cursor=pointer]:
+      - img [ref=e32]: account_circle
+  - generic [ref=e35]:
+    - generic [ref=e54]:
+      - generic [ref=e55]:
+        - generic [ref=e56]: Select an App
+        - generic [ref=e57]:
+          - button "Create new agent" [ref=e58] [cursor=pointer]:
+            - img [ref=e59]: add
+          - button "Close app selector" [ref=e62] [cursor=pointer]:
+            - img [ref=e63]: close
+      - textbox "Search apps..." [active] [ref=e71]
+      - generic [ref=e72]:
+        - button "New Agents" [ref=e73] [cursor=pointer]:
+          - img [ref=e74]: robot_2
+          - generic [ref=e75]: New Agents
+        - button "assets" [ref=e76] [cursor=pointer]:
+          - img [ref=e77]: robot_2
+          - generic [ref=e78]: assets
+        - button "contributing" [ref=e79] [cursor=pointer]:
+          - img [ref=e80]: robot_2
+          - generic [ref=e81]: contributing
+        - button "level_1_agent" [ref=e82] [cursor=pointer]:
+          - img [ref=e83]: robot_2
+          - generic [ref=e84]: level_1_agent
+        - button "level_2_agent" [ref=e85] [cursor=pointer]:
+          - img [ref=e86]: robot_2
+          - generic [ref=e87]: level_2_agent
+        - button "level_3_agent" [ref=e88] [cursor=pointer]:
+          - img [ref=e89]: robot_2
+          - generic [ref=e90]: level_3_agent
+        - button "level_4_agent" [ref=e91] [cursor=pointer]:
+          - img [ref=e92]: robot_2
+          - generic [ref=e93]: level_4_agent
+        - button "level_4a_agent" [ref=e94] [cursor=pointer]:
+          - img [ref=e95]: robot_2
+          - generic [ref=e96]: level_4a_agent
+        - button "my_first_agent" [ref=e97] [cursor=pointer]:
+          - img [ref=e98]: robot_2
+          - generic [ref=e99]: my_first_agent
+        - button "scripts" [ref=e100] [cursor=pointer]:
+          - img [ref=e101]: robot_2
+          - generic [ref=e102]: scripts
+        - button "src" [ref=e103] [cursor=pointer]:
+          - img [ref=e104]: robot_2
+          - generic [ref=e105]: src
+        - button "tests" [ref=e106] [cursor=pointer]:
+          - img [ref=e107]: robot_2
+          - generic [ref=e108]: tests
+    - generic [ref=e50]:
+      - text: Welcome to ADK!
+      - text: Select an agent on the left to begin with.

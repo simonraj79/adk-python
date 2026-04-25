@@ -1,0 +1,253 @@
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - button "Toggle side panel" [ref=e6] [cursor=pointer]:
+        - img [ref=e7]: menu
+      - generic [ref=e10]:
+        - img [ref=e11]
+        - generic [ref=e12]: Agent Development Kit1.31.1
+        - img [ref=e14] [cursor=pointer]: info_outline
+      - generic [ref=e15]:
+        - button "level_3a_agent" [ref=e16] [cursor=pointer]:
+          - img [ref=e17]: robot_2
+          - generic [ref=e18]: level_3a_agent
+          - img [ref=e19]: arrow_drop_down
+        - generic [ref=e21]:
+          - button [disabled]:
+            - img: edit
+    - generic [ref=e26]:
+      - generic [ref=e27]:
+        - button "21174602-f487-4b28-b229-1a9eaee316a3" [ref=e161] [cursor=pointer]:
+          - img [ref=e29]: chat
+          - generic [ref=e30]: 21174602-f487-4b28-b229-1a9eaee316a3
+          - img [ref=e31]: arrow_drop_down
+        - button "New Session" [ref=e174] [cursor=pointer]:
+          - img [ref=e175]: add_comment
+          - generic [ref=e176]: New Session
+      - button [ref=e33] [cursor=pointer]:
+        - img [ref=e34]: light_mode
+    - button "User menu" [ref=e37] [cursor=pointer]:
+      - img [ref=e38]: account_circle
+  - generic [ref=e45]:
+    - generic [ref=e51]:
+      - tablist [ref=e54]:
+        - generic [ref=e55]:
+          - tab "Info" [selected] [ref=e56] [cursor=pointer]:
+            - generic [ref=e59]: Info
+          - tab "State" [ref=e60] [cursor=pointer]:
+            - generic [ref=e63]: State
+          - tab "Artifacts" [ref=e64] [cursor=pointer]:
+            - generic [ref=e67]: Artifacts
+          - tab "Evals" [ref=e68] [cursor=pointer]:
+            - generic [ref=e71]: Evals
+      - generic [ref=e72]:
+        - tabpanel "Info" [ref=e73]:
+          - generic [ref=e75]: Select an event or trace span to view details
+        - tabpanel [ref=e76]
+        - tabpanel [ref=e77]
+        - tabpanel [ref=e78]
+    - generic [ref=e83]:
+      - generic [ref=e84]:
+        - radiogroup [ref=e85]:
+          - radio "Events" [checked] [ref=e86] [cursor=pointer]:
+            - generic [ref=e87]: Events
+          - radio "Traces" [ref=e88] [cursor=pointer]:
+            - generic [ref=e89]: Traces
+        - generic [ref=e91] [cursor=pointer]:
+          - img [ref=e92]: add
+          - generic [ref=e93]: Filter
+        - button "Streaming" [ref=e94]:
+          - img [ref=e95]: radio_button_unchecked
+          - generic [ref=e96]: Streaming
+      - generic [ref=e99]:
+        - generic [ref=e100]:
+          - generic [ref=e177]:
+            - generic [ref=e178]: "#1"
+            - generic [ref=e181]:
+              - generic [ref=e182]: transcription
+              - text: Hello. What can you do?
+            - img [ref=e185]: person
+          - generic [ref=e186]:
+            - generic [ref=e187]: "#2"
+            - img [ref=e190]: robot_2
+            - generic [ref=e193]:
+              - generic [ref=e194]: thought
+              - generic [ref=e198]:
+                - paragraph [ref=e199]:
+                  - strong [ref=e200]: Defining Initial Response
+                - paragraph [ref=e201]: I've categorized the user's input as a greeting combined with a meta-question, fitting the "empty or unclear input" group. My response will be direct, stating my identity, offering two voice-friendly research examples, and encouraging further research questions.
+          - generic [ref=e202]:
+            - generic [ref=e203]: "#3"
+            - generic [ref=e205]: "N"
+            - generic [ref=e208]:
+              - generic [ref=e209]: transcription
+              - text: I'm a
+          - generic [ref=e210]:
+            - generic [ref=e211]: "#4"
+            - img [ref=e214]: robot_2
+            - generic [ref=e221]:
+              - paragraph [ref=e222]:
+                - strong [ref=e223]: Defining Initial Response
+              - paragraph [ref=e224]: I've categorized the user's input as a greeting combined with a meta-question, fitting the "empty or unclear input" group. My response will be direct, stating my identity, offering two voice-friendly research examples, and encouraging further research questions.
+          - generic [ref=e225]:
+            - generic [ref=e226]: "#5"
+            - generic [ref=e228]: "N"
+          - generic [ref=e229]:
+            - generic [ref=e230]: "#6"
+            - generic [ref=e232]: "N"
+            - button "Turn Complete" [ref=e236]:
+              - img [ref=e237]: stop_circle
+              - generic [ref=e238]: Turn Complete
+          - generic [ref=e241]:
+            - generic [ref=e242]: "#7"
+            - generic [ref=e245]:
+              - generic [ref=e246]: transcription
+              - text: <noise>
+            - img [ref=e249]: person
+          - generic [ref=e250]:
+            - generic [ref=e251]: "#8"
+            - generic [ref=e253]: "N"
+            - button "Interrupted" [ref=e257]:
+              - img [ref=e258]: report
+              - generic [ref=e259]: Interrupted
+          - generic [ref=e262]:
+            - generic [ref=e263]: "#9"
+            - generic [ref=e265]: "N"
+          - generic [ref=e266]:
+            - generic [ref=e267]: "#10"
+            - generic [ref=e269]: "N"
+            - button "Turn Complete" [ref=e273]:
+              - img [ref=e274]: stop_circle
+              - generic [ref=e275]: Turn Complete
+          - generic [ref=e278]:
+            - generic [ref=e279]: "#11"
+            - generic [ref=e282]:
+              - generic [ref=e283]: transcription
+              - text: What can you do?
+            - img [ref=e286]: person
+          - generic [ref=e287]:
+            - generic [ref=e288]: "#12"
+            - img [ref=e291]: robot_2
+            - generic [ref=e294]:
+              - generic [ref=e295]: thought
+              - generic [ref=e299]:
+                - paragraph [ref=e300]:
+                  - strong [ref=e301]: Defining My Capabilities
+                - paragraph [ref=e302]: I've processed the user's initial query about my capabilities, categorizing it as a "meta" question. I'm formulating a direct, concise response that outlines my role, provides concrete examples of what I can do, and invites further questions, all in a manner consistent with voice UX guidelines.
+          - generic [ref=e303]:
+            - generic [ref=e304]: "#13"
+            - generic [ref=e306]: "N"
+            - generic [ref=e309]:
+              - generic [ref=e310]: transcription
+              - text: I'm a voice research coordinator. What are the latest advances in solid state batteries or
+          - generic [ref=e311]:
+            - generic [ref=e312]: "#14"
+            - img [ref=e315]: robot_2
+            - generic [ref=e322]:
+              - paragraph [ref=e323]:
+                - strong [ref=e324]: Defining My Capabilities
+              - paragraph [ref=e325]: I've processed the user's initial query about my capabilities, categorizing it as a "meta" question. I'm formulating a direct, concise response that outlines my role, provides concrete examples of what I can do, and invites further questions, all in a manner consistent with voice UX guidelines.
+          - generic [ref=e326]:
+            - generic [ref=e327]: "#15"
+            - generic [ref=e329]: "N"
+          - generic [ref=e330]:
+            - generic [ref=e331]: "#16"
+            - generic [ref=e333]: "N"
+            - button "Turn Complete" [ref=e337]:
+              - img [ref=e338]: stop_circle
+              - generic [ref=e339]: Turn Complete
+          - generic [ref=e342]:
+            - generic [ref=e343]: "#17"
+            - generic [ref=e346]:
+              - generic [ref=e347]: transcription
+              - text: Hello. What can you do?
+            - img [ref=e350]: person
+          - generic [ref=e351]:
+            - generic [ref=e352]: "#18"
+            - img [ref=e355]: robot_2
+            - generic [ref=e358]:
+              - generic [ref=e359]: thought
+              - generic [ref=e363]:
+                - paragraph [ref=e364]:
+                  - strong [ref=e365]: Formulating a Response
+                - paragraph [ref=e366]: I'm working on crafting a direct and concise reply to the user's initial query. I'm focusing on identifying myself, offering a couple of example questions, and gently prompting them to ask. My goal is a spoken-friendly, clear, and non-delegatory answer.
+          - generic [ref=e367]:
+            - generic [ref=e368]: "#19"
+            - generic [ref=e370]: "N"
+            - generic [ref=e373]:
+              - generic [ref=e374]: transcription
+              - text: I'm a
+          - generic [ref=e375]:
+            - generic [ref=e376]: "#20"
+            - img [ref=e379]: robot_2
+            - generic [ref=e386]:
+              - paragraph [ref=e387]:
+                - strong [ref=e388]: Formulating a Response
+              - paragraph [ref=e389]: I'm working on crafting a direct and concise reply to the user's initial query. I'm focusing on identifying myself, offering a couple of example questions, and gently prompting them to ask. My goal is a spoken-friendly, clear, and non-delegatory answer.
+          - generic [ref=e390]:
+            - generic [ref=e391]: "#21"
+            - generic [ref=e393]: "N"
+          - generic [ref=e394]:
+            - generic [ref=e395]: "#22"
+            - generic [ref=e397]: "N"
+            - button "Turn Complete" [ref=e401]:
+              - img [ref=e402]: stop_circle
+              - generic [ref=e403]: Turn Complete
+          - generic [ref=e406]:
+            - generic [ref=e407]: "#23"
+            - generic [ref=e410]:
+              - generic [ref=e411]: transcription
+              - text: <noise>
+            - img [ref=e414]: person
+          - generic [ref=e415]:
+            - generic [ref=e416]: "#24"
+            - generic [ref=e418]: "N"
+            - button "Interrupted" [ref=e422]:
+              - img [ref=e423]: report
+              - generic [ref=e424]: Interrupted
+          - generic [ref=e427]:
+            - generic [ref=e428]: "#25"
+            - generic [ref=e430]: "N"
+          - generic [ref=e431]:
+            - generic [ref=e432]: "#26"
+            - generic [ref=e434]: "N"
+            - button "Turn Complete" [ref=e438]:
+              - img [ref=e439]: stop_circle
+              - generic [ref=e440]: Turn Complete
+          - generic [ref=e443]:
+            - generic [ref=e444]: "#27"
+            - generic [ref=e447]:
+              - generic [ref=e448]: transcription
+              - text: What can you do?
+            - img [ref=e451]: person
+          - generic [ref=e452]:
+            - generic [ref=e453]: "#28"
+            - img [ref=e456]: robot_2
+            - generic [ref=e459]:
+              - generic [ref=e460]: thought
+              - generic [ref=e464]:
+                - paragraph [ref=e465]:
+                  - strong [ref=e466]: Defining Initial Response
+                - paragraph [ref=e467]: I've formulated a direct response to the greeting and meta-question. I'll state my role and provide two concrete question examples as instructed. I'm ready to invite the user to pose any research-oriented inquiry. I will not be delegating this task.
+          - generic [ref=e468]:
+            - generic [ref=e469]: "#29"
+            - generic [ref=e471]: "N"
+            - generic [ref=e474]:
+              - generic [ref=e475]: transcription
+              - text: I'm a voice research coordinator.
+        - generic [ref=e101]:
+          - generic [ref=e105]:
+            - textbox "Type a message..." [active] [ref=e107]
+            - button [ref=e109] [cursor=pointer]:
+              - img [ref=e110]: send
+          - generic [ref=e113]:
+            - generic [ref=e114]:
+              - button [ref=e115] [cursor=pointer]:
+                - img [ref=e116]: attach_file
+              - button [ref=e119] [cursor=pointer]:
+                - img [ref=e120]: more_vert
+            - generic [ref=e124]:
+              - button [ref=e165] [cursor=pointer]:
+                - img [ref=e166]: videocam
+              - button [ref=e126] [cursor=pointer]:
+                - img [ref=e127]: call_end

@@ -1,0 +1,308 @@
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - button "Toggle side panel" [ref=e6] [cursor=pointer]:
+        - img [ref=e7]: menu
+      - generic [ref=e10]:
+        - img [ref=e11]
+        - generic [ref=e12]: Agent Development Kit1.31.1
+        - img [ref=e14] [cursor=pointer]: info_outline
+      - generic [ref=e15]:
+        - button "level_4a_agent" [ref=e16] [cursor=pointer]:
+          - img [ref=e17]: robot_2
+          - generic [ref=e18]: level_4a_agent
+          - img [ref=e19]: arrow_drop_down
+        - generic [ref=e21]:
+          - button [disabled]:
+            - img: edit
+    - generic [ref=e26]:
+      - generic [ref=e27]:
+        - button "[4a66] what is the statistic for crime in singapore fr..." [ref=e130] [cursor=pointer]:
+          - img [ref=e29]: chat
+          - generic [ref=e30]: "[4a66] what is the statistic for crime in singapore fr..."
+          - img [ref=e31]: arrow_drop_down
+        - button "New Session" [ref=e132] [cursor=pointer]:
+          - img [ref=e133]: add_comment
+          - generic [ref=e134]: New Session
+      - button [ref=e33] [cursor=pointer]:
+        - img [ref=e34]: light_mode
+    - button "User menu" [ref=e37] [cursor=pointer]:
+      - img [ref=e38]: account_circle
+  - generic [ref=e45]:
+    - generic [ref=e51]:
+      - tablist [ref=e54]:
+        - generic [ref=e55]:
+          - tab "Info" [selected] [ref=e56] [cursor=pointer]:
+            - generic [ref=e59]: Info
+          - tab "State" [ref=e60] [cursor=pointer]:
+            - generic [ref=e63]: State
+          - tab "Artifacts" [ref=e64] [cursor=pointer]:
+            - generic [ref=e67]: Artifacts
+          - tab "Evals" [ref=e68] [cursor=pointer]:
+            - generic [ref=e71]: Evals
+      - generic [ref=e72]:
+        - tabpanel "Info" [ref=e135]:
+          - generic [ref=e138]:
+            - generic [ref=e139]:
+              - group "Select event" [ref=e140]:
+                - generic [ref=e143]:
+                  - status [ref=e144]: Event 8 of 8
+                  - button "Previous Event" [ref=e145] [cursor=pointer]:
+                    - img [ref=e146]
+                  - button "Next Event" [disabled] [ref=e150]:
+                    - img [ref=e151]
+              - button [ref=e155] [cursor=pointer]:
+                - img [ref=e156]: remove_selection
+            - generic [ref=e159]:
+              - generic [ref=e160]:
+                - button [ref=e161] [cursor=pointer]:
+                  - img [ref=e162]: info
+                - button [ref=e165] [cursor=pointer]:
+                  - img [ref=e166]: input
+                - button [ref=e169] [cursor=pointer]:
+                  - img [ref=e170]: output
+                - button [ref=e173] [cursor=pointer]:
+                  - img [ref=e174]: analytics
+                - button [ref=e177] [cursor=pointer]:
+                  - img [ref=e178]: data_object
+              - generic [ref=e182]:
+                - table [ref=e183]:
+                  - rowgroup [ref=e187]:
+                    - row "Event ID ce2d44f2-10ee-4f2f-accf-9071111bbf44" [ref=e446]:
+                      - cell "Event ID" [ref=e189]
+                      - cell "ce2d44f2-10ee-4f2f-accf-9071111bbf44" [ref=e447]:
+                        - generic [ref=e191]:
+                          - generic [ref=e192]: ce2d44f2-10ee-4f2f-accf-9071111bbf44
+                          - button [ref=e193] [cursor=pointer]:
+                            - img [ref=e194]: content_copy
+                    - row "Invocation ID e-160b12f8-a3b8-4a62-9ab9-0a62f27ad146" [ref=e197]:
+                      - cell "Invocation ID" [ref=e198]
+                      - cell "e-160b12f8-a3b8-4a62-9ab9-0a62f27ad146" [ref=e199]:
+                        - generic [ref=e200]:
+                          - generic [ref=e201]: e-160b12f8-a3b8-4a62-9ab9-0a62f27ad146
+                          - button [ref=e202] [cursor=pointer]:
+                            - img [ref=e203]: content_copy
+                    - row "Branch N/A" [ref=e206]:
+                      - cell "Branch" [ref=e207]
+                      - cell "N/A" [ref=e208]:
+                        - generic [ref=e209]:
+                          - generic [ref=e210]: N/A
+                          - button [ref=e211] [cursor=pointer]:
+                            - img [ref=e212]: content_copy
+                    - row "Timestamp 4/23/2026, 9:35:53 PM" [ref=e368]:
+                      - cell "Timestamp" [ref=e216]
+                      - cell "4/23/2026, 9:35:53 PM" [ref=e369]:
+                        - generic [ref=e218]:
+                          - generic [ref=e219]: 4/23/2026, 9:35:53 PM
+                          - button [ref=e220] [cursor=pointer]:
+                            - img [ref=e221]: content_copy
+                    - row "Author level_4a_agent" [ref=e224]:
+                      - cell "Author" [ref=e225]
+                      - cell "level_4a_agent" [ref=e226]:
+                        - generic [ref=e227]:
+                          - generic [ref=e228]: level_4a_agent
+                          - button [ref=e229] [cursor=pointer]:
+                            - img [ref=e230]: content_copy
+                - table "Associated Spans" [ref=e448]:
+                  - rowgroup [ref=e452]:
+                    - row "Associated Spans" [ref=e453]:
+                      - columnheader "Associated Spans" [ref=e454]
+                  - rowgroup [ref=e455]:
+                    - row "generate_content gemini-2.5-pro 13786694973009590000" [ref=e456]:
+                      - cell "generate_content gemini-2.5-pro" [ref=e457]
+                      - cell "13786694973009590000" [ref=e458]:
+                        - generic [ref=e459]:
+                          - link "13786694973009590000" [ref=e460] [cursor=pointer]:
+                            - /url: javascript:void(0)
+                          - button [ref=e461] [cursor=pointer]:
+                            - img [ref=e462]: content_copy
+                    - row "call_llm 17905684838848412000" [ref=e465]:
+                      - cell "call_llm" [ref=e466]
+                      - cell "17905684838848412000" [ref=e467]:
+                        - generic [ref=e468]:
+                          - link "17905684838848412000" [ref=e469] [cursor=pointer]:
+                            - /url: javascript:void(0)
+                          - button [ref=e470] [cursor=pointer]:
+                            - img [ref=e471]: content_copy
+        - tabpanel [ref=e74]
+        - tabpanel [ref=e263]
+        - tabpanel [ref=e77]
+    - generic [ref=e82]:
+      - generic [ref=e83]:
+        - radiogroup [ref=e84]:
+          - radio "Events" [checked] [ref=e85] [cursor=pointer]:
+            - generic [ref=e86]: Events
+          - radio "Traces" [ref=e87] [cursor=pointer]:
+            - generic [ref=e88]: Traces
+        - generic [ref=e90] [cursor=pointer]:
+          - img [ref=e91]: add
+          - generic [ref=e92]: Filter
+        - button "Streaming" [ref=e93]:
+          - img [ref=e94]: radio_button_unchecked
+          - generic [ref=e95]: Streaming
+      - generic [ref=e98]:
+        - generic [ref=e99]:
+          - generic [ref=e264]:
+            - generic [ref=e265]: "#1"
+            - paragraph [ref=e273]: what is the statistic for crime in singapore from 2020 to 2022
+            - img [ref=e276]: person
+          - generic [ref=e277]:
+            - generic [ref=e278]: "#2"
+            - img [ref=e281]: robot_2
+            - button "data_fetcher_agent" [ref=e286]:
+              - img [ref=e287]: bolt
+              - generic [ref=e288]: data_fetcher_agent
+          - generic [ref=e333]:
+            - generic [ref=e334]: "#3"
+            - img [ref=e337]: robot_2
+            - generic [ref=e339]:
+              - button "data_fetcher_agent" [ref=e341]:
+                - img [ref=e342]: check
+                - generic [ref=e343]: data_fetcher_agent
+              - 'button "State: last_search_result" [ref=e347]':
+                - img [ref=e348]: data_object
+                - generic [ref=e349]: "State: last_search_result"
+          - generic [ref=e352]:
+            - generic [ref=e353]: "#4"
+            - img [ref=e356]: robot_2
+            - button "analyst_agent" [ref=e361]:
+              - img [ref=e362]: bolt
+              - generic [ref=e363]: analyst_agent
+          - generic [ref=e400]:
+            - generic [ref=e401]: "#5"
+            - img [ref=e404]: robot_2
+            - generic [ref=e406]:
+              - button "analyst_agent" [ref=e408]:
+                - img [ref=e409]: check
+                - generic [ref=e410]: analyst_agent
+              - 'button "State: last_analysis" [ref=e414]':
+                - img [ref=e415]: data_object
+                - generic [ref=e416]: "State: last_analysis"
+          - generic [ref=e419]:
+            - generic [ref=e420]: "#6"
+            - img [ref=e423]: robot_2
+            - button "report_writer_agent" [ref=e428]:
+              - img [ref=e429]: bolt
+              - generic [ref=e430]: report_writer_agent
+          - generic [ref=e433]:
+            - generic [ref=e434]: "#7"
+            - img [ref=e437]: robot_2
+            - button "report_writer_agent" [ref=e441]:
+              - img [ref=e442]: check
+              - generic [ref=e443]: report_writer_agent
+          - generic [ref=e474]:
+            - generic [ref=e475]: "#8"
+            - img [ref=e478]: robot_2
+            - generic [ref=e485]:
+              - 'heading "BI Brief: Singapore Crime Statistics (2020-2022)" [level=2] [ref=e486]'
+              - heading "Executive Summary" [level=3] [ref=e487]
+              - paragraph [ref=e488]: Singapore's crime landscape between 2020 and 2022 underwent a significant transformation, primarily driven by a substantial surge in Scams & Cybercrimes. While Physical Crime Cases saw only a modest increase of 3.56%, Scams & Cybercrimes Cases nearly doubled, rising by 89.42% over the two-year period. This dramatic shift is also reflected in the crime rates per 100,000 population, indicating that the growth in digital offenses significantly outpaced traditional crime categories and population changes. The updated crime reporting categories from 2022 onwards—focusing on 'Physical Crimes' and 'Scams & Cybercrimes'—underscore this evolving challenge.
+              - heading "Key Metrics" [level=3] [ref=e489]
+              - list [ref=e490]:
+                - listitem [ref=e491]:
+                  - paragraph [ref=e492]:
+                    - strong [ref=e493]: "Physical Crime Cases (2020):"
+                    - text: 19,498
+                - listitem [ref=e494]:
+                  - paragraph [ref=e495]:
+                    - strong [ref=e496]: "Physical Crime Cases (2022):"
+                    - text: 20,193
+                - listitem [ref=e497]:
+                  - paragraph [ref=e498]:
+                    - strong [ref=e499]: "Physical Crime Cases % Change (2020-2022):"
+                    - text: +3.56%
+                - listitem [ref=e500]:
+                  - paragraph [ref=e501]:
+                    - strong [ref=e502]: "Scams & Cybercrimes Cases (2020):"
+                    - text: 17,775
+                - listitem [ref=e503]:
+                  - paragraph [ref=e504]:
+                    - strong [ref=e505]: "Scams & Cybercrimes Cases (2022):"
+                    - text: 33,669
+                - listitem [ref=e506]:
+                  - paragraph [ref=e507]:
+                    - strong [ref=e508]: "Scams & Cybercrimes Cases % Change (2020-2022):"
+                    - text: +89.42%
+                - listitem [ref=e509]:
+                  - paragraph [ref=e510]:
+                    - strong [ref=e511]: "Physical Crime Rate (2020):"
+                    - text: 343 per 100,000 Population
+                - listitem [ref=e512]:
+                  - paragraph [ref=e513]:
+                    - strong [ref=e514]: "Physical Crime Rate (2022):"
+                    - text: 358 per 100,000 Population
+                - listitem [ref=e515]:
+                  - paragraph [ref=e516]:
+                    - strong [ref=e517]: "Scams & Cybercrimes Rate (2020):"
+                    - text: 313 per 100,000 Population
+                - listitem [ref=e518]:
+                  - paragraph [ref=e519]:
+                    - strong [ref=e520]: "Scams & Cybercrimes Rate (2022):"
+                    - text: 597 per 100,000 Population
+              - heading "Analysis" [level=3] [ref=e521]
+              - list [ref=e522]:
+                - listitem [ref=e523]:
+                  - paragraph [ref=e524]:
+                    - strong [ref=e525]: "Divergent Crime Trends (2020-2022):"
+                    - text: "The analysis of crime statistics from 2020 to 2022 reveals two distinct trends:"
+                  - list [ref=e526]:
+                    - listitem [ref=e527]:
+                      - strong [ref=e528]: "Physical Crimes:"
+                      - text: Cases saw a slight initial dip from 19,498 in 2020 to 19,343 in 2021, before rising to 20,193 in 2022. The overall increase for this period was a modest 3.56%. The physical crime rate per 100,000 population also showed a steady but marginal increase from 343 to 358.
+                    - listitem [ref=e529]:
+                      - strong [ref=e530]: "Scams & Cybercrimes:"
+                      - text: This category demonstrated a steep and consistent upward trajectory. Cases dramatically increased from 17,775 in 2020 to 26,886 in 2021, and further to 33,669 in 2022. This represents a significant 89.42% increase over two years, nearly doubling the number of recorded cases. The scams and cybercrimes rate per 100,000 population nearly doubled, surging from 313 to 597, indicating that this growth significantly outpaced overall population changes.
+                - listitem [ref=e531]:
+                  - paragraph [ref=e532]:
+                    - strong [ref=e533]: "Primary Driver of Crime Increase:"
+                    - text: The data clearly indicates that the substantial increase in total reported crime in Singapore during this period is predominantly driven by the significant surge in scams and cybercrimes. In contrast, physical crimes remained relatively stable with only a marginal increase.
+                - listitem [ref=e534]:
+                  - paragraph [ref=e535]:
+                    - strong [ref=e536]: "Updated Reporting Categories:"
+                    - text: With effect from 2022, crime statistics from the Singapore Police Force are reported under the distinct categories of 'Physical Crimes' and 'Scams & Cybercrimes,' replacing the broader 'Overall Crime' category. This change reflects the evolving nature of crime and highlights the growing prominence of digital offenses. The current dataset provides more granular data for sub-categories of physical crimes only for 2022, aligning with this new reporting structure.
+              - heading "Sources" [level=3] [ref=e537]
+              - list [ref=e538]:
+                - listitem [ref=e539]:
+                  - strong [ref=e540]: "Dataset ID:"
+                  - text: M891481
+                - listitem [ref=e541]:
+                  - strong [ref=e542]: "Source URL:"
+                  - link "https://tablebuilder.singstat.gov.sg/table/M891481" [ref=e543] [cursor=pointer]:
+                    - /url: https://tablebuilder.singstat.gov.sg/table/M891481
+                - listitem [ref=e544]:
+                  - strong [ref=e545]: "Data Provider:"
+                  - text: Singapore Department of Statistics (SingStat)
+              - heading "Confidence & Gaps" [level=3] [ref=e546]
+              - list [ref=e547]:
+                - listitem [ref=e548]:
+                  - paragraph [ref=e549]:
+                    - strong [ref=e550]: "Confidence:"
+                    - text: High confidence in the observed trends due to the direct use of official crime statistics from SingStat. The consistent upward trajectory and significant percentage changes for scams and cybercrimes, both in absolute numbers and rates, strongly support the conclusion of a major shift in the crime landscape.
+                - listitem [ref=e551]:
+                  - paragraph [ref=e552]:
+                    - strong [ref=e553]: "Gaps:"
+                  - list [ref=e554]:
+                    - listitem [ref=e555]:
+                      - strong [ref=e556]: "Granularity of Physical Crime Data:"
+                      - text: More granular data for sub-categories of physical crimes (e.g., violent crime, property crime) is only available for 2022, preventing a detailed year-on-year analysis of specific physical crime trends across the entire 2020-2022 period.
+                    - listitem [ref=e557]:
+                      - strong [ref=e558]: "Specific Scam/Cybercrime Types:"
+                      - text: While the data highlights the overall increase in scams and cybercrimes, a breakdown of the most prevalent types (e.g., e-commerce scams, phishing, tech support scams) would provide deeper insights for targeted prevention strategies.
+                    - listitem [ref=e559]:
+                      - strong [ref=e560]: "Underlying Factors:"
+                      - text: The analysis identifies
+                      - emphasis [ref=e561]: what
+                      - text: happened but does not delve into the specific socio-economic, technological, or policy factors that may have influenced these crime patterns (e.g., increased internet usage during the pandemic, specific police operations, public awareness campaigns).
+        - generic [ref=e100]:
+          - generic [ref=e104]:
+            - textbox "Type a message..." [active] [ref=e106]
+            - button [ref=e108] [cursor=pointer]:
+              - img [ref=e109]: send
+          - generic [ref=e112]:
+            - generic [ref=e113]:
+              - button [ref=e114] [cursor=pointer]:
+                - img [ref=e115]: attach_file
+              - button [ref=e118] [cursor=pointer]:
+                - img [ref=e119]: more_vert
+            - button [ref=e125] [cursor=pointer]:
+              - img [ref=e126]: call

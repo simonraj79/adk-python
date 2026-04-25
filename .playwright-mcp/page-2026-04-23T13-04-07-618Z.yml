@@ -1,0 +1,169 @@
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - button "Toggle side panel" [ref=e6] [cursor=pointer]:
+        - img [ref=e7]: menu
+      - generic [ref=e10]:
+        - img [ref=e11]
+        - generic [ref=e12]: Agent Development Kit1.31.1
+        - img [ref=e14] [cursor=pointer]: info_outline
+      - generic [ref=e15]:
+        - button "level_4a_agent" [ref=e16] [cursor=pointer]:
+          - img [ref=e17]: robot_2
+          - generic [ref=e18]: level_4a_agent
+          - img [ref=e19]: arrow_drop_down
+        - generic [ref=e26]:
+          - button [disabled]:
+            - img: edit
+    - generic [ref=e31]:
+      - generic [ref=e32]:
+        - button "[2ee7] I'm going to run many SG labour-market question..." [ref=e516] [cursor=pointer]:
+          - img [ref=e34]: chat
+          - generic [ref=e35]: "[2ee7] I'm going to run many SG labour-market question..."
+          - img [ref=e36]: arrow_drop_down
+        - button "New Session" [ref=e518] [cursor=pointer]:
+          - img [ref=e519]: add_comment
+          - generic [ref=e520]: New Session
+      - button [ref=e38] [cursor=pointer]:
+        - img [ref=e39]: light_mode
+    - button "User menu" [ref=e42] [cursor=pointer]:
+      - img [ref=e43]: account_circle
+  - generic [ref=e50]:
+    - generic [ref=e56]:
+      - tablist [ref=e59]:
+        - generic [ref=e60]:
+          - tab "Info" [ref=e61] [cursor=pointer]:
+            - generic [ref=e64]: Info
+          - tab "State" [ref=e65] [cursor=pointer]:
+            - generic [ref=e68]: State
+          - tab "Artifacts" [active] [selected] [ref=e69] [cursor=pointer]:
+            - generic [ref=e72]: Artifacts
+          - tab "Evals" [ref=e73] [cursor=pointer]:
+            - generic [ref=e76]: Evals
+      - generic [ref=e77]:
+        - tabpanel [ref=e1001]
+        - tabpanel [ref=e271]
+        - tabpanel "Artifacts" [ref=e1002]
+        - tabpanel [ref=e85]
+    - generic [ref=e90]:
+      - generic [ref=e91]:
+        - radiogroup [ref=e92]:
+          - radio "Events" [checked] [ref=e93] [cursor=pointer]:
+            - generic [ref=e94]: Events
+          - radio "Traces" [ref=e95] [cursor=pointer]:
+            - generic [ref=e96]: Traces
+        - generic [ref=e98] [cursor=pointer]:
+          - img [ref=e99]: add
+          - generic [ref=e100]: Filter
+        - button "Streaming" [ref=e101]:
+          - img [ref=e102]: radio_button_unchecked
+          - generic [ref=e103]: Streaming
+      - generic [ref=e106]:
+        - generic [ref=e107]:
+          - generic [ref=e664]:
+            - generic [ref=e665]: "#1"
+            - paragraph [ref=e673]: I'm going to run many SG labour-market questions today. Please build me a dedicated SingStat labour-market specialist agent that I can use repeatedly, rather than using the generic data_fetcher every time.
+            - img [ref=e676]: person
+          - generic [ref=e677]:
+            - generic [ref=e678]: "#2"
+            - img [ref=e681]: robot_2
+            - button "transfer_to_agent" [ref=e686]:
+              - img [ref=e687]: bolt
+              - generic [ref=e688]: transfer_to_agent
+          - generic [ref=e691]:
+            - generic [ref=e692]: "#3"
+            - img [ref=e695]: robot_2
+            - button "transfer_to_agent" [ref=e699]:
+              - img [ref=e700]: check
+              - generic [ref=e701]: transfer_to_agent
+          - generic [ref=e746]:
+            - generic [ref=e747]: "#4"
+            - img [ref=e750]: robot_2
+            - paragraph [ref=e758]:
+              - text: I propose creating a specialist called
+              - code [ref=e759]: sg_labour_market_specialist
+              - text: that answers questions about the Singapore labour market using SingStat data, using the
+              - code [ref=e760]: singstat_search
+              - text: and
+              - code [ref=e761]: singstat_get_table
+              - text: tools. Shall I proceed?
+          - generic [ref=e794]:
+            - generic [ref=e795]: "#5"
+            - paragraph [ref=e803]: Yes, proceed. But the exact tool names in the allowlist are singstat_search_resources, singstat_get_metadata, and singstat_get_table_data — use those three.
+            - img [ref=e806]: person
+          - generic [ref=e807]:
+            - generic [ref=e808]: "#6"
+            - img [ref=e811]: robot_2
+            - button "create_specialist" [ref=e816]:
+              - img [ref=e817]: bolt
+              - generic [ref=e818]: create_specialist
+          - generic [ref=e821]:
+            - generic [ref=e822]: "#7"
+            - img [ref=e825]: robot_2
+            - generic [ref=e827]:
+              - button "create_specialist" [ref=e829]:
+                - img [ref=e830]: check
+                - generic [ref=e831]: create_specialist
+              - 'button "State: capabilities" [ref=e835]':
+                - img [ref=e836]: data_object
+                - generic [ref=e837]: "State: capabilities"
+          - generic [ref=e840]:
+            - generic [ref=e841]: "#8"
+            - img [ref=e844]: robot_2
+            - paragraph [ref=e852]:
+              - text: Specialist
+              - code [ref=e853]: sg_labour_market_specialist
+              - text: "created and registered. It will be available as an AgentTool on the next turn. Description: Answers questions about the Singapore labour market using SingStat data."
+          - generic [ref=e892]:
+            - generic [ref=e893]: "#9"
+            - paragraph [ref=e901]: Great. Now use sg_labour_market_specialist to find Singapore's resident labour force participation rate for the most recent year available.
+            - img [ref=e904]: person
+          - generic [ref=e905]:
+            - generic [ref=e906]: "#10"
+            - img [ref=e909]: robot_2
+            - button "transfer_to_agent" [ref=e914]:
+              - img [ref=e915]: bolt
+              - generic [ref=e916]: transfer_to_agent
+          - generic [ref=e919]:
+            - generic [ref=e920]: "#11"
+            - img [ref=e923]: robot_2
+            - button "transfer_to_agent" [ref=e927]:
+              - img [ref=e928]: check
+              - generic [ref=e929]: transfer_to_agent
+          - generic [ref=e932]:
+            - generic [ref=e933]: "#12"
+            - img [ref=e936]: robot_2
+            - button "sg_labour_market_specialist" [ref=e941]:
+              - img [ref=e942]: bolt
+              - generic [ref=e943]: sg_labour_market_specialist
+          - generic [ref=e988]:
+            - generic [ref=e989]: "#13"
+            - img [ref=e992]: robot_2
+            - button "sg_labour_market_specialist" [ref=e996]:
+              - img [ref=e997]: check
+              - generic [ref=e998]: sg_labour_market_specialist
+          - generic [ref=e1004]:
+            - generic [ref=e1005]: "#14"
+            - img [ref=e1008]: robot_2
+            - button "report_writer_agent" [ref=e1013]:
+              - img [ref=e1014]: bolt
+              - generic [ref=e1015]: report_writer_agent
+          - generic [ref=e1018]:
+            - generic [ref=e1019]: "#15"
+            - img [ref=e1022]: robot_2
+            - button "report_writer_agent" [ref=e1026]:
+              - img [ref=e1027]: check
+              - generic [ref=e1028]: report_writer_agent
+        - generic [ref=e108]:
+          - generic [ref=e112]:
+            - textbox "Type a message..." [ref=e114]
+            - button [ref=e116] [cursor=pointer]:
+              - img [ref=e117]: send
+          - generic [ref=e120]:
+            - generic [ref=e121]:
+              - button [ref=e122] [cursor=pointer]:
+                - img [ref=e123]: attach_file
+              - button [ref=e126] [cursor=pointer]:
+                - img [ref=e127]: more_vert
+            - button [ref=e133] [cursor=pointer]:
+              - img [ref=e134]: call

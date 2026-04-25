@@ -1,0 +1,166 @@
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - button "Toggle side panel" [ref=e6] [cursor=pointer]:
+        - img [ref=e7]: menu
+      - generic [ref=e10]:
+        - img [ref=e11]
+        - generic [ref=e12]: Agent Development Kit1.31.1
+        - img [ref=e14] [cursor=pointer]: info_outline
+      - generic [ref=e15]:
+        - button "level_4a_agent" [ref=e16] [cursor=pointer]:
+          - img [ref=e17]: robot_2
+          - generic [ref=e18]: level_4a_agent
+          - img [ref=e19]: arrow_drop_down
+        - generic [ref=e21]:
+          - button [disabled]:
+            - img: edit
+    - generic [ref=e26]:
+      - generic [ref=e27]:
+        - button "[4a66] what is the statistic for crime in singapore fr..." [ref=e130] [cursor=pointer]:
+          - img [ref=e29]: chat
+          - generic [ref=e30]: "[4a66] what is the statistic for crime in singapore fr..."
+          - img [ref=e31]: arrow_drop_down
+        - button "New Session" [ref=e132] [cursor=pointer]:
+          - img [ref=e133]: add_comment
+          - generic [ref=e134]: New Session
+      - button [ref=e33] [cursor=pointer]:
+        - img [ref=e34]: light_mode
+    - button "User menu" [ref=e37] [cursor=pointer]:
+      - img [ref=e38]: account_circle
+  - generic [ref=e45]:
+    - generic [ref=e51]:
+      - tablist [ref=e54]:
+        - generic [ref=e55]:
+          - tab "Info" [selected] [ref=e56] [cursor=pointer]:
+            - generic [ref=e59]: Info
+          - tab "State" [ref=e60] [cursor=pointer]:
+            - generic [ref=e63]: State
+          - tab "Artifacts" [ref=e64] [cursor=pointer]:
+            - generic [ref=e67]: Artifacts
+          - tab "Evals" [ref=e68] [cursor=pointer]:
+            - generic [ref=e71]: Evals
+      - generic [ref=e72]:
+        - tabpanel "Info" [ref=e135]:
+          - generic [ref=e138]:
+            - generic [ref=e139]:
+              - group "Select event" [ref=e140]:
+                - generic [ref=e143]:
+                  - status [ref=e144]: Event 2 of 2
+                  - button "Previous Event" [ref=e145] [cursor=pointer]:
+                    - img [ref=e146]
+                  - button "Next Event" [disabled] [ref=e150]:
+                    - img [ref=e151]
+              - button [ref=e155] [cursor=pointer]:
+                - img [ref=e156]: remove_selection
+            - generic [ref=e159]:
+              - generic [ref=e160]:
+                - button [ref=e161] [cursor=pointer]:
+                  - img [ref=e162]: info
+                - button [ref=e165] [cursor=pointer]:
+                  - img [ref=e166]: input
+                - button [ref=e169] [cursor=pointer]:
+                  - img [ref=e170]: output
+                - button [ref=e173] [cursor=pointer]:
+                  - img [ref=e174]: analytics
+                - button [ref=e177] [cursor=pointer]:
+                  - img [ref=e178]: data_object
+              - generic [ref=e182]:
+                - table [ref=e183]:
+                  - rowgroup [ref=e187]:
+                    - row "Event ID 885a76f3-3471-43bd-9580-ac19b51a3ae1" [ref=e188]:
+                      - cell "Event ID" [ref=e189]
+                      - cell "885a76f3-3471-43bd-9580-ac19b51a3ae1" [ref=e190]:
+                        - generic [ref=e191]:
+                          - generic [ref=e192]: 885a76f3-3471-43bd-9580-ac19b51a3ae1
+                          - button [ref=e193] [cursor=pointer]:
+                            - img [ref=e194]: content_copy
+                    - row "Invocation ID e-160b12f8-a3b8-4a62-9ab9-0a62f27ad146" [ref=e197]:
+                      - cell "Invocation ID" [ref=e198]
+                      - cell "e-160b12f8-a3b8-4a62-9ab9-0a62f27ad146" [ref=e199]:
+                        - generic [ref=e200]:
+                          - generic [ref=e201]: e-160b12f8-a3b8-4a62-9ab9-0a62f27ad146
+                          - button [ref=e202] [cursor=pointer]:
+                            - img [ref=e203]: content_copy
+                    - row "Branch N/A" [ref=e206]:
+                      - cell "Branch" [ref=e207]
+                      - cell "N/A" [ref=e208]:
+                        - generic [ref=e209]:
+                          - generic [ref=e210]: N/A
+                          - button [ref=e211] [cursor=pointer]:
+                            - img [ref=e212]: content_copy
+                    - row "Timestamp 4/23/2026, 9:34:31 PM" [ref=e215]:
+                      - cell "Timestamp" [ref=e216]
+                      - cell "4/23/2026, 9:34:31 PM" [ref=e217]:
+                        - generic [ref=e218]:
+                          - generic [ref=e219]: 4/23/2026, 9:34:31 PM
+                          - button [ref=e220] [cursor=pointer]:
+                            - img [ref=e221]: content_copy
+                    - row "Author level_4a_agent" [ref=e224]:
+                      - cell "Author" [ref=e225]
+                      - cell "level_4a_agent" [ref=e226]:
+                        - generic [ref=e227]:
+                          - generic [ref=e228]: level_4a_agent
+                          - button [ref=e229] [cursor=pointer]:
+                            - img [ref=e230]: content_copy
+                - table "Function Calls" [ref=e233]:
+                  - rowgroup [ref=e237]:
+                    - row "Function Calls" [ref=e238]:
+                      - columnheader "Function Calls" [ref=e239]
+                  - rowgroup [ref=e240]:
+                    - 'row "data_fetcher_agent id: \"adk-75705324-68b6-44f2-97fe-4a71f08a1aea\" ► args: request: \"crime statistics in Singapore from 2020 to 2022\" name: \"data_fetcher_agent\"" [ref=e241]':
+                      - cell "data_fetcher_agent" [ref=e242]
+                      - 'cell "id: \"adk-75705324-68b6-44f2-97fe-4a71f08a1aea\" ► args: request: \"crime statistics in Singapore from 2020 to 2022\" name: \"data_fetcher_agent\"" [ref=e243]':
+                        - generic [ref=e244]:
+                          - generic [ref=e246]:
+                            - generic [ref=e248]: "id: \"adk-75705324-68b6-44f2-97fe-4a71f08a1aea\""
+                            - generic [ref=e249]:
+                              - generic [ref=e250] [cursor=pointer]:
+                                - generic [ref=e251]: ►
+                                - text: "args:"
+                              - generic [ref=e256]: "request: \"crime statistics in Singapore from 2020 to 2022\""
+                            - generic [ref=e258]: "name: \"data_fetcher_agent\""
+                          - button [ref=e259] [cursor=pointer]:
+                            - img [ref=e260]: content_copy
+        - tabpanel [ref=e74]
+        - tabpanel [ref=e263]
+        - tabpanel [ref=e77]
+    - generic [ref=e82]:
+      - generic [ref=e83]:
+        - radiogroup [ref=e84]:
+          - radio "Events" [checked] [ref=e85] [cursor=pointer]:
+            - generic [ref=e86]: Events
+          - radio "Traces" [ref=e87] [cursor=pointer]:
+            - generic [ref=e88]: Traces
+        - generic [ref=e90] [cursor=pointer]:
+          - img [ref=e91]: add
+          - generic [ref=e92]: Filter
+        - button "Streaming" [ref=e93]:
+          - img [ref=e94]: radio_button_unchecked
+          - generic [ref=e95]: Streaming
+      - generic [ref=e98]:
+        - generic [ref=e99]:
+          - generic [ref=e264]:
+            - generic [ref=e265]: "#1"
+            - paragraph [ref=e273]: what is the statistic for crime in singapore from 2020 to 2022
+            - img [ref=e276]: person
+          - generic [ref=e277]:
+            - generic [ref=e278]: "#2"
+            - img [ref=e281]: robot_2
+            - button "data_fetcher_agent" [ref=e286]:
+              - img [ref=e287]: bolt
+              - generic [ref=e288]: data_fetcher_agent
+          - progressbar [ref=e292]
+        - generic [ref=e100]:
+          - generic [ref=e104]:
+            - textbox "Type a message..." [active] [ref=e106]
+            - button [ref=e108] [cursor=pointer]:
+              - img [ref=e109]: send
+          - generic [ref=e112]:
+            - generic [ref=e113]:
+              - button [ref=e114] [cursor=pointer]:
+                - img [ref=e115]: attach_file
+              - button [ref=e118] [cursor=pointer]:
+                - img [ref=e119]: more_vert
+            - button [ref=e125] [cursor=pointer]:
+              - img [ref=e126]: call

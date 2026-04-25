@@ -1,0 +1,84 @@
+- generic [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - generic [ref=e5]:
+        - button "Toggle side panel" [ref=e6] [cursor=pointer]:
+          - img [ref=e7]: menu
+        - generic [ref=e10]:
+          - img [ref=e11]
+          - generic [ref=e12]: Agent Development Kit1.31.1
+          - img [ref=e14] [cursor=pointer]: info_outline
+        - generic [ref=e15]:
+          - button "level_3a_agent" [ref=e112] [cursor=pointer]:
+            - img [ref=e17]: robot_2
+            - generic [ref=e18]: level_3a_agent
+            - img [ref=e19]: arrow_drop_down
+          - generic [ref=e26]:
+            - button [disabled]:
+              - img: edit
+      - generic [ref=e113]:
+        - generic [ref=e114]:
+          - button "[3325] hello" [ref=e199] [cursor=pointer]:
+            - img [ref=e116]: chat
+            - generic [ref=e117]: "[3325] hello"
+            - img [ref=e118]: arrow_drop_down
+          - button "New Session" [ref=e201] [cursor=pointer]:
+            - img [ref=e202]: add_comment
+            - generic [ref=e203]: New Session
+        - button [ref=e120] [cursor=pointer]:
+          - img [ref=e121]: light_mode
+      - button "User menu" [ref=e31] [cursor=pointer]:
+        - img [ref=e32]: account_circle
+    - generic [ref=e39]:
+      - generic [ref=e125]:
+        - tablist [ref=e128]:
+          - generic [ref=e129]:
+            - tab "Info" [selected] [ref=e130] [cursor=pointer]:
+              - generic [ref=e133]: Info
+            - tab "State" [ref=e134] [cursor=pointer]:
+              - generic [ref=e137]: State
+            - tab "Artifacts" [ref=e138] [cursor=pointer]:
+              - generic [ref=e141]: Artifacts
+            - tab "Evals" [ref=e142] [cursor=pointer]:
+              - generic [ref=e145]: Evals
+        - generic [ref=e146]:
+          - tabpanel "Info" [ref=e147]:
+            - generic [ref=e149]: Select an event or trace span to view details
+          - tabpanel [ref=e150]
+          - tabpanel [ref=e151]
+          - tabpanel [ref=e152]
+      - generic [ref=e48]:
+        - generic [ref=e153]:
+          - radiogroup [ref=e154]:
+            - radio "Events" [checked] [ref=e155] [cursor=pointer]:
+              - generic [ref=e156]: Events
+            - radio "Traces" [ref=e157] [cursor=pointer]:
+              - generic [ref=e158]: Traces
+          - generic [ref=e160] [cursor=pointer]:
+            - img [ref=e161]: add
+            - generic [ref=e162]: Filter
+          - button "Streaming" [ref=e163]:
+            - img [ref=e164]: radio_button_unchecked
+            - generic [ref=e165]: Streaming
+        - generic [ref=e168]:
+          - generic [ref=e204]:
+            - generic [ref=e205]: "#1"
+            - paragraph [ref=e213]: hello
+            - img [ref=e216]: person
+          - generic [ref=e170]:
+            - generic [ref=e174]:
+              - textbox "Type a message..." [active] [ref=e176]
+              - button [ref=e178] [cursor=pointer]:
+                - img [ref=e179]: send
+            - generic [ref=e182]:
+              - generic [ref=e183]:
+                - button [ref=e184] [cursor=pointer]:
+                  - img [ref=e185]: attach_file
+                - button [ref=e188] [cursor=pointer]:
+                  - img [ref=e189]: more_vert
+              - button [ref=e195] [cursor=pointer]:
+                - img [ref=e196]: call
+  - generic [ref=e223]:
+    - generic [ref=e224]: "404 NOT_FOUND. {'error': {'code': 404, 'message': 'models/gemini-live-2.5-flash-native-audio is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.', 'status': 'NOT_FOUND'}}"
+    - button "OK" [ref=e226]:
+      - generic [ref=e227]: OK
