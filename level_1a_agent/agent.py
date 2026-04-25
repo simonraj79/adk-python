@@ -113,9 +113,11 @@ How to run
 
 from __future__ import annotations
 
+from typing import AsyncGenerator
+
 from google.adk import Agent
-from google.adk.agents.callback_context import CallbackContext
-from google.adk.models.llm_response import LlmResponse
+from google.adk.agents.invocation_context import InvocationContext
+from google.adk.events.event import Event
 from google.adk.tools.google_search_tool import google_search
 
 
@@ -125,64 +127,75 @@ from google.adk.tools.google_search_tool import google_search
 _LIVE_MODEL_ID = "gemini-3.1-flash-live-preview"
 
 
-def _suppress_telemetry_only_responses(
-    callback_context: CallbackContext,
-    llm_response: LlmResponse,
-) -> LlmResponse | None:
-  """Suppress empty/telemetry-only events from the chat panel.
+def _is_telemetry_only_event(event: Event) -> bool:
+  """Return True if an event is pure Live-mode telemetry (no UI value).
 
-  Why this exists
-  ---------------
-  Gemini Live emits an LLM message PER audio chunk, each one carrying
-  `usage_metadata` (token counting telemetry) — and, when session
-  resumption is enabled in the Live Flags panel, also a steady stream
-  of `live_session_resumption_update` messages (resume-token rotation).
-  ADK's runtime emits an Event for each (`base_llm_flow.py:1023-1033`),
-  even when there is no user-visible content. The `adk web` chat panel
-  in v2.0.0b1 renders one bubble per Event — so a single voice turn
-  can produce 200+ empty bubbles, drowning the actual transcription
+  In Live (bidi audio) mode, Gemini emits a separate LLM message per
+  audio chunk, each one carrying `usage_metadata` (token-counting
+  telemetry) — and, when session resumption is enabled in the Live
+  Flags panel, also a steady stream of `live_session_resumption_update`
+  messages (resume-token rotation). ADK's runtime emits a separate
+  `Event` for each one (`base_llm_flow.py:_postprocess_live`), even
+  when there is no user-visible content. The `adk web` chat panel
+  in v2.0.0b1 renders one bubble per `Event` — so a single voice turn
+  produces 200+ empty bubbles, drowning the actual transcription
   events.
 
-  How this works
-  --------------
-  v2's after-model callback can return a *replacement* LlmResponse.
-  If the replacement has none of the fields the runtime checks for
-  event emission (`content`, `error_code`, `interrupted`,
-  `turn_complete`, `input_transcription`, `output_transcription`,
-  `usage_metadata`, `live_session_resumption_update`), the early-
-  return at `base_llm_flow.py:1023-1033` skips creating the event
-  entirely.
-
-  We detect "telemetry-only" by checking the original response: if it
-  has `usage_metadata` or `live_session_resumption_update` but NONE
-  of the user-visible fields, we replace it with a bare `LlmResponse()`
-  to suppress the event. Any response with content, transcription,
-  errors, or turn_complete passes through unchanged.
-
-  This is the most native v2 fix possible at the demo level — no
-  framework patch, no plugin, just an after-model callback that uses
-  the framework's own event-skip path.
+  An event is "telemetry-only" if it carries usage_metadata OR
+  live_session_resumption_update but NONE of the user-visible fields
+  (content, transcription, errors, turn_complete, interrupted,
+  grounding_metadata). The fixed-team specialists' actual responses
+  always carry at least one user-visible field, so they are never
+  filtered.
   """
-  has_visible = (
-      llm_response.content
-      or llm_response.error_code
-      or llm_response.interrupted
-      or llm_response.turn_complete
-      or llm_response.input_transcription
-      or llm_response.output_transcription
-      or llm_response.grounding_metadata
+  has_visible = bool(
+      event.content
+      or event.error_code
+      or event.interrupted
+      or event.turn_complete
+      or event.input_transcription
+      or event.output_transcription
+      or event.grounding_metadata
   )
   if has_visible:
-    # Pass through unchanged — None lets the original response be
-    # used (per the after_model_callback contract).
-    return None
-
-  # Telemetry-only response: replace with an empty response that
-  # triggers the event-skip early-return in base_llm_flow.
-  return LlmResponse()
+    return False
+  return bool(event.usage_metadata or event.live_session_resumption_update)
 
 
-root_agent = Agent(
+class _LiveTelemetryFilteringAgent(Agent):
+  """Subclass of `LlmAgent` that filters Live-mode telemetry events.
+
+  Why subclass instead of using `after_model_callback`
+  ----------------------------------------------------
+  ADK's `after_model_callback` is invoked from `_handle_after_model_callback`
+  in the *non-live* code paths (`base_llm_flow.py:1211, 1257`). The
+  Live (bidi) path goes through `_postprocess_live`
+  (`base_llm_flow.py:994-1080`) which constructs events directly from
+  `LlmResponse` and never invokes the agent's after-model callback.
+  So a callback-based fix is silently dead code in Live mode.
+
+  Plugins (`BasePlugin.on_event_callback`) DO fire in Live mode but
+  cannot drop events — `runners.py` checks `event.partial` on the
+  ORIGINAL event before the plugin runs, so plugin mutation cannot
+  prevent persistence or yield.
+
+  The cleanest agent-level fix is to subclass `LlmAgent` and override
+  `_run_live_impl` (where the Live event stream actually leaves the
+  agent), filtering telemetry-only events before they reach the
+  runner. This is structurally identical to the parent's
+  implementation (`llm_agent.py:527-535`), with one extra `if` check.
+  """
+
+  async def _run_live_impl(
+      self, ctx: InvocationContext
+  ) -> AsyncGenerator[Event, None]:
+    async for event in super()._run_live_impl(ctx):
+      if _is_telemetry_only_event(event):
+        continue
+      yield event
+
+
+root_agent = _LiveTelemetryFilteringAgent(
     name="level_1a_agent",
     model=_LIVE_MODEL_ID,
     description=(
@@ -216,11 +229,10 @@ If the question is ambiguous, ask one short clarifying question before searching
     # Event. Useful in audio mode for transcript logging without having
     # to subscribe to output_audio_transcription separately.
     output_key="last_answer",
-    # v2 telemetry-event suppression (see callback docstring above).
-    # Without this, a single voice turn produces 200+ empty bubbles
-    # in adk-web's chat panel because Gemini Live emits one
-    # usage_metadata-only message per audio chunk, and ADK emits an
-    # Event for each. The callback rewrites those telemetry-only
-    # responses so the framework's event-skip early-return fires.
-    after_model_callback=_suppress_telemetry_only_responses,
+    # NOTE: telemetry-event suppression for Live mode is handled by the
+    # `_LiveTelemetryFilteringAgent` subclass override of
+    # `_run_live_impl` above — NOT via after_model_callback. The
+    # callback path (`_handle_after_model_callback`) is bypassed by
+    # `_postprocess_live`, so a callback-based fix would be dead code
+    # in Live mode. See the subclass docstring for the full reasoning.
 )
