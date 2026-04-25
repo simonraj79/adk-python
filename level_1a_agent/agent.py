@@ -128,38 +128,48 @@ _LIVE_MODEL_ID = "gemini-3.1-flash-live-preview"
 
 
 def _is_telemetry_only_event(event: Event) -> bool:
-  """Return True if an event is pure Live-mode telemetry (no UI value).
+  """Return True if an event is pure Live-mode telemetry / control noise.
 
   In Live (bidi audio) mode, Gemini emits a separate LLM message per
   audio chunk, each one carrying `usage_metadata` (token-counting
   telemetry) — and, when session resumption is enabled in the Live
   Flags panel, also a steady stream of `live_session_resumption_update`
-  messages (resume-token rotation). ADK's runtime emits a separate
-  `Event` for each one (`base_llm_flow.py:_postprocess_live`), even
-  when there is no user-visible content. The `adk web` chat panel
+  messages (resume-token rotation). The framework also emits a
+  `turn_complete` control event at the end of every agent turn. ADK's
+  runtime emits a separate `Event` for each (`_postprocess_live`),
+  even when there is no user-visible content. The `adk web` chat panel
   in v2.0.0b1 renders one bubble per `Event` — so a single voice turn
-  produces 200+ empty bubbles, drowning the actual transcription
-  events.
+  produces 200+ empty bubbles in the worst case, and at least one
+  empty `turn_complete` bubble per exchange in the best case.
 
-  An event is "telemetry-only" if it carries usage_metadata OR
-  live_session_resumption_update but NONE of the user-visible fields
-  (content, transcription, errors, turn_complete, interrupted,
-  grounding_metadata). The fixed-team specialists' actual responses
-  always carry at least one user-visible field, so they are never
-  filtered.
+  An event is "telemetry-only" if it carries `usage_metadata`,
+  `live_session_resumption_update`, or `turn_complete` but NONE of the
+  user-visible fields (`content`, `input_transcription`,
+  `output_transcription`, `error_code`, `interrupted`,
+  `grounding_metadata`). The transcription events ARE the chat — those
+  carry the user's spoken question and the agent's spoken reply as
+  text. They always pass through.
+
+  Rationale for filtering `turn_complete`: in v2 it's only read by
+  `vertex_ai_session_service` (we use local SQLite, not Vertex) and
+  `debug_logging_plugin` (debug-only). No runner state machine and no
+  adk-web UI behaviour depends on it. Safe to drop.
   """
-  has_visible = bool(
+  has_user_visible = bool(
       event.content
       or event.error_code
       or event.interrupted
-      or event.turn_complete
       or event.input_transcription
       or event.output_transcription
       or event.grounding_metadata
   )
-  if has_visible:
+  if has_user_visible:
     return False
-  return bool(event.usage_metadata or event.live_session_resumption_update)
+  return bool(
+      event.usage_metadata
+      or event.live_session_resumption_update
+      or event.turn_complete
+  )
 
 
 class _LiveTelemetryFilteringAgent(Agent):
