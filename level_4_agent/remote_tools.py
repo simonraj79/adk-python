@@ -41,7 +41,8 @@ logger = logging.getLogger(__name__)
 # Where Level 1's A2A engine lives. Defaults to the resource ID minted
 # by Phase 7 (the level_1_agent A2A redeploy with `gemini-2.5-flash`).
 # Override via env var for re-deploys without rebuilding Level 4.
-_LEVEL_1_REGION = os.environ.get("LEVEL_1_A2A_REGION", "asia-southeast1")
+# W9.2 — Level 1 lives in us-central1 (was asia-southeast1).
+_LEVEL_1_REGION = os.environ.get("LEVEL_1_A2A_REGION", "us-central1")
 _LEVEL_1_RESOURCE_ID = os.environ.get(
     "LEVEL_1_A2A_ENGINE_ID",
     "2134899737420103680",

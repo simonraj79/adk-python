@@ -149,7 +149,10 @@ chart_agent = Agent(
     # Flash + BuiltInPlanner per Level 4 line ~252 ("the proven combination"
     # for Flash on tool-heavy code-execution tasks). Pro on a
     # BuiltInCodeExecutor leaf can hang 6+ min under AFC — Level 4 gotcha #21.
-    model="gemini-2.5-flash",
+    # W9.2 (Simon 2026-05-01): override the gotcha — try Pro 2.5 here. Local
+    # smoke test in plan §5.4 catches the hang signature before deploy; if
+    # it reproduces, revert this line to "gemini-2.5-flash".
+    model="gemini-2.5-pro",
     planner=BuiltInPlanner(
         thinking_config=types.ThinkingConfig(include_thoughts=True),
     ),
@@ -231,7 +234,8 @@ the framework saved as an artifact).
 
 writer_agent = Agent(
     name="writer_agent",
-    model="gemini-2.5-flash",
+    # us-central1 + Pro 2.5 (W9.2 — all A2A sub-agents on Pro per Simon 2026-05-01).
+    model="gemini-2.5-pro",
     description=(
         "Synthesises consulted findings (and optionally a chart "
         "description) into a Markdown-formatted report. Final node — "

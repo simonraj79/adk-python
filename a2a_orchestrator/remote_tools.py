@@ -25,8 +25,8 @@ import vertexai
 
 logger = logging.getLogger(__name__)
 
-# All five Level engines live in asia-southeast1.
-_LEVEL_REGION = os.environ.get("LEVEL_REGION", "asia-southeast1")
+# All five Level engines live in us-central1 (W9.2 — Pro 2.5 unification).
+_LEVEL_REGION = os.environ.get("LEVEL_REGION", "us-central1")
 _PROJECT_NUMBER = os.environ.get("LEVEL_PROJECT_NUMBER", "888142536377")
 
 # Defaults are the post-Phase-A engine IDs (verified 2026-04-28). Override

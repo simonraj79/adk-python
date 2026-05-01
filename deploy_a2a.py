@@ -27,6 +27,19 @@ for the source-verified rationale behind each line.
 """
 from __future__ import annotations
 
+# truststore must be injected BEFORE any HTTPS-using import (vertexai,
+# google-auth, requests, etc.) so all SSL goes through the Windows trust
+# store. Required on NTU's network where TLS inspection injects a
+# corporate root CA that's not in certifi's bundle.
+try:
+    import truststore  # type: ignore
+    truststore.inject_into_ssl()
+except ImportError:
+    # truststore is optional — required only when running against a
+    # network that does TLS inspection (e.g., NTU). On other networks
+    # certifi handles validation fine.
+    pass
+
 import argparse
 import importlib
 import os
@@ -43,6 +56,27 @@ from vertexai.preview.reasoning_engines import A2aAgent
 from vertexai.preview.reasoning_engines.templates.a2a import create_agent_card
 
 PROJECT = "gcp-cits-ccat-poc-d4d2"
+APPSPOT_SA = f"{PROJECT}@appspot.gserviceaccount.com"
+
+# Env vars auto-forwarded into the deployed engine's runtime container if
+# present in the deploy shell. Lifted from main()'s body to a module
+# constant so tests can import + assert against it (W9.2 §6.3.5).
+AUTO_FORWARD_ENV_VARS = (
+    # gahmen-mcp toolset (level_4_agent's data_fetcher_agent reads at import).
+    "SMITHERY_API_KEY",
+    "SMITHERY_GAHMEN_URL",
+    # Per-Level A2A peer routing (orchestrator + level_4 consume these).
+    # All Levels live in us-central1 post-W9.2 (was asia-southeast1).
+    "LEVEL_1_A2A_ENGINE_ID", "LEVEL_1_A2A_REGION",
+    "LEVEL_2_A2A_ENGINE_ID", "LEVEL_2_A2A_REGION",
+    "LEVEL_2B_A2A_ENGINE_ID", "LEVEL_2B_A2A_REGION",
+    "LEVEL_3_A2A_ENGINE_ID", "LEVEL_3_A2A_REGION",
+    "LEVEL_4_A2A_ENGINE_ID", "LEVEL_4_A2A_REGION",
+    # Generic project / region overrides (orchestrator's remote_tools reads
+    # LEVEL_REGION as the cross-Level default).
+    "LEVEL_PROJECT_NUMBER",
+    "LEVEL_REGION",
+)
 
 
 def _executor_builder(root_agent):
@@ -71,7 +105,19 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("module", help="Agent package, e.g. level_1_agent")
     parser.add_argument("--display", required=True, help='Display name, e.g. "Level 1 (A2A)"')
-    parser.add_argument("--region", default="asia-southeast1")
+    # W9.2 default: us-central1 (Pro 2.5 lives here; was asia-southeast1).
+    parser.add_argument("--region", default="us-central1")
+    parser.add_argument(
+        "--service_account",
+        default=APPSPOT_SA,
+        help=(
+            "Runtime SA for the deployed engine. Default: appspot SA "
+            "(the only enabled SA on this project with roles/editor). "
+            "Without this, Vertex assigns the default Reasoning Engine "
+            "Service Agent — which lacks aiplatform.user, so any "
+            "engine→engine agent_engines.get() call 403s. See W9.2 plan §3."
+        ),
+    )
     parser.add_argument(
         "--description",
         default="ADK agent exposed via A2A on Vertex Agent Engine.",
@@ -160,27 +206,12 @@ def main() -> None:
         "google-adk[a2a]>=2.0.0b1,<3.0.0",
     ]
 
-    # Auto-forward env vars that the agent might need at runtime.
-    #   SMITHERY_API_KEY     — gahmen-mcp toolset gate (level_4_agent's
-    #                          data_fetcher_agent reads it at import time).
-    #   SMITHERY_GAHMEN_URL  — override for the Smithery server URL.
-    #   LEVEL_1_A2A_*        — Level 1 peer-A2A target for level_4_agent's
-    #                          consult_level_1 tool. The defaults baked
-    #                          into remote_tools.py work for the canonical
-    #                          asia-southeast1 Phase 7 deploy; override
-    #                          via these env vars if Level 1 has been
-    #                          redeployed to a new ID/region.
-    # If the deploy shell has any of these set, bake them into the
-    # deployed engine's container. Anything not set falls back to the
-    # in-code defaults (or the agent runs without that capability).
+    # Auto-forward env vars that the agent might need at runtime. Source of
+    # truth is AUTO_FORWARD_ENV_VARS at module top — single place to add new
+    # ones. Anything not set in the deploy shell falls back to the in-code
+    # defaults (or the agent runs without that capability).
     env_vars: dict[str, str] = {}
-    for name in (
-        "SMITHERY_API_KEY",
-        "SMITHERY_GAHMEN_URL",
-        "LEVEL_1_A2A_ENGINE_ID",
-        "LEVEL_1_A2A_REGION",
-        "LEVEL_1_A2A_PROJECT_NUMBER",
-    ):
+    for name in AUTO_FORWARD_ENV_VARS:
         value = os.environ.get(name)
         if value:
             env_vars[name] = value
@@ -188,12 +219,14 @@ def main() -> None:
         print(f"Forwarding {len(env_vars)} env var(s) to engine: {sorted(env_vars)}")
 
     print(f"Deploying {args.module} to {args.region} as {args.display!r} ...")
+    print(f"Runtime SA: {args.service_account}")
     remote = agent_engines.create(
         agent_engine=a2a_app,
         requirements=requirements,
         extra_packages=[args.module],   # uploads e.g. ./level_1_agent
         display_name=args.display,
         env_vars=env_vars or None,
+        service_account=args.service_account,
     )
     print(f"\n✅ Deployed: {remote.resource_name}")
     print(

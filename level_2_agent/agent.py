@@ -183,7 +183,8 @@ def anchor_today(ctx: Context):
 
 classify = Agent(
     name="classify",
-    model="gemini-2.5-flash",
+    # us-central1 + Pro 2.5 (W9.2 — 3.x preview gated per audit 2026-05-01).
+    model="gemini-2.5-pro",
     instruction=(
         "Classify the user's input as 'quick' or 'plan'."
         "\n\n  QUICK: greetings ('hi', 'hello', 'what can you do?',"
@@ -211,7 +212,8 @@ classify = Agent(
 #     only when current information is needed.
 quick_answerer = Agent(
     name="quick_answerer",
-    model="gemini-2.5-flash",
+    # us-central1 + Pro 2.5 (W9.2 — 3.x preview gated per audit 2026-05-01).
+    model="gemini-2.5-pro",
     description=(
         "Greets the user and answers single-step factual questions"
         " without going through the full planning pipeline."
@@ -251,7 +253,8 @@ quick_answerer = Agent(
 
 task_planner = Agent(
     name="task_planner",
-    model="gemini-2.5-flash",
+    # us-central1 + Pro 2.5 (W9.2 — 3.x preview gated per audit 2026-05-01).
+    model="gemini-2.5-pro",
     instruction=(
         "Today is {today_human?} ({today?}).\n\n"
         'The user request: "{request}"\n\n'
@@ -272,7 +275,8 @@ task_planner = Agent(
 # `fan_out_research` below.
 researcher = Agent(
     name="researcher",
-    model="gemini-2.5-flash",
+    # us-central1 + Pro 2.5 (W9.2 — 3.x preview gated per audit 2026-05-01).
+    model="gemini-2.5-pro",
     instruction=(
         "Use google_search to gather a 2-3 sentence study brief on the"
         " topic in the user message. Focus on: key concepts to review,"
@@ -285,7 +289,8 @@ researcher = Agent(
 
 schedule_writer = Agent(
     name="schedule_writer",
-    model="gemini-2.5-flash",
+    # us-central1 + Pro 2.5 (W9.2 — 3.x preview gated per audit 2026-05-01).
+    model="gemini-2.5-pro",
     instruction=(
         "Today is {today_human?} ({today?}). Produce a markdown"
         " timetable for the user.\n\n"

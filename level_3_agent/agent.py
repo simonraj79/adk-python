@@ -213,7 +213,8 @@ class Brief(BaseModel):
 
 search_agent = Agent(
     name="search_agent",
-    model="gemini-2.5-flash",
+    # us-central1 + Pro 2.5 (W9.2 — 3.x preview gated per audit 2026-05-01).
+    model="gemini-2.5-pro",
     description=(
         "Searches the web for one focused sub-question and returns a"
         " plain-text finding with source domains cited inline."
@@ -248,7 +249,8 @@ search_agent = Agent(
 
 analyst_agent = Agent(
     name="analyst_agent",
-    model="gemini-2.5-flash",
+    # us-central1 + Pro 2.5 (W9.2 — 3.x preview gated per audit 2026-05-01).
+    model="gemini-2.5-pro",
     description=(
         "Reviews accumulated search findings for patterns, contradictions,"
         " and gaps. Pure LLM reasoning — no tools."
@@ -274,7 +276,8 @@ analyst_agent = Agent(
 
 writer_agent = Agent(
     name="writer_agent",
-    model="gemini-2.5-flash",
+    # us-central1 + Pro 2.5 (W9.2 — 3.x preview gated per audit 2026-05-01).
+    model="gemini-2.5-pro",
     description=(
         "Synthesises findings + analysis into the final structured Brief"
         " for the user. Pure LLM reasoning — no tools."
@@ -305,7 +308,8 @@ writer_agent = Agent(
 
 root_agent = Agent(
     name="level_3_agent",
-    model="gemini-2.5-flash",
+    # us-central1 + Pro 2.5 (W9.2 — 3.x preview gated per audit 2026-05-01).
+    model="gemini-2.5-pro",
     description=(
         "Research coordinator that delegates to search, analyst, and"
         " writer specialists and returns a structured brief. Routing"

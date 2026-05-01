@@ -163,7 +163,8 @@ def route_input(node_input: dict):
 
 classify = Agent(
     name="classify",
-    model="gemini-2.5-flash",
+    # us-central1 + Pro 2.5 (W9.2 — 3.x preview gated per audit 2026-05-01).
+    model="gemini-2.5-pro",
     description=(
         "Classifies an inbound support message into one of four"
         " categories. Pure routing logic — does not respond to the"
@@ -196,7 +197,8 @@ classify = Agent(
 
 greet_user = Agent(
     name="greet_user",
-    model="gemini-2.5-flash",
+    # us-central1 + Pro 2.5 (W9.2 — 3.x preview gated per audit 2026-05-01).
+    model="gemini-2.5-pro",
     description=(
         "Handles greeting / capability-question routes by introducing"
         " the agent and suggesting example queries."
@@ -224,7 +226,8 @@ greet_user = Agent(
 
 bug_handler = Agent(
     name="bug_handler",
-    model="gemini-2.5-flash",
+    # us-central1 + Pro 2.5 (W9.2 — 3.x preview gated per audit 2026-05-01).
+    model="gemini-2.5-pro",
     description=(
         "Handles bug reports — captures repro steps, severity, and"
         " recent changes."
@@ -250,7 +253,8 @@ bug_handler = Agent(
 
 billing_handler = Agent(
     name="billing_handler",
-    model="gemini-2.5-flash",
+    # us-central1 + Pro 2.5 (W9.2 — 3.x preview gated per audit 2026-05-01).
+    model="gemini-2.5-pro",
     description=(
         "Handles billing and pricing questions for the (mock) product"
         " plans."
@@ -277,7 +281,8 @@ billing_handler = Agent(
 
 feature_handler = Agent(
     name="feature_handler",
-    model="gemini-2.5-flash",
+    # us-central1 + Pro 2.5 (W9.2 — 3.x preview gated per audit 2026-05-01).
+    model="gemini-2.5-pro",
     description=(
         "Handles feature requests — captures use case, logs to the"
         " product backlog, sets expectations."

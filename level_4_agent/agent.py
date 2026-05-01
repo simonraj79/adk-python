@@ -353,7 +353,8 @@ else:
 
 data_fetcher_agent = Agent(
     name="data_fetcher_agent",
-    model="gemini-2.5-flash",
+    # us-central1 + Pro 2.5 (W9.2 — orchestration-shaped: routes between MCP/A2A).
+    model="gemini-2.5-pro",
     description=(
         "Fetches public business data via two inter-system protocols:"
         " A2A peer consultation (Level 1 over on_message_send) for"
@@ -379,13 +380,17 @@ data_fetcher_agent = Agent(
 
 analyst_agent = Agent(
     name="analyst_agent",
+    # W9.2 (Simon 2026-05-01): override gotcha #21 — Pro 2.5 on
+    # BuiltInCodeExecutor. Local smoke test in plan §5.4 catches the
+    # hang signature before any cloud deploy; if reproducible, revert
+    # this to "gemini-2.5-flash". Original gotcha:
     # Flash + BuiltInPlanner per AGENTS.md gotcha #21: Pro on a
     # BuiltInCodeExecutor leaf can hang 6+ min under AFC. The planner
     # turns Gemini's native thinking on for Flash so the model plans
     # cell layout before writing code — directly addressing gotcha #20
     # ("a later code cell closes/re-saves the figure → blank Version 1
     # overwrite hides the real chart at Version 0").
-    model="gemini-2.5-flash",
+    model="gemini-2.5-pro",
     planner=BuiltInPlanner(
         thinking_config=types.ThinkingConfig(include_thoughts=True)
     ),
@@ -449,7 +454,8 @@ Hard rules for the chart cell:
 
 report_writer_agent = Agent(
     name="report_writer_agent",
-    model="gemini-2.5-flash",
+    # us-central1 + Pro 2.5 (W9.2 — all A2A sub-agents on Pro per Simon 2026-05-01).
+    model="gemini-2.5-pro",
     description=(
         "Formats accumulated findings into a structured BI brief."
         " Output is the final answer — do not re-paraphrase."
@@ -510,19 +516,12 @@ agent_creator = Agent(
     # output, which directly addresses the conflated-decision empty
     # STOP. Trade-off: ~30-50% more latency on creator turns vs. Pro,
     # but creator runs rarely so absolute cost stays low.
-    model="gemini-2.5-flash",
-    # Native thinking on Flash. Same shape as analyst_agent — confirmed
-    # working pattern. Don't replace with PlanReActPlanner: that's a
-    # prompt-level text scaffold (forces the LLM to TYPE planning
-    # sections), whereas BuiltInPlanner activates Gemini's native
-    # thinking compute (separate token budget, runs BEFORE tool-choice
-    # is committed). For multi-turn HITL with chained tool calls,
-    # native thinking is the right primitive. Only one `planner` field
-    # is supported per LlmAgent; the two planners are mutually
-    # exclusive.
-    planner=BuiltInPlanner(
-        thinking_config=types.ThinkingConfig(include_thoughts=True)
-    ),
+    # W9.2 (Simon 2026-05-01): flipped Flash → Pro 2.5. The downgrade
+    # to Flash + BuiltInPlanner was specifically because asia-southeast1
+    # didn't serve Pro; us-central1 does, so the original Pro choice is
+    # restored. Native thinking is on by default on Pro for compositional
+    # function calls — explicit BuiltInPlanner block removed.
+    model="gemini-2.5-pro",
     description=(
         "Synthesises a new specialist agent when the BI team lacks a"
         " capability. Use when the user's request cannot be served by"
@@ -623,7 +622,8 @@ def _rehydrate_runtime_tools(callback_context: CallbackContext):
 
 root_agent = Agent(
     name="level_4_agent",
-    model="gemini-2.5-flash",
+    # us-central1 + Pro 2.5 (W9.2 — orchestrator role, all A2A on Pro per Simon 2026-05-01).
+    model="gemini-2.5-pro",
     description=(
         "Self-evolving Business Intelligence coordinator. Routes"
         " analytical business questions to a fixed team (data_fetcher,"
