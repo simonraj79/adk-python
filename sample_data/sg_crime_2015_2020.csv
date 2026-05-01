@@ -1,0 +1,101 @@
+incident_id,date,time,crime_type,neighborhood,postal_sector,premises_type,latitude,longitude,population_density,weather
+SG1001,2015-01-14,04:43,Housebreaking,Yishun,76,Residence,1.4294,103.8376,High,Clear
+SG1002,2015-01-24,23:44,Voluntarily Causing Hurt,Hougang,53,Entertainment,1.3627,103.8887,Medium,Clear
+SG1003,2015-02-03,11:36,Housebreaking,Hougang,53,Retail,1.3632,103.8827,Medium,Rain
+SG1004,2015-02-20,18:40,Outrage of Modesty,Clementi,12,Public,1.3138,103.7607,Medium,Clear
+SG1005,2015-03-24,03:58,Loan-shark Harassment,Geylang,39,Residence,1.3211,103.8917,Medium,Clear
+SG1006,2015-03-26,00:47,Drug Possession,Little India,21,Entertainment,1.3108,103.8511,Medium,Hazy
+SG1007,2015-05-02,23:13,Drug Possession,Geylang,39,Entertainment,1.3164,103.8962,Medium,Rain
+SG1008,2015-05-14,14:02,Theft,Tampines,52,Retail,1.3506,103.9553,High,Clear
+SG1009,2015-05-31,20:36,Outrage of Modesty,Orchard,22,Public,1.3056,103.8273,High,Clear
+SG1010,2015-06-20,23:10,Voluntarily Causing Hurt,Woodlands,73,Public,1.4387,103.7884,High,Clear
+SG1011,2015-06-22,04:25,Vandalism,Ang Mo Kio,56,Transport,1.3658,103.8451,High,Clear
+SG1012,2015-06-28,22:23,Voluntarily Causing Hurt,Woodlands,73,Residence,1.4348,103.7924,High,Rain
+SG1013,2015-07-01,14:44,Theft,Orchard,22,Retail,1.3047,103.8285,High,Rain
+SG1014,2015-07-05,17:45,Theft,Yishun,76,Public,1.4298,103.8377,High,Rain
+SG1015,2015-07-06,19:57,Voluntarily Causing Hurt,Woodlands,73,Residence,1.4353,103.7866,High,Clear
+SG1016,2015-08-05,11:13,Theft,Orchard,22,Public,1.3037,103.8271,High,Clear
+SG1017,2015-08-25,14:24,Theft,Ang Mo Kio,56,Transport,1.3662,103.8437,High,Hazy
+SG1018,2015-09-06,16:57,Theft,Marina Bay,01,Retail,1.2807,103.8557,High,Hazy
+SG1019,2015-09-18,11:04,Cheating,Marina Bay,01,Retail,1.2859,103.8581,High,Clear
+SG1020,2015-12-20,17:02,Cheating,Woodlands,73,Online,1.439,103.7856,High,Clear
+SG1021,2016-01-17,21:17,Outrage of Modesty,Orchard,22,Transport,1.3007,103.8362,High,Rain
+SG1022,2016-02-05,03:02,Vandalism,Ang Mo Kio,56,Public,1.3736,103.8424,High,Clear
+SG1023,2016-02-08,16:28,Theft,Clementi,12,Retail,1.3159,103.7602,Medium,Clear
+SG1024,2016-02-13,20:40,Theft,Bedok,46,Retail,1.322,103.9305,High,Clear
+SG1025,2016-02-24,21:17,Drug Possession,Woodlands,73,Residence,1.4392,103.7913,High,Clear
+SG1026,2016-04-07,08:27,Loan-shark Harassment,Geylang,39,Residence,1.3179,103.8893,Medium,Clear
+SG1027,2016-05-13,14:15,Cheating,Marina Bay,01,Online,1.2831,103.8624,High,Clear
+SG1028,2016-06-20,18:05,Theft,Jurong East,60,Public,1.3294,103.7424,High,Clear
+SG1029,2016-08-03,11:30,Theft,Ang Mo Kio,56,Retail,1.3716,103.8409,High,Clear
+SG1030,2016-08-18,17:36,Theft,Toa Payoh,31,Retail,1.336,103.8547,Medium,Hazy
+SG1031,2016-08-20,17:42,Cheating,Marina Bay,01,Retail,1.2806,103.8587,High,Clear
+SG1032,2016-08-23,13:14,Housebreaking,Tampines,52,Residence,1.3512,103.9558,High,Clear
+SG1033,2016-08-24,20:44,Theft,Orchard,22,Retail,1.3008,103.83,High,Clear
+SG1034,2016-09-13,20:55,Voluntarily Causing Hurt,Geylang,39,Residence,1.3235,103.8919,Medium,Clear
+SG1035,2016-10-02,16:27,Cheating,Toa Payoh,31,Online,1.3325,103.8538,Medium,Clear
+SG1036,2016-11-30,20:52,Theft,Woodlands,73,Retail,1.4362,103.7907,High,Clear
+SG1037,2016-12-01,20:29,Theft,Orchard,22,Public,1.3012,103.8293,High,Rain
+SG1038,2016-12-05,01:35,Vandalism,Bukit Merah,15,Transport,1.2803,103.8289,Medium,Rain
+SG1039,2017-01-25,22:40,Robbery,Orchard,22,Public,1.3065,103.831,High,Clear
+SG1040,2017-01-28,20:03,Voluntarily Causing Hurt,Geylang,39,Public,1.3224,103.8948,Medium,Clear
+SG1041,2017-02-07,04:36,Housebreaking,Woodlands,73,Residence,1.4339,103.7862,High,Clear
+SG1042,2017-06-01,13:26,Housebreaking,Bedok,46,Retail,1.328,103.9291,High,Clear
+SG1043,2017-07-29,20:06,Theft,Kallang,38,Public,1.3098,103.8655,Medium,Clear
+SG1044,2017-08-08,11:32,Theft,Yishun,76,Transport,1.4255,103.8346,High,Hazy
+SG1045,2017-08-26,03:38,Housebreaking,Jurong East,60,Residence,1.3374,103.7475,High,Rain
+SG1046,2017-09-19,19:12,Theft,Tampines,52,Transport,1.345,103.9562,High,Rain
+SG1047,2017-10-09,19:34,Cheating,Marina Bay,01,Retail,1.2888,103.865,High,Clear
+SG1048,2017-10-14,01:39,Voluntarily Causing Hurt,Woodlands,73,Entertainment,1.4425,103.7865,High,Clear
+SG1049,2017-10-27,07:54,Outrage of Modesty,Jurong East,60,Public,1.3327,103.748,High,Clear
+SG1050,2017-10-27,19:25,Theft,Orchard,22,Transport,1.3008,103.8368,High,Rain
+SG1051,2017-11-02,16:35,Cybercrime,Orchard,22,Residence,1.3054,103.8279,High,Rain
+SG1052,2017-11-19,01:31,Housebreaking,Bedok,46,Residence,1.321,103.9289,High,Clear
+SG1053,2017-11-30,00:11,Vandalism,Bishan,57,Transport,1.352,103.8516,Medium,Clear
+SG1054,2017-12-26,23:16,Voluntarily Causing Hurt,Bukit Merah,15,Entertainment,1.2781,103.8208,Medium,Clear
+SG1055,2018-01-11,03:52,Disorderly Behaviour,Chinatown,05,Entertainment,1.285,103.8464,Medium,Clear
+SG1056,2018-01-13,12:14,Cheating,Orchard,22,Residence,1.306,103.8336,High,Rain
+SG1057,2018-02-21,14:14,Housebreaking,Bukit Merah,15,Residence,1.2787,103.819,Medium,Rain
+SG1058,2018-04-12,02:14,Disorderly Behaviour,Little India,21,Public,1.3031,103.8494,Medium,Clear
+SG1059,2018-05-03,20:07,Theft,Ang Mo Kio,56,Retail,1.3736,103.8451,High,Clear
+SG1060,2018-05-05,01:12,Voluntarily Causing Hurt,Geylang,39,Public,1.3161,103.8911,Medium,Hazy
+SG1061,2018-06-04,19:19,Voluntarily Causing Hurt,Bedok,46,Residence,1.3207,103.9302,High,Rain
+SG1062,2018-06-24,13:48,Theft,Orchard,22,Transport,1.2996,103.8306,High,Clear
+SG1063,2018-07-25,03:02,Housebreaking,Sengkang,54,Residence,1.3827,103.8889,Low,Clear
+SG1064,2018-08-13,01:07,Disorderly Behaviour,Geylang,39,Public,1.3173,103.8902,Medium,Rain
+SG1065,2018-08-27,22:32,Voluntarily Causing Hurt,Bedok,46,Public,1.3265,103.9319,High,Rain
+SG1066,2018-10-05,14:03,Cheating,Marina Bay,01,Retail,1.2849,103.8607,High,Rain
+SG1067,2018-10-29,08:45,Outrage of Modesty,Geylang,39,Transport,1.3174,103.8959,Medium,Clear
+SG1068,2018-11-18,23:54,Voluntarily Causing Hurt,Yishun,76,Public,1.4334,103.8361,High,Clear
+SG1069,2018-12-06,03:57,Vandalism,Tampines,52,Residence,1.3497,103.9585,High,Clear
+SG1070,2018-12-26,13:28,Theft,Orchard,22,Retail,1.3014,103.8355,High,Clear
+SG1071,2019-02-02,14:34,Cheating,Jurong East,60,Retail,1.3321,103.7407,High,Hazy
+SG1072,2019-02-10,03:06,Robbery,Orchard,22,Public,1.3014,103.8332,High,Clear
+SG1073,2019-03-27,21:45,Theft,Yishun,76,Retail,1.4332,103.832,High,Clear
+SG1074,2019-04-26,17:01,Outrage of Modesty,Bedok,46,Transport,1.321,103.9271,High,Clear
+SG1075,2019-05-08,21:06,Theft,Tampines,52,Retail,1.3533,103.9604,High,Clear
+SG1076,2019-05-16,14:57,Theft,Woodlands,73,Retail,1.4341,103.7883,High,Clear
+SG1077,2019-07-14,02:19,Housebreaking,Clementi,12,Retail,1.3211,103.763,Medium,Rain
+SG1078,2019-08-03,17:51,Cheating,Jurong East,60,Residence,1.3328,103.7413,High,Hazy
+SG1079,2019-09-16,17:28,Cheating,Jurong East,60,Residence,1.3353,103.7433,High,Clear
+SG1080,2019-11-06,10:46,Theft,Orchard,22,Retail,1.304,103.8365,High,Hazy
+SG1081,2019-11-23,18:31,Theft,Jurong East,60,Public,1.3306,103.7394,High,Clear
+SG1082,2019-11-25,22:27,Drug Possession,Geylang,39,Public,1.3196,103.8963,Medium,Rain
+SG1083,2019-11-27,02:50,Housebreaking,Toa Payoh,31,Residence,1.3302,103.8535,Medium,Rain
+SG1084,2019-12-20,13:47,Theft,Bukit Merah,15,Retail,1.2797,103.8248,Medium,Rain
+SG1085,2019-12-25,00:32,Disorderly Behaviour,Little India,21,Public,1.3065,103.8475,Medium,Clear
+SG1086,2019-12-26,08:43,Outrage of Modesty,Clementi,12,Public,1.3204,103.7678,Medium,Rain
+SG1087,2020-02-13,20:35,Voluntarily Causing Hurt,Hougang,53,Public,1.3624,103.8891,Medium,Clear
+SG1088,2020-02-24,18:11,Outrage of Modesty,Bedok,46,Public,1.3191,103.9248,High,Clear
+SG1089,2020-03-31,22:11,Vandalism,Tampines,52,Transport,1.3538,103.9596,High,Hazy
+SG1090,2020-04-03,00:51,Voluntarily Causing Hurt,Toa Payoh,31,Residence,1.3327,103.8601,Medium,Rain
+SG1091,2020-05-22,03:25,Housebreaking,Tampines,52,Retail,1.3544,103.9572,High,Clear
+SG1092,2020-06-06,18:56,Outrage of Modesty,Geylang,39,Transport,1.316,103.8917,Medium,Clear
+SG1093,2020-06-14,09:05,Cheating,Chinatown,05,Residence,1.2888,103.8472,Medium,Rain
+SG1094,2020-08-04,18:48,Theft,Geylang,39,Public,1.3222,103.8908,Medium,Rain
+SG1095,2020-09-29,21:42,Voluntarily Causing Hurt,Geylang,39,Public,1.3246,103.8885,Medium,Rain
+SG1096,2020-09-30,16:37,Theft,Ang Mo Kio,56,Retail,1.3707,103.8412,High,Hazy
+SG1097,2020-10-02,22:23,Voluntarily Causing Hurt,Tampines,52,Public,1.3453,103.9584,High,Clear
+SG1098,2020-10-11,13:05,Theft,Toa Payoh,31,Public,1.3365,103.8562,Medium,Clear
+SG1099,2020-10-18,18:02,Cheating,Marina Bay,01,Retail,1.2833,103.8615,High,Rain
+SG1100,2020-10-20,17:28,Theft,Hougang,53,Transport,1.3581,103.8817,Medium,Hazy
