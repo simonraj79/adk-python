@@ -102,6 +102,13 @@ Thumbs.db
 # Level 4 agent — runtime-generated specialists (session-scoped, do not commit)
 level_4_agent/runtime_agents/*.yaml
 
+# Local deployment journey notes (NTU GCP, session-scoped, do not commit)
+DEPLOYMENT_NOTES.md
+
+# NTU Google AI working materials (decks, onboarding PDF, plan/report — internal)
+NTU Google AI/
+.onboarding_extracted.txt
+
 # AI Coding Tools - Project-specific configs
 # Developers should symlink or copy AGENTS.md and add their own overrides locally
 .adk/
