@@ -95,14 +95,55 @@ Run
 
 from __future__ import annotations
 
+from typing import Any
+from typing import Optional
+
 from google.adk import Agent
 from google.adk.planners.plan_re_act_planner import PlanReActPlanner
+from google.adk.tools.base_tool import BaseTool
+from google.adk.tools.tool_context import ToolContext
 from pydantic import BaseModel
 from pydantic import Field
 
 from .tools import book_flight
 from .tools import get_weather
 from .tools import search_flights
+
+
+# ---------------------------------------------------------------------------
+# Circuit breaker — caps total tool calls per session at MAX_TOOL_CALLS.
+# Triggered after the runaway loop on 2026-04-25 (flash-2.5 in mode='task'
+# called search_flights / book_flight repeatedly without finishing).
+# Counter lives in session state, shared across coordinator + specialists.
+# ---------------------------------------------------------------------------
+
+MAX_TOOL_CALLS = 5
+
+
+def _circuit_breaker(
+    tool: BaseTool,
+    args: dict[str, Any],
+    tool_context: ToolContext,
+) -> Optional[dict[str, Any]]:
+  """Abort any further tool calls once the per-session limit is hit.
+
+  Returning a non-None dict from `before_tool_callback` short-circuits
+  the tool invocation — the LLM receives the dict as the tool result
+  instead of the actual tool running. We return an error message so
+  the LLM stops calling tools and produces a final response.
+  """
+  state = tool_context.state
+  count = state.get("_tool_call_count", 0)
+  if count >= MAX_TOOL_CALLS:
+    return {
+        "error": (
+            f"Circuit breaker: {MAX_TOOL_CALLS} tool calls already used"
+            f" this session. No more tool calls allowed. Produce a final"
+            f" response to the user with whatever information you have."
+        )
+    }
+  state["_tool_call_count"] = count + 1
+  return None  # Allow the tool to run.
 
 
 # ---------------------------------------------------------------------------
@@ -224,6 +265,7 @@ weather_checker = Agent(
         "Do not ask the user anything — you are autonomous."
     ),
     tools=[get_weather],
+    before_tool_callback=_circuit_breaker,
     # Suppress transfer_to_agent injection (gotcha #24 hygiene). The
     # `single_turn` mode auto-returns the result via `request_task`
     # without needing transfer.
@@ -234,7 +276,14 @@ weather_checker = Agent(
 
 flight_booker = Agent(
     name="flight_booker",
-    model="gemini-2.5-flash",
+    # Pro for `mode='task'` reliability. Flash-2.5 looped here in
+    # `adk web` (10+ rapid calls observed 2026-04-25 23:24:28-53)
+    # — the structured-output + finish_task format discipline that
+    # task-mode requires is more reliable on Pro. Coordinator was
+    # also bumped to Pro for the same reason (PlanReActPlanner).
+    # weather_checker stays on flash — it's `mode='single_turn'`,
+    # narrower task, no looping observed.
+    model="gemini-3.1-pro-preview",
     description=(
         "Books flights for the user. Will ask the user for clarifying"
         " details (such as departure date) when needed before searching."
@@ -272,6 +321,7 @@ flight_booker = Agent(
         " — the coordinator will. Your job ends at `finish_task`."
     ),
     tools=[search_flights, book_flight],
+    before_tool_callback=_circuit_breaker,
     disallow_transfer_to_parent=True,
     disallow_transfer_to_peers=True,
 )
@@ -286,7 +336,13 @@ flight_booker = Agent(
 
 root_agent = Agent(
     name="level_3b_agent",
-    model="gemini-2.5-flash",
+    # Coordinator uses Pro for reliable PlanReActPlanner format adherence.
+    # Flash-2.5 was previously here; in Vertex deploys it cycled through
+    # the planner's plan→reason→final-answer state machine without
+    # terminating (hit a runaway loop in playground 2026-04-25, deleted
+    # after ~120 iterations). Specialists stay on flash — they have
+    # narrow tasks and don't run a planner.
+    model="gemini-3.1-pro-preview",
     description=(
         "Travel coordinator that delegates weather lookups to a"
         " single_turn specialist and flight booking to a task specialist"
@@ -338,4 +394,5 @@ root_agent = Agent(
         " specialists. They own the tools."
     ),
     sub_agents=[weather_checker, flight_booker],
+    before_tool_callback=_circuit_breaker,
 )
