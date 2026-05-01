@@ -109,7 +109,6 @@ from google.adk.agents.callback_context import CallbackContext
 from google.adk.code_executors.built_in_code_executor import BuiltInCodeExecutor
 from google.adk.planners.built_in_planner import BuiltInPlanner
 from google.adk.planners.plan_re_act_planner import PlanReActPlanner
-from google.adk.tools.mcp_tool import McpToolset, StreamableHTTPConnectionParams
 from google.genai import types
 from pydantic import BaseModel
 from pydantic import Field
@@ -117,52 +116,24 @@ from pydantic import Field
 from google.adk.tools import FunctionTool
 
 from .creator_tools import create_specialist
+from .gahmen_tools import GAHMEN_TOOLS
 from .registry import hydrate_capabilities
 from .remote_tools import consult_level_1
 
 
-# --- Optional Singapore-government MCP toolset (gahmen-mcp) ---------------
-# Same Smithery-hosted MCP server attached to the NBS swarm's Strategist.
-# Exposes data.gov.sg + SingStat tables. Conditional on SMITHERY_API_KEY:
-# in deploys without the env var the data fetcher runs google_search-only.
-# Attached to `data_fetcher_agent` (NOT `analyst_agent`, which uses
-# `BuiltInCodeExecutor` — Gemini's built-in + function-tool mutex would
-# conflict). data_fetcher_agent already has `bypass_multi_tools_limit=True`
-# so adding more function tools is friction-free.
+# --- Singapore-government data tools (gahmen-mcp via Smithery) ------------
+# W9.3 (2026-05-01): switched from McpToolset to plain FunctionTool wrappers.
+# Root cause of W9.2 failure: Smithery uses ?api_key=<KEY> query-param auth,
+# not Authorization: Bearer header. McpToolset's silent 401 left the agent's
+# tools_dict empty so the LLM tried to call gahmen_* tools that the framework
+# couldn't dispatch. FunctionTool wrappers in level_4_agent/gahmen_tools.py
+# call Smithery's JSON-RPC endpoint directly and return text — predictable,
+# no MCP session lifecycle, no auth scheme drama.
 #
-# Excluded tools: datagovsg_initiate_download / datagovsg_poll_download
-# (async server-side jobs that don't fit a single-turn fetcher).
+# GAHMEN_TOOLS is an empty list when SMITHERY_API_KEY is unset (graceful
+# degradation: data_fetcher runs consult_level_1-only).
 
 _SMITHERY_API_KEY = os.environ.get("SMITHERY_API_KEY", "")
-_SMITHERY_GAHMEN_URL = os.environ.get(
-    "SMITHERY_GAHMEN_URL",
-    "https://server.smithery.ai/aniruddha-adhikary/gahmen-mcp",
-)
-_GAHMEN_TOOL_FILTER = [
-    "datagovsg_list_collections",
-    "datagovsg_get_collection",
-    "datagovsg_list_datasets",
-    "datagovsg_get_dataset_metadata",
-    "datagovsg_search_dataset",
-    "singstat_search_resources",
-    "singstat_get_metadata",
-    "singstat_get_table_data",
-]
-
-if _SMITHERY_API_KEY:
-    gahmen_toolset = McpToolset(
-        connection_params=StreamableHTTPConnectionParams(
-            url=_SMITHERY_GAHMEN_URL,
-            headers={"Authorization": f"Bearer {_SMITHERY_API_KEY}"},
-        ),
-        tool_filter=_GAHMEN_TOOL_FILTER,
-        # Prefix ⇒ tools surface as `gahmen_singstat_*` / `gahmen_datagovsg_*`.
-        # Same prefix the swarm bot's Telegram anchor uses to render visible
-        # tool calls. Future MCP additions won't collide with this namespace.
-        tool_name_prefix="gahmen",
-    )
-else:
-    gahmen_toolset = None
 
 
 # ---------------------------------------------------------------------------
@@ -270,18 +241,14 @@ class Brief(BaseModel):
 # through consult_level_1, paying one A2A roundtrip (~5-10s) for each
 # search. That's the trade-off of demonstrating delegation: slower than
 # inline google_search, but architecturally cleaner.
-_data_fetcher_tools: list = [
-    FunctionTool(consult_level_1),
-]
-if gahmen_toolset is not None:
-    _data_fetcher_tools.append(gahmen_toolset)
+_data_fetcher_tools: list = [FunctionTool(consult_level_1), *GAHMEN_TOOLS]
 
 
 # Build the data_fetcher instruction conditionally on whether gahmen
 # tools are actually wired in. This prevents the LLM from hallucinating
 # gahmen tool calls when SMITHERY_API_KEY is unset — the model can only
 # call tools the instruction names. Same content, two variants.
-if gahmen_toolset is not None:
+if GAHMEN_TOOLS:
     _data_fetcher_instruction = (
         "You are a business-data research specialist. You have NO"
         " built-in search of your own. You acquire data only via two"
@@ -442,6 +409,19 @@ Hard rules for the chart cell:
 - Stateful across turns: do not re-initialise variables or re-load data.
 - Pre-imported: io, math, re, matplotlib.pyplot as plt, numpy as np, pandas as pd, scipy.
 - Do NOT run `pip install`.
+
+# After EVERY chart — REQUIRED chart description (W9.3)
+
+After every chart you produce, write a one-paragraph description of what
+the chart shows, leading with the headline finding. Format as:
+
+  CHART DESCRIPTION: <one sentence saying what the chart shows>.
+  Key data points: <list 3-5 specific numbers from the chart>.
+
+The coordinator quotes this description in the final brief, since the
+chart artifact itself does not propagate through A2A responses to the
+calling agent. The text description IS the chart for A2A consumers.
+Without this line, the brief will reference an invisible chart.
 """,
     code_executor=BuiltInCodeExecutor(),
     # Mandatory for the same reason as data_fetcher_agent — except here
@@ -457,22 +437,51 @@ report_writer_agent = Agent(
     # us-central1 + Pro 2.5 (W9.2 — all A2A sub-agents on Pro per Simon 2026-05-01).
     model="gemini-2.5-pro",
     description=(
-        "Formats accumulated findings into a structured BI brief."
+        "Formats accumulated findings into a Markdown BI brief."
         " Output is the final answer — do not re-paraphrase."
     ),
     mode="single_turn",
     input_schema=WriterInput,
-    # SAFE to set output_schema here: this agent has no built-in tools,
-    # so set_model_response can be injected without conflict. Demonstrates
-    # the v2 typed-output contract for terminal nodes.
-    output_schema=Brief,
+    # W9.3 (2026-05-01): dropped output_schema=Brief. Same fix as
+    # a2a_orchestrator's writer_agent: structured-output forced JSON
+    # serialization that the A2A response packaged as a non-text part,
+    # surfacing as [empty] to the calling orchestrator's
+    # extract_a2a_text. Markdown text is what the orchestrator (and the
+    # bot's downstream renderer) expects. The Brief class above is kept
+    # as a documentation contract for what fields the writer produces;
+    # actual enforcement is now via the instruction's "use these EXACT
+    # Markdown headings" rule below.
     instruction=(
-        "Synthesise a Brief from the fetcher_findings (raw facts) and"
-        " analyst_findings (numeric summaries) for the topic. Quote"
-        " analyst numbers VERBATIM — do not round, re-format, or"
-        " re-interpret them. Weave fetcher source domains inline in the"
-        " analysis. Lead with the most important finding in"
-        " executive_summary."
+        "Synthesise a Markdown brief from the fetcher_findings (raw "
+        "facts) and analyst_findings (numeric summaries + chart "
+        "descriptions) for the topic. Use these EXACT Markdown "
+        "headings, in this order:\n\n"
+        "# {Concise Title — describes the question's topic}\n\n"
+        "## Executive Summary\n\n"
+        "[1-2 paragraph plain-English answer. Lead with the most "
+        "important finding. If data is incomplete, state that upfront.]\n\n"
+        "## Key Metrics\n\n"
+        "- Bullet list of headline numbers, quoted VERBATIM from "
+        "analyst_findings. Do not round or re-interpret.\n\n"
+        "## Analysis\n\n"
+        "[2-3 paragraph synthesis. Inline source attribution "
+        "throughout (e.g., 'According to SingStat (table M015711), ...' "
+        "or 'According to bloomberg.com (via Level 1), ...'). If a "
+        "chart description appears in analyst_findings, weave it into "
+        "this section explicitly: 'The chart shows ...'.]\n\n"
+        "## Sources\n\n"
+        "- Bullet list of sources cited inline. Include both gahmen / "
+        "SingStat / data.gov.sg references AND any external domains.\n\n"
+        "## Confidence and Gaps\n\n"
+        "[Where the brief is most/least confident. CALL OUT explicitly "
+        "any consult that returned [error] / [skip] / [empty] in the "
+        "fetcher_findings. Do not pretend a failed lookup succeeded.]\n\n"
+        "Rules:\n"
+        "1. Quote analyst numbers VERBATIM. Do not round, re-format, or "
+        "re-interpret.\n"
+        "2. Output ONLY the Markdown report. No preamble ('Here is your "
+        "brief:'), no JSON, no commentary. The Markdown above IS the "
+        "complete final response."
     ),
     # No built-in tools, so transfer_to_agent injection wouldn't
     # conflict — but consistency: terminal sub-agents shouldn't

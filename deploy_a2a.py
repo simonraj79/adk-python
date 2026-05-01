@@ -47,6 +47,10 @@ import os
 import vertexai
 from a2a.types import AgentSkill
 from google.adk.a2a.executor.a2a_agent_executor import A2aAgentExecutor
+from google.adk.a2a.executor.config import A2aAgentExecutorConfig
+from google.adk.a2a.executor.interceptors.include_artifacts_in_a2a_event import (
+    include_artifacts_in_a2a_event_interceptor,
+)
 from google.adk.artifacts import InMemoryArtifactService
 from google.adk.memory import InMemoryMemoryService
 from google.adk.runners import Runner
@@ -97,7 +101,19 @@ def _executor_builder(root_agent):
             artifact_service=InMemoryArtifactService(),
             memory_service=InMemoryMemoryService(),
         )
-        return A2aAgentExecutor(runner=runner)  # keyword-only kwarg
+        # W9.3 (2026-05-01): register the include_artifacts interceptor so
+        # session artifacts produced by BuiltInCodeExecutor (matplotlib charts
+        # from chart_agent / analyst_agent) get packaged into the A2A
+        # response's TaskArtifactUpdateEvents — visible to A2A callers as
+        # FileParts in Task.artifacts. Without this, charts live and die in
+        # the engine's session and never reach the orchestrator/bot.
+        # Default config has execute_interceptors=None; we explicitly set
+        # the artifact passthrough one. Source: ADK 2.0
+        # google/adk/a2a/executor/interceptors/include_artifacts_in_a2a_event.py.
+        config = A2aAgentExecutorConfig(
+            execute_interceptors=[include_artifacts_in_a2a_event_interceptor],
+        )
+        return A2aAgentExecutor(runner=runner, config=config)
     return _build
 
 
