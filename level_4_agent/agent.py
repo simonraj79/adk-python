@@ -9,7 +9,11 @@ session.
 
 Fixed team
 ----------
-- `data_fetcher_agent`  — web search via the `google_search` built-in.
+- `data_fetcher_agent`  — TWO inter-system patterns: A2A peer
+                          consultation (consult_level_1) + MCP (gahmen
+                          tools for SG-government data). No built-in
+                          search — all web data comes through Level 1
+                          via the A2A protocol's on_message_send.
 - `analyst_agent`       — pandas/matplotlib via `BuiltInCodeExecutor`.
 - `report_writer_agent` — formats accumulated findings into a BI brief.
 
@@ -97,6 +101,7 @@ Sample queries to try
 
 from __future__ import annotations
 
+import os
 from typing import Literal
 
 from google.adk import Agent
@@ -104,14 +109,60 @@ from google.adk.agents.callback_context import CallbackContext
 from google.adk.code_executors.built_in_code_executor import BuiltInCodeExecutor
 from google.adk.planners.built_in_planner import BuiltInPlanner
 from google.adk.planners.plan_re_act_planner import PlanReActPlanner
-from google.adk.tools.google_search_tool import GoogleSearchTool
-from google.adk.tools.load_web_page import load_web_page
+from google.adk.tools.mcp_tool import McpToolset, StreamableHTTPConnectionParams
 from google.genai import types
 from pydantic import BaseModel
 from pydantic import Field
 
+from google.adk.tools import FunctionTool
+
 from .creator_tools import create_specialist
 from .registry import hydrate_capabilities
+from .remote_tools import consult_level_1
+
+
+# --- Optional Singapore-government MCP toolset (gahmen-mcp) ---------------
+# Same Smithery-hosted MCP server attached to the NBS swarm's Strategist.
+# Exposes data.gov.sg + SingStat tables. Conditional on SMITHERY_API_KEY:
+# in deploys without the env var the data fetcher runs google_search-only.
+# Attached to `data_fetcher_agent` (NOT `analyst_agent`, which uses
+# `BuiltInCodeExecutor` — Gemini's built-in + function-tool mutex would
+# conflict). data_fetcher_agent already has `bypass_multi_tools_limit=True`
+# so adding more function tools is friction-free.
+#
+# Excluded tools: datagovsg_initiate_download / datagovsg_poll_download
+# (async server-side jobs that don't fit a single-turn fetcher).
+
+_SMITHERY_API_KEY = os.environ.get("SMITHERY_API_KEY", "")
+_SMITHERY_GAHMEN_URL = os.environ.get(
+    "SMITHERY_GAHMEN_URL",
+    "https://server.smithery.ai/aniruddha-adhikary/gahmen-mcp",
+)
+_GAHMEN_TOOL_FILTER = [
+    "datagovsg_list_collections",
+    "datagovsg_get_collection",
+    "datagovsg_list_datasets",
+    "datagovsg_get_dataset_metadata",
+    "datagovsg_search_dataset",
+    "singstat_search_resources",
+    "singstat_get_metadata",
+    "singstat_get_table_data",
+]
+
+if _SMITHERY_API_KEY:
+    gahmen_toolset = McpToolset(
+        connection_params=StreamableHTTPConnectionParams(
+            url=_SMITHERY_GAHMEN_URL,
+            headers={"Authorization": f"Bearer {_SMITHERY_API_KEY}"},
+        ),
+        tool_filter=_GAHMEN_TOOL_FILTER,
+        # Prefix ⇒ tools surface as `gahmen_singstat_*` / `gahmen_datagovsg_*`.
+        # Same prefix the swarm bot's Telegram anchor uses to render visible
+        # tool calls. Future MCP additions won't collide with this namespace.
+        tool_name_prefix="gahmen",
+    )
+else:
+    gahmen_toolset = None
 
 
 # ---------------------------------------------------------------------------
@@ -199,44 +250,125 @@ class Brief(BaseModel):
 # ---------------------------------------------------------------------------
 
 
+# data_fetcher_agent demonstrates TWO ADK 2.0 inter-system patterns and
+# nothing else — by design, this agent has NO built-in data tools. Every
+# external lookup goes through either:
+#   1. A2A peer consultation (consult_level_1) — delegates general web
+#      search to a separately deployed reasoning engine (Level 1, which
+#      itself fronts google_search) via the A2A protocol's
+#      `on_message_send` operation.
+#   2. MCP integration (gahmen_*) — Singapore-government data via the
+#      Smithery-hosted gahmen MCP server, conditionally wired when
+#      SMITHERY_API_KEY is set.
+# Both surface as function tools to Gemini's tool-call layer; the
+# transport differences (aiplatform.googleapis.com for A2A, Smithery
+# for MCP) are invisible to the LLM. No google_search built-in, no
+# load_web_page — keeping the surface minimal so the two-pattern
+# pedagogy is unambiguous.
+#
+# Removing google_search means: ALL general web research (non-SG) flows
+# through consult_level_1, paying one A2A roundtrip (~5-10s) for each
+# search. That's the trade-off of demonstrating delegation: slower than
+# inline google_search, but architecturally cleaner.
+_data_fetcher_tools: list = [
+    FunctionTool(consult_level_1),
+]
+if gahmen_toolset is not None:
+    _data_fetcher_tools.append(gahmen_toolset)
+
+
+# Build the data_fetcher instruction conditionally on whether gahmen
+# tools are actually wired in. This prevents the LLM from hallucinating
+# gahmen tool calls when SMITHERY_API_KEY is unset — the model can only
+# call tools the instruction names. Same content, two variants.
+if gahmen_toolset is not None:
+    _data_fetcher_instruction = (
+        "You are a business-data research specialist. You have NO"
+        " built-in search of your own. You acquire data only via two"
+        " inter-system protocols:\n"
+        "\n"
+        "  A. gahmen_* tools (MCP — Singapore government data). PREFER"
+        " THESE for ANY query about Singapore (economy, demographics,"
+        " trade, industry, manpower, transport, housing, healthcare,"
+        " education).\n"
+        "       - gahmen_singstat_search_resources(keyword): find a"
+        " SingStat table by topic.\n"
+        "       - gahmen_singstat_get_table_data(resource_id, ...): pull"
+        " rows once you know the table id.\n"
+        "       - gahmen_datagovsg_search_dataset(query): find a"
+        " data.gov.sg dataset.\n"
+        "       - gahmen_datagovsg_get_dataset_metadata(id): inspect a"
+        " dataset's structure.\n"
+        "       Workflow for SG queries: search for the right table"
+        " FIRST, then fetch the rows. Cite as 'According to SingStat"
+        " (table M015711), ...' or 'According to data.gov.sg (<name>),"
+        " ...'.\n"
+        "\n"
+        "  B. consult_level_1(query) — A2A peer agent. Delegate any"
+        " non-SG question that needs web research. Level 1 is a"
+        " separately deployed reasoning engine that fronts"
+        " google_search; it returns a natural-language answer with"
+        " inline source attribution. Phrase your query as a complete"
+        " question, not as raw keywords (e.g., 'What was Apple's Q4"
+        " 2025 revenue?', NOT 'Apple Q4 2025 revenue').\n"
+        "\n"
+        "DECISION TREE:\n"
+        "  1. Singapore-specific entity in query (MAS, MOM, HDB, EDB,"
+        " SingStat, IRAS, Changi, Jurong, NTU, NUS, etc.) →"
+        " gahmen_* tools.\n"
+        "  2. Anything else → consult_level_1.\n"
+        "\n"
+        "Return raw facts as plain text with source attributions inline."
+        " Do not compute or interpret — that is the analyst's job."
+    )
+else:
+    # Fallback when MCP isn't wired (no SMITHERY_API_KEY set). DON'T
+    # mention gahmen tools at all — the LLM can't call what it doesn't
+    # see. consult_level_1 becomes the only data path; SG queries lose
+    # the regional-data preference but still resolve via Level 1's
+    # google_search.
+    _data_fetcher_instruction = (
+        "You are a business-data research specialist. You have ONE"
+        " tool: consult_level_1(query). Level 1 is a separately"
+        " deployed peer agent (A2A protocol) that fronts google_search"
+        " and returns a natural-language answer with inline source"
+        " attribution. Use this for ALL data queries.\n"
+        "\n"
+        "Phrase your query as a complete question, not raw keywords"
+        " (e.g., 'What was Singapore's resident unemployment rate in"
+        " Q4 2025?', NOT 'SG unemployment rate Q4 2025'). Level 1 will"
+        " do the searching; you collect its reply.\n"
+        "\n"
+        "NOTE: this revision is missing the gahmen MCP toolset"
+        " (Singapore-government data via Smithery). For SG queries you"
+        " can still use consult_level_1, but the answer comes from"
+        " general web search, not authoritative SingStat /"
+        " data.gov.sg tables. Mention this limitation in your reply"
+        " when the user asks a Singapore-specific data question.\n"
+        "\n"
+        "Return raw facts as plain text with source attributions inline."
+        " Do not compute or interpret — that is the analyst's job."
+    )
+
+
 data_fetcher_agent = Agent(
     name="data_fetcher_agent",
     model="gemini-2.5-flash",
     description=(
-        "Fetches public business data via Google Search and direct"
-        " URL fetching: company revenues, financial filings, market"
-        " data, industry benchmarks, news. Returns text facts with"
-        " source domains. Use load_web_page when the user provides a"
-        " specific URL to extract content from."
+        "Fetches public business data via two inter-system protocols:"
+        " A2A peer consultation (Level 1 over on_message_send) for"
+        " general web research, and MCP (gahmen) for authoritative"
+        " Singapore-government datasets. No built-in search."
     ),
     mode="single_turn",
     input_schema=FetcherInput,
-    # NO output_schema: would inject set_model_response and conflict with
-    # built-in tools on Gemini API. See top docstring §4.
-    instruction=(
-        "You are a business-data research specialist. Two tools are"
-        " available:\n"
-        "  - google_search: search the web. Use for general data"
-        " lookups, recent news, market context.\n"
-        "  - load_web_page: fetch the text content of a specific URL."
-        " Use when the user provides a URL or you find a clearly"
-        " relevant link in a search result that warrants full-text"
-        " extraction (e.g., a 10-K filing, an earnings release).\n\n"
-        "Return raw facts as plain text with source domains cited"
-        " inline (e.g., 'According to bloomberg.com, ...'). Do not"
-        " compute or interpret — that is the analyst's job."
-    ),
-    # Two tools (one built-in, one function). With
-    # `bypass_multi_tools_limit=True`, ADK's auto-swap
-    # (`llm_agent.py:151-157`) detects the multi-tool case and replaces
-    # the GoogleSearchTool built-in with GoogleSearchAgentTool (a
-    # function-tool wrapper). Final shape sent to Gemini: two function
-    # tools, no built-in conflict. Same trick used in the runtime
-    # allowlist in `safety.py`.
-    tools=[
-        GoogleSearchTool(bypass_multi_tools_limit=True),
-        load_web_page,
-    ],
+    # NO output_schema: kept off for consistency with original design;
+    # also defensible if MCP tools ever emit non-text parts.
+    instruction=_data_fetcher_instruction,
+    # Tools list = A2A function tool + 0-or-N MCP function tools. All
+    # function tools, no built-ins, so no `bypass_multi_tools_limit`
+    # needed and no transfer_to_agent injection conflict.
+    tools=_data_fetcher_tools,
     # Mandatory: prevents the auto-injected transfer_to_agent function
     # tool that would conflict with built-in tool surfaces. v2
     # migration gotcha #2 — see AGENTS.md.
@@ -355,23 +487,42 @@ report_writer_agent = Agent(
 
 agent_creator = Agent(
     name="agent_creator",
-    # Gemini 3.1 Pro for the creator specifically — the multi-turn
-    # HITL flow (draft → wait for confirmation → call
-    # create_specialist → call finish_task) is the kind of *chained*
-    # tool-decision where Flash exhibits empty-STOP responses
-    # (observed: "yes proceed" → 0 output tokens with
-    # finish_reason=STOP). Gemini 3.1 Pro is described in the model
-    # card (https://ai.google.dev/gemini-api/docs/gemini-3) as "our
-    # most intelligent model… state-of-the-art reasoning" and it
-    # supports compositional function calling (parallel + chained),
-    # which maps directly onto this agent's create_specialist →
-    # finish_task sequence. Cost is higher than Flash but creator is
-    # invoked rarely (only when the team has a capability gap), so
-    # the absolute spend stays small. Do NOT use Pro on
-    # `analyst_agent` — gotcha #21 (Pro + BuiltInCodeExecutor under
-    # AFC can hang 6+ min); Flash + BuiltInPlanner is the proven
-    # combination there.
-    model="gemini-3.1-pro-preview",
+    # Was `gemini-3.1-pro-preview` (preview alias 404s in regional Agent
+    # Engine deploys — see DEPLOYMENT_NOTES.md "Phase 7" gotcha #6).
+    # Then briefly `gemini-2.5-pro`, but Pro is ALSO unavailable in
+    # `asia-southeast1` (DEPLOYMENT_NOTES.md line 1007: regional has
+    # `gemini-2.5-flash` only). Two paths existed: deploy to us-central1
+    # to keep Pro, OR downgrade to Flash and compensate with native
+    # thinking. Chose Flash + thinking so Level 4 can stay co-located
+    # with Levels 1/2/2b/3 in `asia-southeast1` (no cross-region cost).
+    #
+    # Why this works for the creator's empty-STOP failure mode:
+    # The original comment (now superseded) noted Flash exhibited
+    # `finish_reason=STOP` with 0 output tokens after "yes proceed" on
+    # the chained create_specialist → finish_task sequence. Pro's
+    # advantage was its compositional-function-calling capacity. The
+    # model-side substitute on Flash is BuiltInPlanner with
+    # ThinkingConfig(include_thoughts=True) — the same combination
+    # `analyst_agent` uses (and the existing analyst comment line ~252
+    # already calls out as "the proven combination" for Flash on
+    # tool-heavy work). Native thinking forces the model to reason
+    # about whether to emit a tool call or text BEFORE producing
+    # output, which directly addresses the conflated-decision empty
+    # STOP. Trade-off: ~30-50% more latency on creator turns vs. Pro,
+    # but creator runs rarely so absolute cost stays low.
+    model="gemini-2.5-flash",
+    # Native thinking on Flash. Same shape as analyst_agent — confirmed
+    # working pattern. Don't replace with PlanReActPlanner: that's a
+    # prompt-level text scaffold (forces the LLM to TYPE planning
+    # sections), whereas BuiltInPlanner activates Gemini's native
+    # thinking compute (separate token budget, runs BEFORE tool-choice
+    # is committed). For multi-turn HITL with chained tool calls,
+    # native thinking is the right primitive. Only one `planner` field
+    # is supported per LlmAgent; the two planners are mutually
+    # exclusive.
+    planner=BuiltInPlanner(
+        thinking_config=types.ThinkingConfig(include_thoughts=True)
+    ),
     description=(
         "Synthesises a new specialist agent when the BI team lacks a"
         " capability. Use when the user's request cannot be served by"
@@ -410,7 +561,7 @@ A spec with `tool_set: []` is allowed too — that creates a pure-LLM specialist
 2. Pick the MINIMAL set of tools the specialist needs. More tools = more decisions for its LLM. If google_search alone is enough, use just that.
 3. **Ask the user to confirm**: "I propose creating a specialist called X that does Y using tools Z. Shall I proceed?" Wait for an affirmative reply.
 4. On confirmation, call `create_specialist` with the spec.
-5. Call `finish_task` to hand control back to the coordinator with the new specialist's name and description as the result.
+5. IMMEDIATELY after `create_specialist` returns, call `finish_task` with the new specialist's name and description as the result. Do NOT pause, do NOT emit a "done" message and stop — the next action after a successful create_specialist is ALWAYS finish_task. These two tool calls are a chained pair.
 
 # Rules
 - Use ONLY tool names from the allowlist above (case-sensitive). Violations are rejected by `create_specialist`.
@@ -418,6 +569,9 @@ A spec with `tool_set: []` is allowed too — that creates a pure-LLM specialist
 - Never create a duplicate (the tool auto-dedupes by name).
 - Never create a specialist that duplicates the existing fixed team.
 - If the user says "no" or wants changes, revise the spec and ask again. Do not proceed without confirmation.
+
+# Anti-empty-STOP guard (Flash-specific, do NOT skip)
+After ANY tool returns, you MUST do exactly one of: (a) call the next tool in the workflow, (b) emit a question to the user (only at step 3), or (c) emit your final answer. Never return with empty content and no tool call. If you find yourself thinking "the work is done" after step 4 — that is the cue to call `finish_task` (step 5), NOT to stop. The model's native thinking is enabled to help you avoid this; use it.
 """,
     tools=[create_specialist],
     # mode='task' AND tools=[create_specialist] — the framework also

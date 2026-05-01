@@ -49,6 +49,13 @@ from google.adk.tools.google_search_tool import google_search
 
 root_agent = Agent(
     name="level_1_agent",
+    # Was `gemini-3.1-flash-lite-preview` (preview alias resolves only via
+    # GOOGLE_CLOUD_LOCATION=global). Switched to `gemini-2.5-flash` because
+    # Vertex Agent Engine deploys force-overwrite the location to the
+    # engine's region (templates/a2a.py:241-245) and the preview alias 404s
+    # in regional endpoints like asia-southeast1. `gemini-2.5-flash` works
+    # in both `global` and `asia-southeast1`, so the local `adk run` path
+    # is unaffected. See DEPLOYMENT_NOTES.md "Phase 7" for context.
     model="gemini-2.5-flash",
     description=(
         "A connected problem-solver that uses Google Search to answer"
